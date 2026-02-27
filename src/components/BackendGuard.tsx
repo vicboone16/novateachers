@@ -15,11 +15,14 @@ export const BackendGuard: React.FC<BackendGuardProps> = ({ children }) => {
 
   const checkHandshake = async () => {
     try {
+      console.log('[BackendGuard] Checking handshake...');
       const { data, error } = await supabase
         .from('app_handshake')
         .select('app_slug')
         .eq('id', 1)
         .single();
+
+      console.log('[BackendGuard] Response:', { data, error });
 
       if (error) throw error;
 
@@ -30,6 +33,7 @@ export const BackendGuard: React.FC<BackendGuardProps> = ({ children }) => {
         setErrorMsg('Unauthorized application. Invalid app_slug.');
       }
     } catch (err: any) {
+      console.error('[BackendGuard] Error:', err);
       setStatus('error');
       setErrorMsg(err?.message || 'Failed to verify application. Check Supabase connection.');
     }
