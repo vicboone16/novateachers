@@ -32,6 +32,8 @@ serve(async (req) => {
     const sectionInstructions: Record<string, string> = {
       present_levels:
         "Write a Present Levels of Academic Achievement and Functional Performance (PLAAFP) section. Summarize the student's current performance using the ABC data patterns. Include strengths and areas of concern.",
+      behavior_impact:
+        "Write a Behavior Impact Statement describing how the student's behavior affects their learning and the learning environment. Use the ABC data to identify patterns and provide specific examples.",
       goals:
         "Generate 2-3 measurable annual IEP goals with short-term objectives. Each goal must include: baseline, target, measurement method, and timeline. Goals should directly address behavior patterns found in the ABC data.",
       accommodations:
