@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,9 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
+import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Plus, Clock, TrendingUp } from 'lucide-react';
-import type { Client, ABCLog } from '@/lib/types';
+import { Plus, Clock, TrendingUp, ListChecks } from 'lucide-react';
+import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
 
 const TriggerTracker = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
@@ -23,6 +24,7 @@ const TriggerTracker = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [logs, setLogs] = useState<ABCLog[]>([]);
+  const [categories, setCategories] = useState<BehaviorCategory[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Fast-log fields
@@ -30,48 +32,39 @@ const TriggerTracker = () => {
   const [behavior, setBehavior] = useState('');
   const [consequence, setConsequence] = useState('');
   const [notes, setNotes] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedTrigger, setSelectedTrigger] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Category config fields
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDescription, setNewCategoryDescription] = useState('');
+  const [newCategoryTriggers, setNewCategoryTriggers] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
 
   useEffect(() => {
-    if (selectedClientId) loadLogs();
+    if (!selectedClientId) return;
+    loadLogs();
+    loadCategories();
+    setSelectedCategoryId('');
+    setSelectedTrigger('');
   }, [selectedClientId]);
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
 
     try {
-      if (isSoloMode) {
-        const { data } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('agency_id', currentWorkspace.agency_id)
-          .order('last_name');
-        setClients(normalizeClients(data));
-      } else {
-        // Two-step fetch to avoid relation-embed issues
-        const { data: accessRows } = await supabase
-          .from('user_client_access')
-          .select('client_id, can_collect_data')
-          .eq('user_id', user?.id)
-          .eq('can_collect_data', true);
-
-        const clientIds = (accessRows || []).map((r: any) => r.client_id).filter(Boolean);
-
-        if (clientIds.length === 0) {
-          setClients([]);
-          return;
-        }
-
-        let result = await supabase.from('students').select('*').in('id', clientIds).order('last_name');
-        if (result.error) {
-          result = await supabase.from('clients').select('*').in('id', clientIds).order('last_name');
-        }
-        setClients(normalizeClients(result.data));
-      }
+      const data = await fetchAccessibleClients({
+        currentWorkspace,
+        isSoloMode,
+        userId: user?.id,
+        permission: 'can_collect_data',
+      });
+      setClients(normalizeClients(data));
     } catch (err: any) {
       console.error('Failed to load clients for tracker:', err);
     }
@@ -90,21 +83,86 @@ const TriggerTracker = () => {
     setLoading(false);
   };
 
+  const loadCategories = async () => {
+    const { data, error } = await supabase
+      .from('behavior_categories')
+      .select('*')
+      .eq('client_id', selectedClientId)
+      .order('name');
+
+    if (error) {
+      toast({ title: 'Error loading categories', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    setCategories(data || []);
+  };
+
+  const handleAddCategory = async () => {
+    if (!selectedClientId || !newCategoryName.trim()) return;
+    setSavingCategory(true);
+
+    const parsedTriggers = Array.from(
+      new Set(
+        newCategoryTriggers
+          .split(',')
+          .map((trigger) => trigger.trim())
+          .filter(Boolean)
+      )
+    );
+
+    const { error } = await supabase.from('behavior_categories').insert({
+      client_id: selectedClientId,
+      name: newCategoryName.trim(),
+      description: newCategoryDescription.trim() || null,
+      triggers: parsedTriggers,
+    });
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setSavingCategory(false);
+      return;
+    }
+
+    setNewCategoryName('');
+    setNewCategoryDescription('');
+    setNewCategoryTriggers('');
+    toast({ title: 'Category saved' });
+    await loadCategories();
+    setSavingCategory(false);
+  };
+
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.id === selectedCategoryId) || null,
+    [categories, selectedCategoryId]
+  );
+
+  const selectedCategoryTriggers = selectedCategory?.triggers || [];
+
   const handleLog = async () => {
-    if (!selectedClientId || !antecedent.trim() || !behavior.trim() || !consequence.trim()) {
+    const effectiveAntecedent = antecedent.trim() || selectedTrigger.trim();
+
+    if (!selectedClientId || !effectiveAntecedent || !behavior.trim() || !consequence.trim()) {
       toast({ title: 'Please fill in A, B, and C fields', variant: 'destructive' });
       return;
     }
+
+    const notesParts = [notes.trim()];
+    if (selectedTrigger && antecedent.trim()) {
+      notesParts.push(`Trigger: ${selectedTrigger}`);
+    }
+
     setSaving(true);
 
     try {
       const { error } = await supabase.from('abc_logs').insert({
         client_id: selectedClientId,
         user_id: user?.id,
-        antecedent: antecedent.trim(),
+        antecedent: effectiveAntecedent,
         behavior: behavior.trim(),
         consequence: consequence.trim(),
-        notes: notes.trim() || null,
+        behavior_category: selectedCategory?.name || null,
+        notes: notesParts.filter(Boolean).join(' • ') || null,
         logged_at: new Date().toISOString(),
       });
 
@@ -115,6 +173,7 @@ const TriggerTracker = () => {
       setBehavior('');
       setConsequence('');
       setNotes('');
+      setSelectedTrigger('');
       loadLogs();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -176,6 +235,10 @@ const TriggerTracker = () => {
               <Plus className="h-3.5 w-3.5" />
               Fast Log
             </TabsTrigger>
+            <TabsTrigger value="categories" className="gap-1.5">
+              <ListChecks className="h-3.5 w-3.5" />
+              Categories
+            </TabsTrigger>
             <TabsTrigger value="history" className="gap-1.5">
               <Clock className="h-3.5 w-3.5" />
               History
@@ -192,6 +255,80 @@ const TriggerTracker = () => {
                 <CardTitle className="text-base">Quick ABC Entry</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
+                  <Label className="text-xs text-muted-foreground">Behavior setup (optional)</Label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Category</Label>
+                      <Select
+                        value={selectedCategoryId}
+                        onValueChange={(value) => {
+                          setSelectedCategoryId(value);
+                          setSelectedTrigger('');
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Trigger</Label>
+                      <Select
+                        value={selectedTrigger}
+                        onValueChange={(value) => {
+                          setSelectedTrigger(value);
+                          if (!antecedent.trim()) {
+                            setAntecedent(value);
+                          }
+                        }}
+                        disabled={selectedCategoryTriggers.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={selectedCategoryTriggers.length ? 'Pick a trigger' : 'No triggers set'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedCategoryTriggers.map((trigger) => (
+                            <SelectItem key={trigger} value={trigger}>
+                              {trigger}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {selectedCategoryTriggers.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedCategoryTriggers.map((trigger) => (
+                        <Button
+                          key={trigger}
+                          type="button"
+                          variant={selectedTrigger === trigger ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setSelectedTrigger(trigger);
+                            if (!antecedent.trim()) {
+                              setAntecedent(trigger);
+                            }
+                          }}
+                        >
+                          {trigger}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -242,6 +379,82 @@ const TriggerTracker = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="categories">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_1fr]">
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-base">Add Category</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label>Name</Label>
+                    <Input
+                      placeholder="e.g., Off-task behavior"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Description (optional)</Label>
+                    <Textarea
+                      placeholder="Describe this behavior category"
+                      value={newCategoryDescription}
+                      onChange={(e) => setNewCategoryDescription(e.target.value)}
+                      className="min-h-[90px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Triggers (comma-separated)</Label>
+                    <Input
+                      placeholder="Noise, transition, denied access"
+                      value={newCategoryTriggers}
+                      onChange={(e) => setNewCategoryTriggers(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={handleAddCategory} disabled={savingCategory} className="w-full">
+                    {savingCategory ? 'Saving…' : 'Save Category'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50">
+                <CardHeader>
+                  <CardTitle className="text-base">Current Categories</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {categories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No categories configured for this student yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {categories.map((category) => (
+                        <div key={category.id} className="rounded-md border border-border/60 p-3">
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{category.name}</p>
+                            <Badge variant="outline">{(category.triggers || []).length} triggers</Badge>
+                          </div>
+                          {category.description && (
+                            <p className="mb-2 text-xs text-muted-foreground">{category.description}</p>
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {(category.triggers || []).length > 0 ? (
+                              category.triggers?.map((trigger) => (
+                                <Badge key={trigger} variant="secondary" className="font-normal">
+                                  {trigger}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No triggers set</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="history">
             {loading ? (
               <div className="flex justify-center py-8">
@@ -262,6 +475,7 @@ const TriggerTracker = () => {
                         <span className="text-xs text-muted-foreground">
                           {new Date(log.logged_at).toLocaleString()}
                         </span>
+                        {log.behavior_category && <Badge variant="outline">{log.behavior_category}</Badge>}
                       </div>
                       <div className="grid gap-2 sm:grid-cols-3">
                         <div>

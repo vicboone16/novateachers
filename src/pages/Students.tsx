@@ -17,6 +17,7 @@ import {
 import { Plus, Search, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
+import { fetchAccessibleClients } from '@/lib/client-access';
 import type { Client } from '@/lib/types';
 
 const Students = () => {
@@ -41,46 +42,12 @@ const Students = () => {
     setLoading(true);
 
     try {
-      if (isSoloMode) {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('agency_id', currentWorkspace.agency_id)
-          .order('last_name');
-
-        if (error) throw error;
-        setClients(normalizeClients(data));
-      } else {
-        const { data: accessRows, error: accessError } = await supabase
-          .from('user_client_access')
-          .select('client_id')
-          .eq('user_id', user?.id);
-
-        if (accessError) throw accessError;
-
-        const clientIds = Array.from(new Set((accessRows || []).map((r: any) => r.client_id).filter(Boolean)));
-
-        if (clientIds.length === 0) {
-          setClients([]);
-        } else {
-          let recordsResult = await supabase
-            .from('students')
-            .select('*')
-            .in('id', clientIds)
-            .order('last_name');
-
-          if (recordsResult.error) {
-            recordsResult = await supabase
-              .from('clients')
-              .select('*')
-              .in('id', clientIds)
-              .order('last_name');
-          }
-
-          if (recordsResult.error) throw recordsResult.error;
-          setClients(normalizeClients(recordsResult.data));
-        }
-      }
+      const data = await fetchAccessibleClients({
+        currentWorkspace,
+        isSoloMode,
+        userId: user?.id,
+      });
+      setClients(normalizeClients(data));
     } catch (err: any) {
       console.error('Failed to load clients:', err);
       toast({ title: 'Error', description: err.message, variant: 'destructive' });

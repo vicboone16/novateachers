@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
+import { fetchAccessibleClients } from '@/lib/client-access';
 import { Plus, FileText, Save, Trash2 } from 'lucide-react';
 import type { Client, IEPDraft, IEPSection } from '@/lib/types';
 
@@ -54,34 +55,13 @@ const IEPWriter = () => {
     if (!currentWorkspace) return;
 
     try {
-      if (isSoloMode) {
-        const { data } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('agency_id', currentWorkspace.agency_id)
-          .order('last_name');
-        setClients(normalizeClients(data));
-      } else {
-        // Two-step fetch to avoid relation-embed issues
-        const { data: accessRows } = await supabase
-          .from('user_client_access')
-          .select('client_id, can_generate_reports')
-          .eq('user_id', user?.id)
-          .eq('can_generate_reports', true);
-
-        const clientIds = (accessRows || []).map((r: any) => r.client_id).filter(Boolean);
-
-        if (clientIds.length === 0) {
-          setClients([]);
-          return;
-        }
-
-        let result = await supabase.from('students').select('*').in('id', clientIds).order('last_name');
-        if (result.error) {
-          result = await supabase.from('clients').select('*').in('id', clientIds).order('last_name');
-        }
-        setClients(normalizeClients(result.data));
-      }
+      const data = await fetchAccessibleClients({
+        currentWorkspace,
+        isSoloMode,
+        userId: user?.id,
+        permission: 'can_generate_reports',
+      });
+      setClients(normalizeClients(data));
     } catch (err: any) {
       console.error('Failed to load clients for IEP:', err);
     }
