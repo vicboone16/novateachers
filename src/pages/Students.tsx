@@ -53,11 +53,11 @@ const Students = () => {
         // Connected mode: use user_client_access view
         const { data, error } = await supabase
           .from('user_client_access')
-          .select('*, client:clients(*)')
+          .select('*, student:students(*)')
           .eq('user_id', user?.id);
 
         if (error) throw error;
-        setClients((data || []).map((d: any) => d.client));
+        setClients((data || []).map((d: any) => d.student));
       }
     } catch (err: any) {
       console.error('Failed to load clients:', err);
