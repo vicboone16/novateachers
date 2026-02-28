@@ -1,1 +1,4 @@
 project_id = "boggwdoewqfhgbaylzbm"
+
+[functions.generate-iep-goals]
+verify_jwt = false
