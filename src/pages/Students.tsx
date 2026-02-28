@@ -50,22 +50,38 @@ const Students = () => {
         if (error) throw error;
         setClients(data || []);
       } else {
-        // Connected mode: try clients FK first, fall back to students
-        let result = await supabase
+        // Connected mode: fetch allowed IDs, then fetch records (supports both clients/students backends)
+        const { data: accessRows, error: accessError } = await supabase
           .from('user_client_access')
-          .select('*, client:clients(*)')
+          .select('client_id')
           .eq('user_id', user?.id);
 
-        if (result.error) {
-          // Fallback if clients view/table doesn't exist
-          result = await supabase
-            .from('user_client_access')
-            .select('*, client:students(*)')
-            .eq('user_id', user?.id);
-        }
+        if (accessError) throw accessError;
 
-        if (result.error) throw result.error;
-        setClients((result.data || []).map((d: any) => d.client));
+        const clientIds = Array.from(new Set((accessRows || []).map((r: any) => r.client_id).filter(Boolean)));
+
+        if (clientIds.length === 0) {
+          setClients([]);
+        } else {
+          let recordsResult = await supabase
+            .from('clients')
+            .select('*')
+            .in('id', clientIds)
+            .eq('agency_id', currentWorkspace.agency_id)
+            .order('last_name');
+
+          if (recordsResult.error) {
+            recordsResult = await supabase
+              .from('students')
+              .select('*')
+              .in('id', clientIds)
+              .eq('agency_id', currentWorkspace.agency_id)
+              .order('last_name');
+          }
+
+          if (recordsResult.error) throw recordsResult.error;
+          setClients((recordsResult.data as Client[]) || []);
+        }
       }
     } catch (err: any) {
       console.error('Failed to load clients:', err);
