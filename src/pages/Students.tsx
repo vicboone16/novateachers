@@ -50,14 +50,22 @@ const Students = () => {
         if (error) throw error;
         setClients(data || []);
       } else {
-        // Connected mode: use user_client_access view
-        const { data, error } = await supabase
+        // Connected mode: try clients FK first, fall back to students
+        let result = await supabase
           .from('user_client_access')
-          .select('*, student:students(*)')
+          .select('*, client:clients(*)')
           .eq('user_id', user?.id);
 
-        if (error) throw error;
-        setClients((data || []).map((d: any) => d.student));
+        if (result.error) {
+          // Fallback if clients view/table doesn't exist
+          result = await supabase
+            .from('user_client_access')
+            .select('*, client:students(*)')
+            .eq('user_id', user?.id);
+        }
+
+        if (result.error) throw result.error;
+        setClients((result.data || []).map((d: any) => d.client));
       }
     } catch (err: any) {
       console.error('Failed to load clients:', err);
