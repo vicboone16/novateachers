@@ -17,7 +17,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, FileText, Save, Trash2, GripVertical } from 'lucide-react';
+import { normalizeClients, displayName } from '@/lib/student-utils';
+import { Plus, FileText, Save, Trash2 } from 'lucide-react';
 import type { Client, IEPDraft, IEPSection } from '@/lib/types';
 
 const SECTION_TEMPLATES: { type: IEPSection['type']; title: string; defaultContent: string }[] = [
@@ -52,20 +53,37 @@ const IEPWriter = () => {
   const loadClients = async () => {
     if (!currentWorkspace) return;
 
-    if (isSoloMode) {
-      const { data } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('agency_id', currentWorkspace.agency_id)
-        .order('last_name');
-      setClients(data || []);
-    } else {
-      const { data } = await supabase
-        .from('user_client_access')
-        .select('*, client:clients(*)')
-        .eq('user_id', user?.id)
-        .eq('can_generate_reports', true);
-      setClients((data || []).map((d: any) => d.client));
+    try {
+      if (isSoloMode) {
+        const { data } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('agency_id', currentWorkspace.agency_id)
+          .order('last_name');
+        setClients(normalizeClients(data));
+      } else {
+        // Two-step fetch to avoid relation-embed issues
+        const { data: accessRows } = await supabase
+          .from('user_client_access')
+          .select('client_id, can_generate_reports')
+          .eq('user_id', user?.id)
+          .eq('can_generate_reports', true);
+
+        const clientIds = (accessRows || []).map((r: any) => r.client_id).filter(Boolean);
+
+        if (clientIds.length === 0) {
+          setClients([]);
+          return;
+        }
+
+        let result = await supabase.from('students').select('*').in('id', clientIds).order('last_name');
+        if (result.error) {
+          result = await supabase.from('clients').select('*').in('id', clientIds).order('last_name');
+        }
+        setClients(normalizeClients(result.data));
+      }
+    } catch (err: any) {
+      console.error('Failed to load clients for IEP:', err);
     }
   };
 
@@ -194,7 +212,6 @@ const IEPWriter = () => {
         <p className="text-sm text-muted-foreground">Create and manage IEP documents</p>
       </div>
 
-      {/* Student selector */}
       <div className="max-w-sm">
         <Label className="mb-2 block text-xs text-muted-foreground">Select Student</Label>
         <Select value={selectedClientId} onValueChange={setSelectedClientId}>
@@ -204,7 +221,7 @@ const IEPWriter = () => {
           <SelectContent>
             {clients.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.first_name} {c.last_name}
+                {displayName(c)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -283,7 +300,6 @@ const IEPWriter = () => {
         </div>
       )}
 
-      {/* Active draft editor */}
       {activeDraft && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">

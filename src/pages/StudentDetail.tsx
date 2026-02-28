@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Activity, FileText, User } from 'lucide-react';
+import { normalizeClient, displayName } from '@/lib/student-utils';
 import type { Client } from '@/lib/types';
 
 const StudentDetail = () => {
@@ -21,13 +22,16 @@ const StudentDetail = () => {
 
   const loadClient = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', id)
-      .single();
 
-    if (!error) setClient(data);
+    // Try students table first, fallback to clients
+    let result = await supabase.from('students').select('*').eq('id', id).single();
+    if (result.error) {
+      result = await supabase.from('clients').select('*').eq('id', id).single();
+    }
+
+    if (!result.error && result.data) {
+      setClient(normalizeClient(result.data));
+    }
     setLoading(false);
   };
 
@@ -56,7 +60,7 @@ const StudentDetail = () => {
         </Button>
         <div>
           <h2 className="text-2xl font-semibold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            {client.first_name} {client.last_name}
+            {displayName(client)}
           </h2>
           {client.grade && <p className="text-sm text-muted-foreground">Grade {client.grade}</p>}
         </div>
