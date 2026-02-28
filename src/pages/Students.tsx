@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Search, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Client, ClientAccess } from '@/lib/types';
+import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
+import type { Client } from '@/lib/types';
 
 const Students = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
@@ -48,9 +49,8 @@ const Students = () => {
           .order('last_name');
 
         if (error) throw error;
-        setClients(data || []);
+        setClients(normalizeClients(data));
       } else {
-        // Connected mode: fetch allowed IDs, then fetch student records
         const { data: accessRows, error: accessError } = await supabase
           .from('user_client_access')
           .select('client_id')
@@ -63,7 +63,6 @@ const Students = () => {
         if (clientIds.length === 0) {
           setClients([]);
         } else {
-          // Try students table first (primary), fallback to clients view
           let recordsResult = await supabase
             .from('students')
             .select('*')
@@ -79,7 +78,7 @@ const Students = () => {
           }
 
           if (recordsResult.error) throw recordsResult.error;
-          setClients((recordsResult.data as Client[]) || []);
+          setClients(normalizeClients(recordsResult.data));
         }
       }
     } catch (err: any) {
@@ -118,7 +117,8 @@ const Students = () => {
   const filtered = clients.filter((c) => {
     if (!c) return false;
     const q = search.toLowerCase();
-    return c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q);
+    const name = displayName(c).toLowerCase();
+    return name.includes(q);
   });
 
   return (
@@ -200,12 +200,12 @@ const Students = () => {
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <span className="text-sm font-semibold">
-                    {client.first_name[0]}{client.last_name[0]}
+                    {displayInitials(client)}
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">
-                    {client.first_name} {client.last_name}
+                    {displayName(client)}
                   </p>
                   {client.grade && (
                     <p className="text-xs text-muted-foreground">{client.grade}</p>

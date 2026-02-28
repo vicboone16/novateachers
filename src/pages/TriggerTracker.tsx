@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { normalizeClients, displayName } from '@/lib/student-utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Plus, Clock, TrendingUp } from 'lucide-react';
 import type { Client, ABCLog } from '@/lib/types';
@@ -42,20 +43,37 @@ const TriggerTracker = () => {
   const loadClients = async () => {
     if (!currentWorkspace) return;
 
-    if (isSoloMode) {
-      const { data } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('agency_id', currentWorkspace.agency_id)
-        .order('last_name');
-      setClients(data || []);
-    } else {
-      const { data } = await supabase
-        .from('user_client_access')
-        .select('*, client:clients(*)')
-        .eq('user_id', user?.id)
-        .eq('can_collect_data', true);
-      setClients((data || []).map((d: any) => d.client));
+    try {
+      if (isSoloMode) {
+        const { data } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('agency_id', currentWorkspace.agency_id)
+          .order('last_name');
+        setClients(normalizeClients(data));
+      } else {
+        // Two-step fetch to avoid relation-embed issues
+        const { data: accessRows } = await supabase
+          .from('user_client_access')
+          .select('client_id, can_collect_data')
+          .eq('user_id', user?.id)
+          .eq('can_collect_data', true);
+
+        const clientIds = (accessRows || []).map((r: any) => r.client_id).filter(Boolean);
+
+        if (clientIds.length === 0) {
+          setClients([]);
+          return;
+        }
+
+        let result = await supabase.from('students').select('*').in('id', clientIds).order('last_name');
+        if (result.error) {
+          result = await supabase.from('clients').select('*').in('id', clientIds).order('last_name');
+        }
+        setClients(normalizeClients(result.data));
+      }
+    } catch (err: any) {
+      console.error('Failed to load clients for tracker:', err);
     }
   };
 
@@ -105,7 +123,6 @@ const TriggerTracker = () => {
     }
   };
 
-  // Chart data: frequency by day
   const freqByDay = logs.reduce<Record<string, number>>((acc, log) => {
     const day = new Date(log.logged_at).toLocaleDateString();
     acc[day] = (acc[day] || 0) + 1;
@@ -117,7 +134,6 @@ const TriggerTracker = () => {
     .reverse()
     .slice(-14);
 
-  // Behavior frequency
   const behaviorFreq = logs.reduce<Record<string, number>>((acc, log) => {
     acc[log.behavior] = (acc[log.behavior] || 0) + 1;
     return acc;
@@ -137,7 +153,6 @@ const TriggerTracker = () => {
         <p className="text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
       </div>
 
-      {/* Student selector */}
       <div className="max-w-sm">
         <Label className="mb-2 block text-xs text-muted-foreground">Select Student</Label>
         <Select value={selectedClientId} onValueChange={setSelectedClientId}>
@@ -147,7 +162,7 @@ const TriggerTracker = () => {
           <SelectContent>
             {clients.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.first_name} {c.last_name}
+                {displayName(c)}
               </SelectItem>
             ))}
           </SelectContent>
