@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -19,8 +20,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
-import { Plus, FileText, Save, Trash2 } from 'lucide-react';
-import type { Client, IEPDraft, IEPSection } from '@/lib/types';
+import { Plus, FileText, Save, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import type { Client, IEPDraft, IEPSection, ABCLog, BehaviorCategory } from '@/lib/types';
 
 const SECTION_TEMPLATES: { type: IEPSection['type']; title: string; defaultContent: string }[] = [
   { type: 'present_levels', title: 'Present Levels of Performance', defaultContent: 'Describe the student\'s current academic and functional performance…' },
@@ -42,6 +43,47 @@ const IEPWriter = () => {
   const [saving, setSaving] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [generatingSection, setGeneratingSection] = useState<string | null>(null);
+
+  const generateForSection = async (section: IEPSection) => {
+    if (!selectedClientId || !activeDraft) return;
+    setGeneratingSection(section.id);
+
+    try {
+      // Fetch ABC logs and behavior categories from external Supabase
+      const [logsRes, catsRes, clientRes] = await Promise.all([
+        supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(30),
+        supabase.from('behavior_categories').select('*').eq('client_id', selectedClientId),
+        supabase.from('clients').select('first_name, last_name, grade').eq('id', selectedClientId).single(),
+      ]);
+
+      const client = clientRes.data;
+      const studentName = client ? `${client.first_name} ${client.last_name}` : 'Unknown';
+
+      const { data, error } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+        body: {
+          studentName,
+          grade: client?.grade,
+          abcLogs: logsRes.data || [],
+          behaviorCategories: catsRes.data || [],
+          sectionType: section.type,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.content) {
+        updateSection(section.id, data.content);
+        toast({ title: 'AI content generated', description: `"${section.title}" updated with AI-generated content.` });
+      }
+    } catch (err: any) {
+      console.error('AI generation error:', err);
+      toast({ title: 'Generation failed', description: err.message || 'Could not generate content', variant: 'destructive' });
+    } finally {
+      setGeneratingSection(null);
+    }
+  };
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
@@ -317,14 +359,30 @@ const IEPWriter = () => {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium">{section.title}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeSection(section.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs text-primary hover:text-primary"
+                      disabled={generatingSection === section.id}
+                      onClick={() => generateForSection(section)}
+                    >
+                      {generatingSection === section.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                      {generatingSection === section.id ? 'Generating…' : 'AI Generate'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeSection(section.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
