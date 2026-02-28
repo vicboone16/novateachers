@@ -101,8 +101,9 @@ const Students = () => {
   };
 
   const filtered = clients.filter((c) => {
+    if (!c) return false;
     const q = search.toLowerCase();
-    return c.first_name.toLowerCase().includes(q) || c.last_name.toLowerCase().includes(q);
+    return c.first_name?.toLowerCase().includes(q) || c.last_name?.toLowerCase().includes(q);
   });
 
   return (
