@@ -4,22 +4,24 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { BackendGuard } from "@/components/BackendGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Login from "@/pages/Login";
+import WorkspaceSelector from "@/pages/WorkspaceSelector";
 import Students from "@/pages/Students";
 import StudentDetail from "@/pages/StudentDetail";
 import TriggerTracker from "@/pages/TriggerTracker";
 import IEPWriter from "@/pages/IEPWriter";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoutes = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -31,17 +33,43 @@ const ProtectedRoutes = () => {
 
   return (
     <WorkspaceProvider>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path="/students" element={<Students />} />
-          <Route path="/students/:id" element={<StudentDetail />} />
-          <Route path="/tracker" element={<TriggerTracker />} />
-          <Route path="/iep" element={<IEPWriter />} />
-          <Route path="/" element={<Navigate to="/students" replace />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <WorkspaceRoutes />
     </WorkspaceProvider>
+  );
+};
+
+const WorkspaceRoutes = () => {
+  const { currentWorkspace, workspaces, loading } = useWorkspace();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      {/* Workspace selector — shown when multiple workspaces or navigated to */}
+      <Route path="/workspace" element={<WorkspaceSelector />} />
+
+      {/* If no workspace selected yet and multiple exist, redirect to selector */}
+      {!currentWorkspace && workspaces.length > 1 && (
+        <Route path="*" element={<Navigate to="/workspace" replace />} />
+      )}
+
+      {/* Main app routes */}
+      <Route element={<AppLayout />}>
+        <Route path="/students" element={<Students />} />
+        <Route path="/students/:id" element={<StudentDetail />} />
+        <Route path="/tracker" element={<TriggerTracker />} />
+        <Route path="/iep" element={<IEPWriter />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/" element={<Navigate to="/students" replace />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 };
 

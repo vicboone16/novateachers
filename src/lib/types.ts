@@ -26,6 +26,15 @@ export interface Client {
   date_of_birth?: string;
   grade?: string;
   agency_id: string;
+  school_name?: string;
+  district_name?: string;
+  primary_setting?: string;
+  iep_date?: string;
+  next_iep_review_date?: string;
+  diagnoses?: string[];
+  funding_mode?: string;
+  student_origin?: string;
+  created_in_app?: string;
   created_at: string;
   updated_at: string;
 }

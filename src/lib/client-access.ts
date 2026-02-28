@@ -10,14 +10,14 @@ async function fetchByAgencyIds(agencyIds: string[]): Promise<Client[]> {
   if (agencyIds.length === 0) return [];
 
   let records = await supabase
-    .from('students')
+    .from('clients')
     .select('*')
     .in('agency_id', agencyIds)
     .order('last_name');
 
   if (records.error) {
     records = await supabase
-      .from('clients')
+      .from('students')
       .select('*')
       .in('agency_id', agencyIds)
       .order('last_name');
@@ -31,7 +31,7 @@ async function fetchByClientIds(clientIds: string[], agencyId: string): Promise<
   if (clientIds.length === 0) return [];
 
   let records = await supabase
-    .from('students')
+    .from('clients')
     .select('*')
     .in('id', clientIds)
     .eq('agency_id', agencyId)
@@ -39,7 +39,7 @@ async function fetchByClientIds(clientIds: string[], agencyId: string): Promise<
 
   if (records.error) {
     records = await supabase
-      .from('clients')
+      .from('students')
       .select('*')
       .in('id', clientIds)
       .eq('agency_id', agencyId)
