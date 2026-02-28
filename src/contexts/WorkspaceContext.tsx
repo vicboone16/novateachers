@@ -42,10 +42,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setLoading(true);
 
     try {
-      // Fetch agency memberships
+      // Fetch agency memberships - agency_type may not exist yet
       const { data: memberships, error } = await supabase
         .from('agency_memberships')
-        .select('id, agency_id, user_id, role, agency:agencies(id, name, agency_type)')
+        .select('id, agency_id, user_id, role, agency:agencies(id, name)')
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -53,22 +53,44 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const ws: Workspace[] = [];
 
       if (!memberships || memberships.length === 0) {
-        // Auto-create solo workspace - output SQL for this RPC if needed
-        const { data: soloAgency, error: soloError } = await supabase
-          .rpc('ensure_solo_teacher_agency', { p_user_id: user.id });
+        // No memberships — try auto-creating solo workspace
+        try {
+          const { data: soloAgency, error: soloError } = await supabase
+            .rpc('ensure_solo_teacher_agency', { p_user_id: user.id });
 
-        if (!soloError && soloAgency) {
-          ws.push({
-            id: soloAgency.id,
-            name: 'My Classroom',
-            agency_id: soloAgency.id,
-            mode: 'solo',
-          });
+          if (!soloError && soloAgency) {
+            ws.push({
+              id: soloAgency.id,
+              name: 'My Classroom',
+              agency_id: soloAgency.id,
+              mode: 'solo',
+            });
+          }
+        } catch (rpcErr) {
+          console.warn('Solo agency RPC not available:', rpcErr);
         }
       } else {
+        // Check if agency_type column exists by trying a separate query
+        let agencyTypes: Record<string, string> = {};
+        try {
+          const agencyIds = memberships.map((m: any) => m.agency_id);
+          const { data: agencies } = await supabase
+            .from('agencies')
+            .select('id, agency_type')
+            .in('id', agencyIds);
+          if (agencies) {
+            for (const a of agencies) {
+              agencyTypes[a.id] = a.agency_type || 'organization';
+            }
+          }
+        } catch {
+          // agency_type column doesn't exist, treat all as connected
+        }
+
         for (const m of memberships as any[]) {
           const agency = m.agency;
-          if (agency.agency_type === 'solo_teacher') {
+          const agencyType = agencyTypes[agency.id] || 'organization';
+          if (agencyType === 'solo_teacher') {
             ws.push({
               id: agency.id,
               name: 'My Classroom',
