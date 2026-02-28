@@ -44,13 +44,15 @@ const IEPWriter = () => {
   const [showNew, setShowNew] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [generatingSection, setGeneratingSection] = useState<string | null>(null);
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [showCustomDialog, setShowCustomDialog] = useState(false);
+  const [customSectionTitle, setCustomSectionTitle] = useState('');
 
   const generateForSection = async (section: IEPSection) => {
     if (!selectedClientId || !activeDraft) return;
     setGeneratingSection(section.id);
 
     try {
-      // Fetch ABC logs and behavior categories from external Supabase
       const [logsRes, catsRes, clientRes] = await Promise.all([
         supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(30),
         supabase.from('behavior_categories').select('*').eq('client_id', selectedClientId),
@@ -66,7 +68,7 @@ const IEPWriter = () => {
           grade: client?.grade,
           abcLogs: logsRes.data || [],
           behaviorCategories: catsRes.data || [],
-          sectionType: section.type,
+          sectionType: section.type === 'custom' ? section.title : section.type,
         },
       });
 
@@ -83,6 +85,69 @@ const IEPWriter = () => {
     } finally {
       setGeneratingSection(null);
     }
+  };
+
+  const generateAllSections = async () => {
+    if (!activeDraft || !selectedClientId) return;
+    setGeneratingAll(true);
+
+    try {
+      const [logsRes, catsRes, clientRes] = await Promise.all([
+        supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(30),
+        supabase.from('behavior_categories').select('*').eq('client_id', selectedClientId),
+        supabase.from('clients').select('first_name, last_name, grade').eq('id', selectedClientId).single(),
+      ]);
+
+      const client = clientRes.data;
+      const studentName = client ? `${client.first_name} ${client.last_name}` : 'Unknown';
+
+      for (const section of activeDraft.sections) {
+        setGeneratingSection(section.id);
+        try {
+          const { data, error } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+            body: {
+              studentName,
+              grade: client?.grade,
+              abcLogs: logsRes.data || [],
+              behaviorCategories: catsRes.data || [],
+              sectionType: section.type === 'custom' ? section.title : section.type,
+            },
+          });
+
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+          if (data?.content) updateSection(section.id, data.content);
+        } catch (err: any) {
+          console.error(`Failed to generate "${section.title}":`, err);
+          toast({ title: `Failed: ${section.title}`, description: err.message, variant: 'destructive' });
+        }
+        setGeneratingSection(null);
+      }
+
+      toast({ title: 'All sections generated', description: 'AI content has been generated for all sections.' });
+    } catch (err: any) {
+      toast({ title: 'Generation failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setGeneratingAll(false);
+      setGeneratingSection(null);
+    }
+  };
+
+  const addCustomSection = () => {
+    if (!activeDraft || !customSectionTitle.trim()) return;
+    const newSection: IEPSection = {
+      id: crypto.randomUUID(),
+      type: 'custom',
+      title: customSectionTitle.trim(),
+      content: '',
+      order: activeDraft.sections.length,
+    };
+    setActiveDraft({
+      ...activeDraft,
+      sections: [...activeDraft.sections, newSection],
+    });
+    setCustomSectionTitle('');
+    setShowCustomDialog(false);
   };
 
   useEffect(() => {
@@ -348,10 +413,26 @@ const IEPWriter = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5">
-              <Save className="h-3.5 w-3.5" />
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={generateAllSections}
+                disabled={generatingAll || !!generatingSection}
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+              >
+                {generatingAll ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {generatingAll ? 'Generating All…' : 'Generate All Sections'}
+              </Button>
+              <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5">
+                <Save className="h-3.5 w-3.5" />
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
           </div>
 
           {activeDraft.sections.map((section) => (
@@ -409,6 +490,32 @@ const IEPWriter = () => {
                   + {t.title}
                 </Button>
               ))}
+              <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-xs gap-1">
+                    <Plus className="h-3 w-3" />
+                    Custom Section
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Custom Section</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label>Section Title</Label>
+                      <Input
+                        placeholder="e.g., Behavior Intervention Plan"
+                        value={customSectionTitle}
+                        onChange={(e) => setCustomSectionTitle(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={addCustomSection} disabled={!customSectionTitle.trim()} className="w-full">
+                      Add Section
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </div>
