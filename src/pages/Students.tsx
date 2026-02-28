@@ -50,7 +50,7 @@ const Students = () => {
         if (error) throw error;
         setClients(data || []);
       } else {
-        // Connected mode: fetch allowed IDs, then fetch records (supports both clients/students backends)
+        // Connected mode: fetch allowed IDs, then fetch student records
         const { data: accessRows, error: accessError } = await supabase
           .from('user_client_access')
           .select('client_id')
@@ -63,19 +63,18 @@ const Students = () => {
         if (clientIds.length === 0) {
           setClients([]);
         } else {
+          // Try students table first (primary), fallback to clients view
           let recordsResult = await supabase
-            .from('clients')
+            .from('students')
             .select('*')
             .in('id', clientIds)
-            .eq('agency_id', currentWorkspace.agency_id)
             .order('last_name');
 
           if (recordsResult.error) {
             recordsResult = await supabase
-              .from('students')
+              .from('clients')
               .select('*')
               .in('id', clientIds)
-              .eq('agency_id', currentWorkspace.agency_id)
               .order('last_name');
           }
 
