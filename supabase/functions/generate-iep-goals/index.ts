@@ -42,7 +42,7 @@ serve(async (req) => {
         "Write age-appropriate transition planning content including post-secondary goals, transition activities, and recommended assessments.",
     };
 
-    const instruction = sectionInstructions[sectionType] || sectionInstructions.goals;
+    const instruction = sectionInstructions[sectionType] || `Write content for a custom IEP section titled "${sectionType}". Use the ABC behavior data to inform your writing. Provide professional, data-driven content appropriate for an IEP document.`;
 
     const systemPrompt = `You are an experienced special education professional who writes high-quality IEP documents. You use data-driven approaches and follow IDEA compliance standards. Write in professional but accessible language. Do not include disclaimers about not being a licensed professional — you are acting as a drafting assistant.`;
 
