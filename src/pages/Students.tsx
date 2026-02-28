@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Search, User } from 'lucide-react';
+import { Plus, Search, User, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
@@ -28,6 +28,7 @@ const Students = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [viewAll, setViewAll] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newFirst, setNewFirst] = useState('');
   const [newLast, setNewLast] = useState('');
@@ -35,7 +36,7 @@ const Students = () => {
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
-  }, [currentWorkspace]);
+  }, [currentWorkspace, viewAll]);
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -46,6 +47,7 @@ const Students = () => {
         currentWorkspace,
         isSoloMode,
         userId: user?.id,
+        viewAll,
       });
       setClients(normalizeClients(data));
     } catch (err: any) {
@@ -130,14 +132,28 @@ const Students = () => {
         )}
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search students…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex items-center gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search students…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {!isSoloMode && (
+          <Button
+            variant={viewAll ? 'default' : 'outline'}
+            size="sm"
+            className="gap-1.5 whitespace-nowrap"
+            onClick={() => setViewAll((v) => !v)}
+          >
+            {viewAll ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {viewAll ? 'Current Agency' : 'View All'}
+          </Button>
+        )}
       </div>
 
       {loading ? (

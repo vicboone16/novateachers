@@ -55,6 +55,8 @@ interface FetchAccessibleClientsParams {
   isSoloMode: boolean;
   userId?: string;
   permission?: ClientPermission;
+  /** When true, owner/admin users see students across ALL their agencies instead of just the current one. */
+  viewAll?: boolean;
 }
 
 export async function fetchAccessibleClients({
@@ -62,6 +64,7 @@ export async function fetchAccessibleClients({
   isSoloMode,
   userId,
   permission,
+  viewAll = false,
 }: FetchAccessibleClientsParams): Promise<Client[]> {
   if (isSoloMode) {
     return fetchByAgencyIds([currentWorkspace.agency_id]);
@@ -76,15 +79,18 @@ export async function fetchAccessibleClients({
 
   if (membershipError) throw membershipError;
 
-  const agencyIds = Array.from(new Set((memberships || []).map((m: any) => m.agency_id).filter(Boolean)));
-  const canViewAcrossOrganizations = (memberships || []).some((m: any) =>
+  const allAgencyIds = Array.from(new Set((memberships || []).map((m: any) => m.agency_id).filter(Boolean)));
+  const isElevated = (memberships || []).some((m: any) =>
     ELEVATED_ROLES.has(String(m.role || '').toLowerCase())
   );
 
-  if (canViewAcrossOrganizations) {
+  if (isElevated) {
+    // Owner/admin: show current agency only, unless viewAll is on
+    const agencyIds = viewAll ? allAgencyIds : [currentWorkspace.agency_id];
     return fetchByAgencyIds(agencyIds);
   }
 
+  // Regular teacher: scoped by user_client_access
   let accessQuery = supabase
     .from('user_client_access')
     .select(permission ? `client_id, ${permission}` : 'client_id')
