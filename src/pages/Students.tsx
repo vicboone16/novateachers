@@ -193,7 +193,7 @@ const Students = () => {
                     {client.first_name} {client.last_name}
                   </p>
                   {client.grade && (
-                    <p className="text-xs text-muted-foreground">Grade {client.grade}</p>
+                    <p className="text-xs text-muted-foreground">{client.grade}</p>
                   )}
                 </div>
               </CardContent>
