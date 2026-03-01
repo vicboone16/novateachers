@@ -8,11 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, LogOut, ArrowRight, Pencil, Check, X } from 'lucide-react';
+import { Building2, LogOut, ArrowRight, Pencil, Check, X, Link2, KeyRound } from 'lucide-react';
 
 const Settings = () => {
   const { user, signOut } = useAuth();
-  const { workspaces, currentWorkspace } = useWorkspace();
+  const { workspaces, currentWorkspace, isAdmin } = useWorkspace();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -118,6 +118,25 @@ const Settings = () => {
             >
               <ArrowRight className="h-3.5 w-3.5" />
               Switch Workspace
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sharing & Invites */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">Sharing & Invites</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" size="sm" className="gap-1.5 w-full justify-start" onClick={() => navigate('/join')}>
+            <KeyRound className="h-3.5 w-3.5" />
+            Redeem Invite Code
+          </Button>
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="gap-1.5 w-full justify-start" onClick={() => navigate('/invites')}>
+              <Link2 className="h-3.5 w-3.5" />
+              Generate Invite Code
             </Button>
           )}
         </CardContent>
