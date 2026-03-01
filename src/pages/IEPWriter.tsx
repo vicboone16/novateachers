@@ -350,9 +350,9 @@ const IEPWriter = () => {
               <p className="text-xs font-medium text-muted-foreground mb-2">Guided Template — fill form to generate section text:</p>
               <div className="flex flex-wrap gap-1.5">
                 {SECTION_DEFS.map(d => (
-                  <Button key={d.key} variant={guidedTemplate === d.key ? 'default' : 'outline'} size="sm" className="h-8 text-xs whitespace-nowrap"
+                  <Button key={d.key} variant={guidedTemplate === d.key ? 'default' : 'outline'} size="sm" className="h-auto py-1.5 px-2.5 text-xs"
                     onClick={() => { setGuidedTemplate(guidedTemplate === d.key ? null : d.key); setGuidedValues({}); }}>
-                    <ClipboardList className="h-3 w-3 mr-1 shrink-0" /><span className="truncate">{d.title}</span>
+                    <ClipboardList className="h-3 w-3 mr-1 shrink-0" />{d.title}
                   </Button>
                 ))}
               </div>
