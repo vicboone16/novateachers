@@ -14,6 +14,7 @@ import StudentDetail from "@/pages/StudentDetail";
 import TriggerTracker from "@/pages/TriggerTracker";
 import IEPWriter from "@/pages/IEPWriter";
 import Settings from "@/pages/Settings";
+import ClassroomManager from "@/pages/ClassroomManager";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const WorkspaceRoutes = () => {
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
         <Route path="/iep" element={<IEPWriter />} />
+        <Route path="/classrooms" element={<ClassroomManager />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/students" replace />} />
       </Route>

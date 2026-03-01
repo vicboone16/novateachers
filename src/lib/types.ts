@@ -151,6 +151,32 @@ export interface TeacherDataPoint {
   label?: string;
 }
 
+// ── Classroom Groups ──
+
+export interface ClassroomGroup {
+  id: string;
+  agency_id: string;
+  name: string;
+  description?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClassroomGroupTeacher {
+  id: string;
+  group_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface ClassroomGroupStudent {
+  id: string;
+  group_id: string;
+  client_id: string;
+  created_at: string;
+}
+
 export const DATA_MODE_LABELS: Record<DataCollectionMode, string> = {
   tally: 'Tally (Frequency)',
   mts: 'Momentary Time Sampling',
