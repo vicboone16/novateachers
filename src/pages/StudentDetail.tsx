@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Activity, FileText, BarChart3 } from 'lucide-react';
+import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare } from 'lucide-react';
 import { normalizeClient, displayName } from '@/lib/student-utils';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { DataCollectionSession } from '@/components/DataCollectionSession';
 import { TargetManager } from '@/components/TargetManager';
 import { IEPTab } from '@/components/IEPTab';
+import { BCBASummary } from '@/components/BCBASummary';
 import type { Client, ABCLog, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
 const StudentDetail = () => {
@@ -118,39 +119,47 @@ const StudentDetail = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/students')}>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/students')} className="shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">{displayName(client)}</h2>
-          <div className="flex items-center gap-2">
-            {client.grade && <span className="text-sm text-muted-foreground">Grade {client.grade}</span>}
-            {client.primary_setting && <Badge variant="outline" className="text-xs">{client.primary_setting}</Badge>}
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl font-bold tracking-tight font-heading truncate">{displayName(client)}</h2>
+          <div className="flex items-center gap-2 mt-0.5">
+            {client.grade && (
+              <Badge variant="outline" className="text-xs font-normal bg-primary/5 border-primary/20 text-primary">
+                Grade {client.grade}
+              </Badge>
+            )}
+            {client.primary_setting && (
+              <Badge variant="outline" className="text-xs font-normal bg-accent/5 border-accent/20 text-accent">
+                {client.primary_setting}
+              </Badge>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview" className="gap-1.5">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+        <TabsList className="bg-muted/60 p-1">
+          <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
             <User className="h-3.5 w-3.5" /> Overview
           </TabsTrigger>
           {(isSoloMode || permissions.can_collect_data) && (
-            <TabsTrigger value="data" className="gap-1.5">
+            <TabsTrigger value="data" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
               <Activity className="h-3.5 w-3.5" /> Data
             </TabsTrigger>
           )}
-          <TabsTrigger value="iep" className="gap-1.5">
+          <TabsTrigger value="iep" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
             <FileText className="h-3.5 w-3.5" /> IEP
           </TabsTrigger>
         </TabsList>
 
         {/* ── OVERVIEW ── */}
-        <TabsContent value="overview">
-          <Card className="border-border/50">
-            <CardHeader><CardTitle className="text-base">Student Information</CardTitle></CardHeader>
+        <TabsContent value="overview" className="animate-in fade-in-50 duration-300">
+          <Card className="border-border/40 shadow-sm">
+            <CardHeader><CardTitle className="text-base font-heading">Student Information</CardTitle></CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <InfoField label="First Name" value={client.first_name} />
@@ -165,10 +174,14 @@ const StudentDetail = () => {
                 {client.funding_mode && <InfoField label="Funding Mode" value={client.funding_mode} />}
               </div>
               {diagnoses.length > 0 && (
-                <div className="mt-4">
-                  <p className="mb-2 text-xs text-muted-foreground">Diagnoses</p>
+                <div className="mt-5 pt-4 border-t border-border/40">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Diagnoses</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {diagnoses.map((d, i) => <Badge key={i} variant="secondary">{d}</Badge>)}
+                    {diagnoses.map((d, i) => (
+                      <Badge key={i} variant="secondary" className="bg-warning/10 text-warning border-warning/20">
+                        {d}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
               )}
@@ -177,33 +190,64 @@ const StudentDetail = () => {
         </TabsContent>
 
         {/* ── DATA ── */}
-        <TabsContent value="data">
+        <TabsContent value="data" className="animate-in fade-in-50 duration-300">
           {loadingData ? (
             <div className="flex justify-center py-8">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Quick stats */}
+              {/* Quick stats — color-coded */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatCard label="Today" value={todayCount} />
-                <StatCard label="This Week" value={weekCount} />
-                <StatCard label="Top Antecedent" value={topAntecedents[0]?.[0] || '—'} small />
-                <StatCard label="Top Consequence" value={topConsequences[0]?.[0] || '—'} small />
+                <StatCard
+                  label="Today"
+                  value={todayCount}
+                  icon={<Hash className="h-4 w-4" />}
+                  color="primary"
+                />
+                <StatCard
+                  label="This Week"
+                  value={weekCount}
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  color="accent"
+                />
+                <StatCard
+                  label="Top Antecedent"
+                  value={topAntecedents[0]?.[0] || '—'}
+                  icon={<AlertTriangle className="h-4 w-4" />}
+                  color="warning"
+                  small
+                />
+                <StatCard
+                  label="Top Consequence"
+                  value={topConsequences[0]?.[0] || '—'}
+                  icon={<MessageSquare className="h-4 w-4" />}
+                  color="destructive"
+                  small
+                />
               </div>
 
               {/* Charts */}
               {chartData.length > 0 && (
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-sm">Frequency (Last 14 Days)</CardTitle></CardHeader>
+                <Card className="border-border/40 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-heading">Frequency — Last 14 Days</CardTitle>
+                  </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={180}>
                       <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                         <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
                         <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="count" className="stroke-primary" strokeWidth={2} dot={false} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 'var(--radius)',
+                            fontSize: 12,
+                          }}
+                        />
+                        <Line type="monotone" dataKey="count" className="stroke-primary" strokeWidth={2.5} dot={{ r: 3, className: 'fill-primary' }} activeDot={{ r: 5 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -228,22 +272,34 @@ const StudentDetail = () => {
                 />
               )}
 
+              {/* BCBA Summary */}
+              {(isSoloMode || permissions.can_collect_data) && (
+                <BCBASummary
+                  clientId={client.id}
+                  clientName={displayName(client)}
+                  logs={logs}
+                  sessions={sessions}
+                />
+              )}
+
               {/* Recent Sessions */}
               {sessions.length > 0 && (
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-sm">Recent Sessions</CardTitle></CardHeader>
+                <Card className="border-border/40 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-heading">Recent Sessions</CardTitle>
+                  </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       {sessions.slice(0, 10).map(s => (
-                        <div key={s.id} className="flex items-center justify-between rounded-md border border-border/60 p-2">
-                          <div>
-                            <Badge variant="outline" className="text-[10px] mr-2">{s.mode}</Badge>
+                        <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/40 p-2.5 bg-muted/20 hover:bg-muted/40 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 border-primary/20 text-primary">{s.mode}</Badge>
                             <span className="text-xs text-muted-foreground">
                               {new Date(s.started_at).toLocaleString()}
                             </span>
                           </div>
                           {s.summary_json && (
-                            <span className="text-xs font-medium text-foreground">
+                            <span className="text-xs font-semibold text-foreground">
                               {s.summary_json.count != null && `Count: ${s.summary_json.count}`}
                               {s.summary_json.percentage != null && `${s.summary_json.percentage}%`}
                               {s.summary_json.rating != null && `Rating: ${s.summary_json.rating}/5`}
@@ -259,20 +315,35 @@ const StudentDetail = () => {
 
               {/* ABC Log History */}
               {logs.length > 0 && (
-                <Card className="border-border/50">
-                  <CardHeader><CardTitle className="text-sm">Recent ABC Logs</CardTitle></CardHeader>
+                <Card className="border-border/40 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-heading">Recent ABC Logs</CardTitle>
+                  </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       {logs.slice(0, 10).map(log => (
-                        <div key={log.id} className="rounded-md border border-border/60 p-2">
-                          <div className="flex items-center gap-2 mb-1">
+                        <div key={log.id} className="rounded-lg border border-border/40 p-3 bg-muted/10 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-2 mb-1.5">
                             <span className="text-xs text-muted-foreground">{new Date(log.logged_at).toLocaleString()}</span>
-                            {log.intensity && <Badge variant="secondary" className="text-[10px]">I:{log.intensity}</Badge>}
+                            {log.intensity && (
+                              <Badge variant="secondary" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20">
+                                Intensity: {log.intensity}
+                              </Badge>
+                            )}
                           </div>
-                          <div className="grid gap-1 sm:grid-cols-3 text-xs">
-                            <div><Badge variant="outline" className="text-[9px] mr-1">A</Badge>{log.antecedent}</div>
-                            <div><Badge variant="destructive" className="text-[9px] mr-1">B</Badge>{log.behavior}</div>
-                            <div><Badge variant="secondary" className="text-[9px] mr-1">C</Badge>{log.consequence}</div>
+                          <div className="grid gap-1.5 sm:grid-cols-3 text-xs">
+                            <div className="flex items-start gap-1.5">
+                              <Badge className="text-[9px] shrink-0 bg-warning/15 text-warning border-warning/25 hover:bg-warning/15">A</Badge>
+                              <span className="text-foreground/80">{log.antecedent}</span>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <Badge className="text-[9px] shrink-0 bg-destructive/15 text-destructive border-destructive/25 hover:bg-destructive/15">B</Badge>
+                              <span className="text-foreground/80">{log.behavior}</span>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <Badge className="text-[9px] shrink-0 bg-primary/15 text-primary border-primary/25 hover:bg-primary/15">C</Badge>
+                              <span className="text-foreground/80">{log.consequence}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -285,7 +356,7 @@ const StudentDetail = () => {
         </TabsContent>
 
         {/* ── IEP ── */}
-        <TabsContent value="iep">
+        <TabsContent value="iep" className="animate-in fade-in-50 duration-300">
           <IEPTab client={client} />
         </TabsContent>
       </Tabs>
@@ -294,19 +365,56 @@ const StudentDetail = () => {
 };
 
 const InfoField = ({ label, value }: { label: string; value?: string | null }) => (
-  <div>
-    <p className="text-xs text-muted-foreground">{label}</p>
-    <p className="font-medium text-foreground">{value || '—'}</p>
+  <div className="space-y-0.5">
+    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+    <p className="text-sm font-medium text-foreground">{value || '—'}</p>
   </div>
 );
 
-const StatCard = ({ label, value, small }: { label: string; value: string | number; small?: boolean }) => (
-  <Card className="border-border/50">
-    <CardContent className="p-3 text-center">
-      <p className={`font-bold ${small ? 'text-sm truncate' : 'text-2xl'} text-foreground`}>{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </CardContent>
-  </Card>
-);
+type StatColor = 'primary' | 'accent' | 'warning' | 'destructive';
+
+const StatCard = ({
+  label,
+  value,
+  icon,
+  color,
+  small,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: StatColor;
+  small?: boolean;
+}) => {
+  const colorMap: Record<StatColor, string> = {
+    primary: 'bg-primary/8 border-primary/20 text-primary',
+    accent: 'bg-accent/8 border-accent/20 text-accent',
+    warning: 'bg-warning/10 border-warning/20 text-warning',
+    destructive: 'bg-destructive/8 border-destructive/20 text-destructive',
+  };
+
+  const iconBgMap: Record<StatColor, string> = {
+    primary: 'bg-primary/15',
+    accent: 'bg-accent/15',
+    warning: 'bg-warning/15',
+    destructive: 'bg-destructive/15',
+  };
+
+  return (
+    <Card className={`border shadow-sm ${colorMap[color]}`}>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className={`rounded-md p-1 ${iconBgMap[color]}`}>
+            {icon}
+          </div>
+          <p className="text-[11px] font-medium uppercase tracking-wider opacity-70">{label}</p>
+        </div>
+        <p className={`font-bold ${small ? 'text-sm truncate' : 'text-2xl'} text-foreground`}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default StudentDetail;
