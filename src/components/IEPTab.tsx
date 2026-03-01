@@ -101,11 +101,28 @@ function generateAccommodationsPreview(v: Record<string, string>): string {
 }
 
 function generateGoalPreview(v: Record<string, string>): string {
-  const domain = v.goal_domain || '(domain)';
-  const baseline = v.baseline || '(baseline)';
-  const target = v.target_criteria || '(target)';
-  const measurement = v.measurement_type || '(measurement)';
-  const conditions = v.conditions || 'with appropriate supports';
+  // Support multi-entry goals stored as JSON array in v._goals
+  const goals = parseMultiEntries(v._goals);
+  if (goals.length === 0) {
+    const domain = v.goal_domain || '(domain)';
+    const baseline = v.baseline || '(baseline)';
+    const target = v.target_criteria || '(target)';
+    const measurement = v.measurement_type || '(measurement)';
+    const conditions = v.conditions || 'with appropriate supports';
+    return formatSingleGoal({ goal_domain: domain, baseline, target_criteria: target, measurement_type: measurement, conditions });
+  }
+  return goals.map((g, i) => {
+    const heading = goals.length > 1 ? `### Goal ${i + 1}\n\n` : '';
+    return heading + formatSingleGoal(g);
+  }).join('\n\n---\n\n');
+}
+
+function formatSingleGoal(g: Record<string, string>): string {
+  const domain = g.goal_domain || '(domain)';
+  const baseline = g.baseline || '(baseline)';
+  const target = g.target_criteria || '(target)';
+  const measurement = g.measurement_type || '(measurement)';
+  const conditions = g.conditions || 'with appropriate supports';
   return [
     `**Goal Domain:** ${domain}`,
     '',
@@ -120,12 +137,29 @@ function generateGoalPreview(v: Record<string, string>): string {
 }
 
 function generateServicesPreview(v: Record<string, string>): string {
+  const services = parseMultiEntries(v._services);
+  if (services.length === 0) {
+    return formatSingleService(v);
+  }
+  return services.map((s, i) => {
+    const heading = services.length > 1 ? `### Service ${i + 1}\n\n` : '';
+    return heading + formatSingleService(s);
+  }).join('\n\n---\n\n');
+}
+
+function formatSingleService(s: Record<string, string>): string {
   return [
-    `**Service:** ${v.service_type || '(not specified)'}`,
-    `**Frequency:** ${v.minutes_frequency || '(not specified)'}`,
-    `**Setting:** ${v.setting || '(not specified)'}`,
-    `**Provider:** ${v.provider_role || '(not specified)'}`,
+    `**Service:** ${s.service_type || '(not specified)'}`,
+    `**Frequency:** ${s.minutes_frequency || '(not specified)'}`,
+    `**Setting:** ${s.setting || '(not specified)'}`,
+    `**Provider:** ${s.provider_role || '(not specified)'}`,
   ].join('\n');
+}
+
+// Multi-entry helpers
+function parseMultiEntries(json?: string): Record<string, string>[] {
+  if (!json) return [];
+  try { return JSON.parse(json); } catch { return []; }
 }
 
 const PREVIEW_GENERATORS: Record<TemplateKey, (v: Record<string, string>) => string> = {
@@ -595,82 +629,142 @@ export const IEPTab = ({ client }: Props) => {
     </div>
   );
 
-  // ── Goal Builder Form ──
-  const renderGoalBuilderForm = () => (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label className="text-xs">Goal Domain</Label>
-        <Select value={formValues.goal_domain || ''} onValueChange={v => updateFormValue('goal_domain', v)}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select domain…" /></SelectTrigger>
-          <SelectContent>
-            {GOAL_DOMAINS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <FormField label="Baseline (current level)"
-        value={formValues.baseline || ''}
-        onChange={v => updateFormValue('baseline', v)}
-        placeholder="e.g. currently reads 45 wpm, on-task 40% of intervals"
-      />
-      <FormField label="Target / Mastery Criteria"
-        value={formValues.target_criteria || ''}
-        onChange={v => updateFormValue('target_criteria', v)}
-        placeholder="e.g. will read 80 wpm across 3 consecutive probes"
-      />
-      <div className="space-y-1.5">
-        <Label className="text-xs">Measurement Type</Label>
-        <Select value={formValues.measurement_type || ''} onValueChange={v => updateFormValue('measurement_type', v)}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select measurement…" /></SelectTrigger>
-          <SelectContent>
-            {MEASUREMENT_TYPES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <FormField label="Conditions (supports, prompts)"
-        value={formValues.conditions || ''}
-        onChange={v => updateFormValue('conditions', v)}
-        placeholder="e.g. with visual supports and 1 verbal prompt"
-      />
-    </div>
-  );
+  // ── Goal Builder Form (multi-entry) ──
+  const renderGoalBuilderForm = () => {
+    const goals: Record<string, string>[] = parseMultiEntries(formValues._goals);
+    if (goals.length === 0) goals.push({});
 
-  // ── Services Form ──
-  const renderServicesForm = () => (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label className="text-xs">Service Type</Label>
-        <Select value={formValues.service_type || ''} onValueChange={v => updateFormValue('service_type', v)}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select service…" /></SelectTrigger>
-          <SelectContent>
-            {SERVICE_TYPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
+    const updateGoal = (idx: number, field: string, value: string) => {
+      const updated = [...goals];
+      updated[idx] = { ...updated[idx], [field]: value };
+      const next = { ...formValues, _goals: JSON.stringify(updated) };
+      setFormValues(next);
+      if (selectedTemplate) setPreviewText(PREVIEW_GENERATORS[selectedTemplate](next));
+    };
+    const addGoal = () => {
+      const updated = [...goals, {}];
+      const next = { ...formValues, _goals: JSON.stringify(updated) };
+      setFormValues(next);
+      if (selectedTemplate) setPreviewText(PREVIEW_GENERATORS[selectedTemplate](next));
+    };
+    const removeGoal = (idx: number) => {
+      const updated = goals.filter((_, i) => i !== idx);
+      const next = { ...formValues, _goals: JSON.stringify(updated.length ? updated : [{}]) };
+      setFormValues(next);
+      if (selectedTemplate) setPreviewText(PREVIEW_GENERATORS[selectedTemplate](next));
+    };
+
+    return (
+      <div className="space-y-4">
+        {goals.map((goal, idx) => (
+          <div key={idx} className="space-y-3 border border-border/40 rounded-md p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Goal {idx + 1}</span>
+              {goals.length > 1 && (
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => removeGoal(idx)}>Remove</Button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Goal Domain</Label>
+              <Select value={goal.goal_domain || ''} onValueChange={v => updateGoal(idx, 'goal_domain', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select domain…" /></SelectTrigger>
+                <SelectContent>
+                  {GOAL_DOMAINS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <FormField label="Baseline (current level)" value={goal.baseline || ''} onChange={v => updateGoal(idx, 'baseline', v)} placeholder="e.g. currently reads 45 wpm" />
+            <FormField label="Target / Mastery Criteria" value={goal.target_criteria || ''} onChange={v => updateGoal(idx, 'target_criteria', v)} placeholder="e.g. will read 80 wpm across 3 probes" />
+            <div className="space-y-1.5">
+              <Label className="text-xs">Measurement Type</Label>
+              <Select value={goal.measurement_type || ''} onValueChange={v => updateGoal(idx, 'measurement_type', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select measurement…" /></SelectTrigger>
+                <SelectContent>
+                  {MEASUREMENT_TYPES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <FormField label="Conditions (supports, prompts)" value={goal.conditions || ''} onChange={v => updateGoal(idx, 'conditions', v)} placeholder="e.g. with visual supports and 1 verbal prompt" />
+          </div>
+        ))}
+        <Button variant="outline" size="sm" className="gap-1 text-xs w-full" onClick={addGoal}>
+          <Plus className="h-3 w-3" /> Add Another Goal
+        </Button>
       </div>
-      <FormField label="Minutes / Frequency"
-        value={formValues.minutes_frequency || ''}
-        onChange={v => updateFormValue('minutes_frequency', v)}
-        placeholder="e.g. 30 min, 3× per week"
-      />
-      <div className="space-y-1.5">
-        <Label className="text-xs">Setting</Label>
-        <Select value={formValues.setting || ''} onValueChange={v => updateFormValue('setting', v)}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select setting…" /></SelectTrigger>
-          <SelectContent>
-            {SETTINGS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
+    );
+  };
+
+  // ── Services Form (multi-entry) ──
+  const renderServicesForm = () => {
+    const services: Record<string, string>[] = parseMultiEntries(formValues._services);
+    if (services.length === 0) services.push({});
+
+    const updateService = (idx: number, field: string, value: string) => {
+      const updated = [...services];
+      updated[idx] = { ...updated[idx], [field]: value };
+      const next = { ...formValues, _services: JSON.stringify(updated) };
+      setFormValues(next);
+      if (selectedTemplate) setPreviewText(PREVIEW_GENERATORS[selectedTemplate](next));
+    };
+    const addService = () => {
+      const updated = [...services, {}];
+      const next = { ...formValues, _services: JSON.stringify(updated) };
+      setFormValues(next);
+      if (selectedTemplate) setPreviewText(PREVIEW_GENERATORS[selectedTemplate](next));
+    };
+    const removeService = (idx: number) => {
+      const updated = services.filter((_, i) => i !== idx);
+      const next = { ...formValues, _services: JSON.stringify(updated.length ? updated : [{}]) };
+      setFormValues(next);
+      if (selectedTemplate) setPreviewText(PREVIEW_GENERATORS[selectedTemplate](next));
+    };
+
+    return (
+      <div className="space-y-4">
+        {services.map((svc, idx) => (
+          <div key={idx} className="space-y-3 border border-border/40 rounded-md p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Service {idx + 1}</span>
+              {services.length > 1 && (
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={() => removeService(idx)}>Remove</Button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Service Type</Label>
+              <Select value={svc.service_type || ''} onValueChange={v => updateService(idx, 'service_type', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select service…" /></SelectTrigger>
+                <SelectContent>
+                  {SERVICE_TYPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <FormField label="Minutes / Frequency" value={svc.minutes_frequency || ''} onChange={v => updateService(idx, 'minutes_frequency', v)} placeholder="e.g. 30 min, 3× per week" />
+            <div className="space-y-1.5">
+              <Label className="text-xs">Setting</Label>
+              <Select value={svc.setting || ''} onValueChange={v => updateService(idx, 'setting', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select setting…" /></SelectTrigger>
+                <SelectContent>
+                  {SETTINGS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Provider Role</Label>
+              <Select value={svc.provider_role || ''} onValueChange={v => updateService(idx, 'provider_role', v)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select provider…" /></SelectTrigger>
+                <SelectContent>
+                  {PROVIDER_ROLES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" className="gap-1 text-xs w-full" onClick={addService}>
+          <Plus className="h-3 w-3" /> Add Another Service
+        </Button>
       </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">Provider Role</Label>
-        <Select value={formValues.provider_role || ''} onValueChange={v => updateFormValue('provider_role', v)}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select provider…" /></SelectTrigger>
-          <SelectContent>
-            {PROVIDER_ROLES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // ── Render: Right Panel (Preview Editor + Actions) ──
   const renderRightPanel = () => {
