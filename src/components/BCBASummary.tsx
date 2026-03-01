@@ -86,11 +86,13 @@ ${sessionLines || '  • No sessions this week'}
     if (!summary.trim() || !user || !currentWorkspace) return;
     setSending(true);
 
+    const title = `BCBA Summary — ${new Date().toLocaleDateString()}`;
+
     const { error } = await supabase.from('iep_drafts').insert({
       client_id: clientId,
       created_by: user.id,
       agency_id: currentWorkspace.agency_id,
-      title: `BCBA Summary — ${new Date().toLocaleDateString()}`,
+      title,
       sections: [
         {
           id: crypto.randomUUID(),
@@ -111,6 +113,14 @@ ${sessionLines || '  • No sessions this week'}
     } else {
       toast({ title: 'Summary sent to BCBA', description: 'Visible in NovaTrack Core under this student.' });
       setSummary('');
+
+      // Send email notification (fire-and-forget)
+      supabase.functions.invoke('notify-bcba', {
+        body: { clientId, clientName, summaryTitle: title },
+      }).then(({ error: fnErr }) => {
+        if (fnErr) console.error('Notification error:', fnErr);
+        else toast({ title: '✉️ BCBA notified by email' });
+      });
     }
     setSending(false);
   };
