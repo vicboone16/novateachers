@@ -15,16 +15,83 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, FileText, Save, Trash2, Sparkles, Loader2, Copy, Share2, Download } from 'lucide-react';
+import { Plus, FileText, Save, Trash2, Sparkles, Loader2, Copy, Share2, Download, ClipboardList } from 'lucide-react';
 import type { Client, IEPDraft, IEPSection } from '@/lib/types';
 
-const SECTION_TEMPLATES: { type: IEPSection['type']; title: string; defaultContent: string }[] = [
-  { type: 'present_levels', title: 'Present Levels of Performance', defaultContent: 'Describe the student\'s current academic and functional performance…' },
-  { type: 'behavior_impact', title: 'Behavior Impact Statement', defaultContent: 'Describe how the student\'s behavior impacts their learning and the learning of others…' },
-  { type: 'goals', title: 'Annual Goals & Objectives', defaultContent: 'Goal 1:\nBaseline:\nTarget:\nMeasurement method:' },
-  { type: 'accommodations', title: 'Accommodations & Modifications', defaultContent: '• Extended time on assessments\n• Preferential seating\n• ' },
-  { type: 'services', title: 'Services & Supports', defaultContent: 'Service:\nFrequency:\nDuration:\nProvider:' },
-  { type: 'transition', title: 'Transition Planning', defaultContent: 'Post-secondary goals:\nTransition activities:\nAge-appropriate assessments:' },
+// ── Section definitions with guided form prompts ──
+const SECTION_DEFS: {
+  key: string;
+  type: IEPSection['type'];
+  title: string;
+  prompts: { label: string; placeholder: string; field: string }[];
+  template: (vals: Record<string, string>) => string;
+}[] = [
+  {
+    key: 'present_levels',
+    type: 'present_levels',
+    title: 'Present Levels of Performance',
+    prompts: [
+      { label: 'Academic strengths', placeholder: 'e.g. reads at grade level, strong in math computation', field: 'strengths' },
+      { label: 'Areas of concern', placeholder: 'e.g. difficulty with written expression, reading comprehension below grade level', field: 'concerns' },
+      { label: 'Current data / assessment results', placeholder: 'e.g. scored 72% on curriculum-based measure, below 25th percentile on DIBELS', field: 'data' },
+      { label: 'Impact on general education', placeholder: 'e.g. requires extended time, needs modified assignments', field: 'impact' },
+    ],
+    template: (v) =>
+      `**Academic Strengths:** ${v.strengths || '—'}\n\n**Areas of Concern:** ${v.concerns || '—'}\n\n**Current Data & Assessment Results:** ${v.data || '—'}\n\n**Impact on General Education:** ${v.impact || '—'}`,
+  },
+  {
+    key: 'behavior_impact',
+    type: 'behavior_impact',
+    title: 'Behavior Impact Statement',
+    prompts: [
+      { label: 'Target behavior(s)', placeholder: 'e.g. off-task behavior, verbal outbursts', field: 'behaviors' },
+      { label: 'Frequency / intensity', placeholder: 'e.g. 3–5 times per class period, moderate intensity', field: 'frequency' },
+      { label: 'Impact on learning', placeholder: 'e.g. misses 15 min of instruction daily, disrupts peer learning', field: 'learning_impact' },
+      { label: 'Current interventions', placeholder: 'e.g. token economy, visual schedule, breaks', field: 'interventions' },
+    ],
+    template: (v) =>
+      `**Target Behavior(s):** ${v.behaviors || '—'}\n\n**Frequency / Intensity:** ${v.frequency || '—'}\n\n**Impact on Learning:** ${v.learning_impact || '—'}\n\n**Current Interventions:** ${v.interventions || '—'}`,
+  },
+  {
+    key: 'accommodations',
+    type: 'accommodations',
+    title: 'Accommodations & Modifications',
+    prompts: [
+      { label: 'Classroom accommodations', placeholder: 'e.g. preferential seating, visual schedule, fidget tool', field: 'classroom' },
+      { label: 'Assessment accommodations', placeholder: 'e.g. extended time (1.5×), separate setting, read-aloud', field: 'assessment' },
+      { label: 'Environmental modifications', placeholder: 'e.g. reduced distractions, noise-canceling headphones', field: 'environmental' },
+    ],
+    template: (v) =>
+      `**Classroom Accommodations:**\n${(v.classroom || '').split(',').map(s => `• ${s.trim()}`).filter(s => s !== '• ').join('\n') || '• —'}\n\n**Assessment Accommodations:**\n${(v.assessment || '').split(',').map(s => `• ${s.trim()}`).filter(s => s !== '• ').join('\n') || '• —'}\n\n**Environmental Modifications:**\n${(v.environmental || '').split(',').map(s => `• ${s.trim()}`).filter(s => s !== '• ').join('\n') || '• —'}`,
+  },
+  {
+    key: 'goals',
+    type: 'goals',
+    title: 'Annual Goals & Objectives',
+    prompts: [
+      { label: 'Goal area', placeholder: 'e.g. reading comprehension, on-task behavior, social skills', field: 'area' },
+      { label: 'Baseline', placeholder: 'e.g. currently reads 45 wpm, on-task 40% of intervals', field: 'baseline' },
+      { label: 'Target', placeholder: 'e.g. will read 80 wpm, on-task 80% of intervals', field: 'target' },
+      { label: 'Measurement method', placeholder: 'e.g. curriculum-based measure, interval recording, teacher observation', field: 'measurement' },
+      { label: 'Timeline', placeholder: 'e.g. by annual review date, within 36 weeks', field: 'timeline' },
+    ],
+    template: (v) =>
+      `**Goal Area:** ${v.area || '—'}\n\n**Baseline:** ${v.baseline || '—'}\n\n**Target:** ${v.target || '—'}\n\n**Measurement Method:** ${v.measurement || '—'}\n\n**Timeline:** ${v.timeline || '—'}`,
+  },
+  {
+    key: 'services_supports',
+    type: 'services',
+    title: 'Services & Supports',
+    prompts: [
+      { label: 'Service type', placeholder: 'e.g. specialized instruction, speech therapy, counseling', field: 'service' },
+      { label: 'Frequency', placeholder: 'e.g. 3× per week, 30 min sessions', field: 'frequency' },
+      { label: 'Duration', placeholder: 'e.g. 30 minutes per session', field: 'duration' },
+      { label: 'Provider', placeholder: 'e.g. special education teacher, SLP, school psychologist', field: 'provider' },
+      { label: 'Location', placeholder: 'e.g. resource room, general education classroom', field: 'location' },
+    ],
+    template: (v) =>
+      `**Service:** ${v.service || '—'}\n**Frequency:** ${v.frequency || '—'}\n**Duration:** ${v.duration || '—'}\n**Provider:** ${v.provider || '—'}\n**Location:** ${v.location || '—'}`,
+  },
 ];
 
 interface Props {
@@ -33,7 +100,7 @@ interface Props {
 
 export const IEPTab = ({ client }: Props) => {
   const { user } = useAuth();
-  const { currentWorkspace, isSoloMode } = useWorkspace();
+  const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
   const [tab, setTab] = useState('snapshot');
   const [drafts, setDrafts] = useState<IEPDraft[]>([]);
@@ -44,19 +111,21 @@ export const IEPTab = ({ client }: Props) => {
   const [newTitle, setNewTitle] = useState('');
   const [generatingSection, setGeneratingSection] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
-  const [showCustomDialog, setShowCustomDialog] = useState(false);
-  const [customSectionTitle, setCustomSectionTitle] = useState('');
 
-  // Snapshot fields (editable locally then saved to clients/students)
+  // Guided form state
+  const [guidedTemplate, setGuidedTemplate] = useState<string | null>(null);
+  const [guidedValues, setGuidedValues] = useState<Record<string, string>>({});
+
+  // Snapshot
   const [iepDate, setIepDate] = useState(client.iep_date || '');
   const [nextReview, setNextReview] = useState(client.next_iep_review_date || '');
   const [diagnoses, setDiagnoses] = useState((client.diagnoses || []).join(', '));
   const [presentNotes, setPresentNotes] = useState('');
   const [savingSnapshot, setSavingSnapshot] = useState(false);
 
-  useEffect(() => {
-    loadDrafts();
-  }, [client.id]);
+  useEffect(() => { loadDrafts(); }, [client.id]);
+
+  // ── Queries ──
 
   const loadDrafts = async () => {
     setLoading(true);
@@ -77,38 +146,34 @@ export const IEPTab = ({ client }: Props) => {
       next_iep_review_date: nextReview || null,
       diagnoses: diagArr.length > 0 ? diagArr : null,
     }).eq('id', client.id);
-
-    if (error) {
-      toast({ title: 'Error saving snapshot', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'IEP snapshot saved' });
-    }
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else toast({ title: 'IEP snapshot saved' });
     setSavingSnapshot(false);
   };
 
   const handleCreateDraft = async () => {
     if (!newTitle.trim()) return;
     setSaving(true);
-    const sections: IEPSection[] = SECTION_TEMPLATES.map((t, i) => ({
+
+    const sections: IEPSection[] = SECTION_DEFS.map((d, i) => ({
       id: crypto.randomUUID(),
-      type: t.type,
-      title: t.title,
-      content: t.defaultContent,
+      type: d.type,
+      title: d.title,
+      content: '',
       order: i,
     }));
 
     const { data, error } = await supabase.from('iep_drafts').insert({
       client_id: client.id,
-      user_id: user?.id,
+      created_by: user?.id,
       agency_id: currentWorkspace?.agency_id,
       title: newTitle.trim(),
       sections,
       status: 'draft',
     }).select().single();
 
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else {
       toast({ title: 'Draft created' });
       setShowNew(false);
       setNewTitle('');
@@ -124,10 +189,9 @@ export const IEPTab = ({ client }: Props) => {
     const { error } = await supabase.from('iep_drafts').update({
       sections: activeDraft.sections,
       title: activeDraft.title,
-      status: activeDraft.status,
+      status: 'draft',
       updated_at: new Date().toISOString(),
     }).eq('id', activeDraft.id);
-
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     else toast({ title: 'Draft saved' });
     setSaving(false);
@@ -141,21 +205,24 @@ export const IEPTab = ({ client }: Props) => {
       shared_at: new Date().toISOString(),
       shared_by: user.id,
     }).eq('id', activeDraft.id);
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      setActiveDraft({ ...activeDraft, status: 'shared' as any });
-      toast({ title: 'Shared with BCBA/Nova', description: 'This draft is now visible in NovaTrack Core.' });
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else {
+      setActiveDraft({ ...activeDraft, status: 'shared' as any, shared_at: new Date().toISOString() });
+      toast({ title: 'Shared with BCBA/Nova', description: 'Draft is now visible in NovaTrack Core.' });
     }
     setSaving(false);
   };
 
-  const handleCopy = () => {
+  const handleCopyAll = () => {
     if (!activeDraft) return;
     const text = activeDraft.sections.map(s => `## ${s.title}\n\n${s.content}`).join('\n\n---\n\n');
     navigator.clipboard.writeText(text);
-    toast({ title: 'Copied to clipboard' });
+    toast({ title: 'All sections copied to clipboard' });
+  };
+
+  const handleCopySection = (section: IEPSection) => {
+    navigator.clipboard.writeText(section.content);
+    toast({ title: `"${section.title}" copied` });
   };
 
   const handleExport = () => {
@@ -187,37 +254,35 @@ export const IEPTab = ({ client }: Props) => {
     });
   };
 
-  const addSection = (type: IEPSection['type']) => {
-    if (!activeDraft) return;
-    const template = SECTION_TEMPLATES.find(t => t.type === type);
-    setActiveDraft({
-      ...activeDraft,
-      sections: [...activeDraft.sections, {
-        id: crypto.randomUUID(),
-        type,
-        title: template?.title || 'Custom Section',
-        content: template?.defaultContent || '',
-        order: activeDraft.sections.length,
-      }],
-    });
+  // ── Guided form: generate text from prompts ──
+  const handleGuidedGenerate = () => {
+    if (!guidedTemplate || !activeDraft) return;
+    const def = SECTION_DEFS.find(d => d.key === guidedTemplate);
+    if (!def) return;
+    const text = def.template(guidedValues);
+
+    // Find existing section or add new
+    const existing = activeDraft.sections.find(s => s.type === def.type);
+    if (existing) {
+      updateSection(existing.id, text);
+    } else {
+      setActiveDraft({
+        ...activeDraft,
+        sections: [...activeDraft.sections, {
+          id: crypto.randomUUID(),
+          type: def.type,
+          title: def.title,
+          content: text,
+          order: activeDraft.sections.length,
+        }],
+      });
+    }
+    setGuidedTemplate(null);
+    setGuidedValues({});
+    toast({ title: 'Section generated from form' });
   };
 
-  const addCustomSection = () => {
-    if (!activeDraft || !customSectionTitle.trim()) return;
-    setActiveDraft({
-      ...activeDraft,
-      sections: [...activeDraft.sections, {
-        id: crypto.randomUUID(),
-        type: 'custom',
-        title: customSectionTitle.trim(),
-        content: '',
-        order: activeDraft.sections.length,
-      }],
-    });
-    setCustomSectionTitle('');
-    setShowCustomDialog(false);
-  };
-
+  // ── AI generation ──
   const generateForSection = async (section: IEPSection) => {
     setGeneratingSection(section.id);
     try {
@@ -225,7 +290,6 @@ export const IEPTab = ({ client }: Props) => {
         supabase.from('abc_logs').select('*').eq('client_id', client.id).order('logged_at', { ascending: false }).limit(30),
         supabase.from('behavior_categories').select('*').eq('client_id', client.id),
       ]);
-
       const { data, error } = await cloudSupabase.functions.invoke('generate-iep-goals', {
         body: {
           studentName: `${client.first_name} ${client.last_name}`,
@@ -235,17 +299,11 @@ export const IEPTab = ({ client }: Props) => {
           sectionType: section.type === 'custom' ? section.title : section.type,
         },
       });
-
       if (error) throw error;
-      if (data?.content) {
-        updateSection(section.id, data.content);
-        toast({ title: 'AI content generated' });
-      }
+      if (data?.content) { updateSection(section.id, data.content); toast({ title: 'AI content generated' }); }
     } catch (err: any) {
       toast({ title: 'Generation failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setGeneratingSection(null);
-    }
+    } finally { setGeneratingSection(null); }
   };
 
   const generateAllSections = async () => {
@@ -256,7 +314,6 @@ export const IEPTab = ({ client }: Props) => {
         supabase.from('abc_logs').select('*').eq('client_id', client.id).order('logged_at', { ascending: false }).limit(30),
         supabase.from('behavior_categories').select('*').eq('client_id', client.id),
       ]);
-
       for (const section of activeDraft.sections) {
         setGeneratingSection(section.id);
         try {
@@ -274,10 +331,7 @@ export const IEPTab = ({ client }: Props) => {
         setGeneratingSection(null);
       }
       toast({ title: 'All sections generated' });
-    } finally {
-      setGeneratingAll(false);
-      setGeneratingSection(null);
-    }
+    } finally { setGeneratingAll(false); setGeneratingSection(null); }
   };
 
   const statusColors: Record<string, string> = {
@@ -287,12 +341,10 @@ export const IEPTab = ({ client }: Props) => {
     shared: 'bg-accent text-accent-foreground',
   };
 
-  // ── IEP Snapshot sub-tab ──
+  // ── Render: Snapshot ──
   const renderSnapshot = () => (
     <Card className="border-border/50">
-      <CardHeader>
-        <CardTitle className="text-base">IEP Snapshot</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="text-base">IEP Snapshot</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -310,12 +362,7 @@ export const IEPTab = ({ client }: Props) => {
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Present Levels Quick Notes</Label>
-          <Textarea
-            value={presentNotes}
-            onChange={e => setPresentNotes(e.target.value)}
-            placeholder="Brief notes about current performance levels…"
-            className="min-h-[80px]"
-          />
+          <Textarea value={presentNotes} onChange={e => setPresentNotes(e.target.value)} placeholder="Brief notes…" className="min-h-[80px]" />
         </div>
         <Button onClick={handleSaveSnapshot} disabled={savingSnapshot} size="sm" className="gap-1.5">
           <Save className="h-3.5 w-3.5" />
@@ -325,17 +372,14 @@ export const IEPTab = ({ client }: Props) => {
     </Card>
   );
 
-  // ── Draft list ──
+  // ── Render: Draft list ──
   const renderDraftList = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">IEP Drafts</h3>
         <Dialog open={showNew} onOpenChange={setShowNew}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5 h-8">
-              <Plus className="h-3.5 w-3.5" />
-              New Draft
-            </Button>
+            <Button size="sm" className="gap-1.5 h-8"><Plus className="h-3.5 w-3.5" /> New Draft</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Create IEP Draft</DialogTitle></DialogHeader>
@@ -375,7 +419,12 @@ export const IEPTab = ({ client }: Props) => {
                 <div>
                   <p className="text-sm font-medium">{draft.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {draft.sections?.length || 0} sections · {new Date(draft.updated_at).toLocaleDateString()}
+                    Updated {new Date(draft.updated_at).toLocaleDateString()}
+                    {draft.shared_at && (
+                      <span className="ml-2 text-accent-foreground">
+                        · Shared {new Date(draft.shared_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <Badge className={statusColors[draft.status] || ''}>{draft.status}</Badge>
@@ -387,11 +436,14 @@ export const IEPTab = ({ client }: Props) => {
     </div>
   );
 
-  // ── Active draft editor ──
+  // ── Render: Active draft editor ──
   const renderDraftEditor = () => {
     if (!activeDraft) return null;
+    const guidedDef = guidedTemplate ? SECTION_DEFS.find(d => d.key === guidedTemplate) : null;
+
     return (
       <div className="space-y-4">
+        {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => { setActiveDraft(null); loadDrafts(); }}>← Back</Button>
@@ -400,22 +452,14 @@ export const IEPTab = ({ client }: Props) => {
               onChange={e => setActiveDraft({ ...activeDraft, title: e.target.value })}
               className="max-w-[200px] border-none bg-transparent font-semibold focus-visible:ring-0"
             />
-            <Select value={activeDraft.status} onValueChange={(v: any) => setActiveDraft({ ...activeDraft, status: v })}>
-              <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="review">Review</SelectItem>
-                <SelectItem value="final">Final</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Button onClick={generateAllSections} disabled={generatingAll} size="sm" variant="outline" className="gap-1 h-8 text-xs">
               {generatingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-              {generatingAll ? 'Generating…' : 'AI All'}
+              AI All
             </Button>
-            <Button onClick={handleCopy} size="sm" variant="outline" className="gap-1 h-8 text-xs">
-              <Copy className="h-3 w-3" /> Copy
+            <Button onClick={handleCopyAll} size="sm" variant="outline" className="gap-1 h-8 text-xs">
+              <Copy className="h-3 w-3" /> Copy All
             </Button>
             <Button onClick={handleExport} size="sm" variant="outline" className="gap-1 h-8 text-xs">
               <Download className="h-3 w-3" /> Export
@@ -429,6 +473,53 @@ export const IEPTab = ({ client }: Props) => {
           </div>
         </div>
 
+        {/* Template selector */}
+        <Card className="border-border/50 bg-muted/30">
+          <CardContent className="p-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Guided Template — fill form to generate section text:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {SECTION_DEFS.map(d => (
+                <Button
+                  key={d.key}
+                  variant={guidedTemplate === d.key ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => { setGuidedTemplate(guidedTemplate === d.key ? null : d.key); setGuidedValues({}); }}
+                >
+                  <ClipboardList className="h-3 w-3 mr-1" />
+                  {d.title.split(' ').slice(0, 2).join(' ')}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Guided form */}
+        {guidedDef && (
+          <Card className="border-primary/20 bg-primary/[0.02]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">{guidedDef.title} — Guided Form</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {guidedDef.prompts.map(p => (
+                <div key={p.field} className="space-y-1">
+                  <Label className="text-xs">{p.label}</Label>
+                  <Input
+                    value={guidedValues[p.field] || ''}
+                    onChange={e => setGuidedValues(prev => ({ ...prev, [p.field]: e.target.value }))}
+                    placeholder={p.placeholder}
+                  />
+                </div>
+              ))}
+              <Button onClick={handleGuidedGenerate} size="sm" className="gap-1.5">
+                <FileText className="h-3.5 w-3.5" />
+                Generate Section Text
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Section editors */}
         {activeDraft.sections.map(section => (
           <Card key={section.id} className="border-border/50">
             <CardHeader className="pb-2">
@@ -444,6 +535,9 @@ export const IEPTab = ({ client }: Props) => {
                     {generatingSection === section.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     AI
                   </Button>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => handleCopySection(section)}>
+                    <Copy className="h-3 w-3" /> Copy
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeSection(section.id)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -455,31 +549,6 @@ export const IEPTab = ({ client }: Props) => {
             </CardContent>
           </Card>
         ))}
-
-        <Card className="border-dashed border-border">
-          <CardContent className="flex flex-wrap items-center gap-2 p-3">
-            <span className="text-xs text-muted-foreground">Add:</span>
-            {SECTION_TEMPLATES.map(t => (
-              <Button key={t.type} variant="outline" size="sm" className="text-xs h-7" onClick={() => addSection(t.type)}>
-                + {t.title.split(' ').slice(0, 2).join(' ')}
-              </Button>
-            ))}
-            <Dialog open={showCustomDialog} onOpenChange={setShowCustomDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-xs h-7 gap-1">
-                  <Plus className="h-3 w-3" /> Custom
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Custom Section</DialogTitle></DialogHeader>
-                <div className="space-y-3 pt-2">
-                  <Input placeholder="Section title" value={customSectionTitle} onChange={e => setCustomSectionTitle(e.target.value)} />
-                  <Button onClick={addCustomSection} disabled={!customSectionTitle.trim()} className="w-full">Add</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
       </div>
     );
   };
