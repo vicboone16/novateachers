@@ -2,3 +2,6 @@ project_id = "boggwdoewqfhgbaylzbm"
 
 [functions.generate-iep-goals]
 verify_jwt = false
+
+[functions.notify-bcba]
+verify_jwt = false
