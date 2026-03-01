@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "NovaTrack <onboarding@resend.dev>",
+          from: "NovaTrack <noreply@novabehavior.com>",
           to: [bcba.email],
           subject: `📋 New Summary: ${clientName} — Review Required`,
           html: emailHtml,
