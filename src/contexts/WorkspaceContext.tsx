@@ -10,6 +10,9 @@ interface WorkspaceContextType {
   isSoloMode: boolean;
   permissions: UserPermissions;
   loading: boolean;
+  /** The current user's role in the active workspace agency (e.g. 'owner', 'admin', 'teacher') */
+  currentRole: string | null;
+  isAdmin: boolean;
 }
 
 const defaultPermissions: UserPermissions = {
@@ -26,6 +29,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
   const [loading, setLoading] = useState(true);
+  const [membershipsByAgency, setMembershipsByAgency] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) {
@@ -110,6 +114,15 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       setWorkspaces(ws);
 
+      // Store role per agency for later lookup
+      const roleMap: Record<string, string> = {};
+      if (memberships) {
+        for (const m of memberships as any[]) {
+          roleMap[m.agency_id] = String(m.role || 'teacher').toLowerCase();
+        }
+      }
+      setMembershipsByAgency(roleMap);
+
       // Restore from session or pick first
       const savedWsId = sessionStorage.getItem('novatrack_workspace_id');
       const restored = ws.find(w => w.id === savedWsId);
@@ -131,10 +144,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const isSoloMode = currentWorkspace?.mode === 'solo';
+  const currentRole = currentWorkspace ? (membershipsByAgency[currentWorkspace.agency_id] || null) : null;
+  const isAdmin = currentRole === 'owner' || currentRole === 'admin';
 
   return (
     <WorkspaceContext.Provider
-      value={{ workspaces, currentWorkspace, setCurrentWorkspace: handleSetWorkspace, isSoloMode, permissions, loading }}
+      value={{ workspaces, currentWorkspace, setCurrentWorkspace: handleSetWorkspace, isSoloMode, permissions, loading, currentRole, isAdmin }}
     >
       {children}
     </WorkspaceContext.Provider>
