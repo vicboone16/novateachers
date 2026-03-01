@@ -76,7 +76,7 @@ export interface BehaviorCategory {
 export interface IEPDraft {
   id: string;
   client_id: string;
-  user_id: string;
+  created_by: string;
   title: string;
   sections: IEPSection[];
   status: 'draft' | 'review' | 'final' | 'shared';
