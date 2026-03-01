@@ -185,13 +185,11 @@ const IEPWriter = () => {
   };
 
   const updateSection = (id: string, content: string) => {
-    if (!activeDraft) return;
-    setActiveDraft({ ...activeDraft, sections: activeDraft.sections.map(s => s.id === id ? { ...s, content } : s) });
+    setActiveDraft(prev => prev ? { ...prev, sections: prev.sections.map(s => s.id === id ? { ...s, content } : s) } : prev);
   };
 
   const removeSection = (id: string) => {
-    if (!activeDraft) return;
-    setActiveDraft({ ...activeDraft, sections: activeDraft.sections.filter(s => s.id !== id) });
+    setActiveDraft(prev => prev ? { ...prev, sections: prev.sections.filter(s => s.id !== id) } : prev);
   };
 
   const handleGuidedGenerate = () => {
@@ -352,9 +350,9 @@ const IEPWriter = () => {
               <p className="text-xs font-medium text-muted-foreground mb-2">Guided Template — fill form to generate section text:</p>
               <div className="flex flex-wrap gap-1.5">
                 {SECTION_DEFS.map(d => (
-                  <Button key={d.key} variant={guidedTemplate === d.key ? 'default' : 'outline'} size="sm" className="h-8 text-xs"
+                  <Button key={d.key} variant={guidedTemplate === d.key ? 'default' : 'outline'} size="sm" className="h-8 text-xs whitespace-nowrap"
                     onClick={() => { setGuidedTemplate(guidedTemplate === d.key ? null : d.key); setGuidedValues({}); }}>
-                    <ClipboardList className="h-3 w-3 mr-1" />{d.title.split(' ').slice(0, 2).join(' ')}
+                    <ClipboardList className="h-3 w-3 mr-1 shrink-0" /><span className="truncate">{d.title}</span>
                   </Button>
                 ))}
               </div>
