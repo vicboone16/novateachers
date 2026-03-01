@@ -14,6 +14,7 @@ import { DataCollectionSession } from '@/components/DataCollectionSession';
 import { TargetManager } from '@/components/TargetManager';
 import { IEPTab } from '@/components/IEPTab';
 import { BCBASummary } from '@/components/BCBASummary';
+import { TeacherSummaries } from '@/components/TeacherSummaries';
 import type { Client, ABCLog, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
 const StudentDetail = () => {
@@ -281,6 +282,9 @@ const StudentDetail = () => {
                   sessions={sessions}
                 />
               )}
+
+              {/* Shared summaries with Mark as Reviewed */}
+              <TeacherSummaries clientId={client.id} />
 
               {/* Recent Sessions */}
               {sessions.length > 0 && (
