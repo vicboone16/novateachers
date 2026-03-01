@@ -55,7 +55,8 @@ const JoinInvite = () => {
     try {
       const { data, error: rpcError } = await supabase.rpc('redeem_invite_code', {
         p_code: parsed.data,
-        p_app_context: 'novatrack_teacher',
+        p_expected_app_context: 'novatrack_teacher',
+        p_redeemer_id: user.id,
       });
 
       if (rpcError) throw rpcError;
