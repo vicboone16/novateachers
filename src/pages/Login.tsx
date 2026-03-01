@@ -7,24 +7,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await signIn(email, password);
+    const { error } = isSignUp
+      ? await signUp(email, password)
+      : await signIn(email, password);
 
     if (error) {
       toast({
-        title: 'Login failed',
+        title: isSignUp ? 'Sign up failed' : 'Login failed',
         description: error.message,
         variant: 'destructive',
       });
+    } else if (isSignUp) {
+      toast({ title: 'Account created!', description: 'You are now signed in.' });
     }
 
     setLoading(false);
@@ -42,8 +47,8 @@ const Login = () => {
 
         <Card className="border-border/50 shadow-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Sign in</CardTitle>
-            <CardDescription>Enter your credentials to continue</CardDescription>
+            <CardTitle className="text-lg">{isSignUp ? 'Create account' : 'Sign in'}</CardTitle>
+            <CardDescription>{isSignUp ? 'Enter your details to get started' : 'Enter your credentials to continue'}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,12 +71,19 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={6}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Signing in…' : 'Sign in'}
+                {loading ? (isSignUp ? 'Creating…' : 'Signing in…') : (isSignUp ? 'Create account' : 'Sign in')}
               </Button>
             </form>
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button type="button" className="text-primary underline" onClick={() => setIsSignUp(!isSignUp)}>
+                {isSignUp ? 'Sign in' : 'Sign up'}
+              </button>
+            </p>
           </CardContent>
         </Card>
       </div>
