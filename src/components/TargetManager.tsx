@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import type { TeacherTarget } from '@/lib/types';
 
 interface Props {
@@ -24,9 +24,11 @@ export const TargetManager = ({ clientId, targets, onRefresh, readOnly }: Props)
   const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [targetType, setTargetType] = useState<'behavior' | 'skill'>('behavior');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAdd = async () => {
     if (!name.trim() || !currentWorkspace || !user) return;
@@ -36,7 +38,6 @@ export const TargetManager = ({ clientId, targets, onRefresh, readOnly }: Props)
       agency_id: currentWorkspace.agency_id,
       client_id: clientId,
       name: name.trim(),
-      description: description.trim() || null,
       target_type: targetType,
       created_by: user.id,
     });
@@ -46,10 +47,40 @@ export const TargetManager = ({ clientId, targets, onRefresh, readOnly }: Props)
     } else {
       toast({ title: 'Target added' });
       setName('');
-      setDescription('');
       onRefresh();
     }
     setSaving(false);
+  };
+
+  const handleEdit = async (target: TeacherTarget) => {
+    if (!editName.trim()) return;
+    const { error } = await supabase
+      .from('teacher_targets')
+      .update({ name: editName.trim() })
+      .eq('id', target.id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Target updated' });
+      setEditingId(null);
+      onRefresh();
+    }
+  };
+
+  const handleDelete = async (targetId: string) => {
+    const { error } = await supabase
+      .from('teacher_targets')
+      .delete()
+      .eq('id', targetId);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Target deleted' });
+      setDeletingId(null);
+      onRefresh();
+    }
   };
 
   return (
@@ -61,11 +92,50 @@ export const TargetManager = ({ clientId, targets, onRefresh, readOnly }: Props)
         {targets.length === 0 ? (
           <p className="text-sm text-muted-foreground">No targets defined yet.</p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-1.5">
             {targets.map(t => (
-              <Badge key={t.id} variant={t.target_type === 'behavior' ? 'destructive' : 'secondary'}>
-                {t.name}
-              </Badge>
+              <div key={t.id} className="flex items-center gap-2 group">
+                {editingId === t.id ? (
+                  <div className="flex items-center gap-1.5 flex-1">
+                    <Input
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      className="h-7 text-xs"
+                      autoFocus
+                      onKeyDown={e => e.key === 'Enter' && handleEdit(t)}
+                    />
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleEdit(t)}>
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingId(null)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : deletingId === t.id ? (
+                  <div className="flex items-center gap-1.5 flex-1">
+                    <span className="text-xs text-destructive">Delete "{t.name}"?</span>
+                    <Button size="sm" variant="destructive" className="h-6 text-xs px-2" onClick={() => handleDelete(t.id)}>Yes</Button>
+                    <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => setDeletingId(null)}>No</Button>
+                  </div>
+                ) : (
+                  <>
+                    <Badge variant={t.target_type === 'behavior' ? 'destructive' : 'secondary'}>
+                      {t.name}
+                    </Badge>
+                    <Badge variant="outline" className="text-[9px]">{t.target_type}</Badge>
+                    {!readOnly && (
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { setEditingId(t.id); setEditName(t.name); }}>
+                          <Pencil className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={() => setDeletingId(t.id)}>
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             ))}
           </div>
         )}

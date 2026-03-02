@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare, Trash2 } from 'lucide-react';
 import { normalizeClient, displayName } from '@/lib/student-utils';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { DataCollectionSession } from '@/components/DataCollectionSession';
@@ -15,6 +15,7 @@ import { TargetManager } from '@/components/TargetManager';
 import { IEPTab } from '@/components/IEPTab';
 import { BCBASummary } from '@/components/BCBASummary';
 import { TeacherSummaries } from '@/components/TeacherSummaries';
+import { useToast } from '@/hooks/use-toast';
 import type { Client, ABCLog, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
 const StudentDetail = () => {
@@ -22,6 +23,7 @@ const StudentDetail = () => {
   const navigate = useNavigate();
   const { isSoloMode, permissions, currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -247,6 +249,8 @@ const StudentDetail = () => {
                             borderRadius: 'var(--radius)',
                             fontSize: 12,
                           }}
+                          formatter={(value: number) => [value, 'ABC Events']}
+                          labelFormatter={(label: string) => `Date: ${label}`}
                         />
                         <Line type="monotone" dataKey="count" className="stroke-primary" strokeWidth={2.5} dot={{ r: 3, className: 'fill-primary' }} activeDot={{ r: 5 }} />
                       </LineChart>
@@ -294,24 +298,43 @@ const StudentDetail = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {sessions.slice(0, 10).map(s => (
-                        <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/40 p-2.5 bg-muted/20 hover:bg-muted/40 transition-colors">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 border-primary/20 text-primary">{s.mode}</Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(s.started_at).toLocaleString()}
-                            </span>
+                      {sessions.slice(0, 10).map(s => {
+                        const targetName = targets.find(t => t.id === s.target_id)?.name;
+                        return (
+                          <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/40 p-2.5 bg-muted/20 hover:bg-muted/40 transition-colors group">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 border-primary/20 text-primary shrink-0">{s.mode}</Badge>
+                              {targetName && <Badge variant="secondary" className="text-[10px] shrink-0">{targetName}</Badge>}
+                              <span className="text-xs text-muted-foreground truncate">
+                                {new Date(s.started_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {s.summary_json && (
+                                <span className="text-xs font-semibold text-foreground">
+                                  {s.summary_json.count != null && `Count: ${s.summary_json.count}`}
+                                  {s.summary_json.percentage != null && `${s.summary_json.percentage}%`}
+                                  {s.summary_json.rating != null && `Rating: ${s.summary_json.rating}/5`}
+                                  {s.summary_json.total_seconds != null && `${Math.round(s.summary_json.total_seconds)}s`}
+                                  {s.summary_json.trials != null && `${s.summary_json.correct}/${s.summary_json.trials} correct`}
+                                </span>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                                onClick={async () => {
+                                  const { error } = await supabase.from('teacher_data_sessions').delete().eq('id', s.id);
+                                  if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                                  else { toast({ title: 'Session deleted' }); loadDataTab(); }
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
-                          {s.summary_json && (
-                            <span className="text-xs font-semibold text-foreground">
-                              {s.summary_json.count != null && `Count: ${s.summary_json.count}`}
-                              {s.summary_json.percentage != null && `${s.summary_json.percentage}%`}
-                              {s.summary_json.rating != null && `Rating: ${s.summary_json.rating}/5`}
-                              {s.summary_json.total_seconds != null && `${Math.round(s.summary_json.total_seconds)}s`}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -326,14 +349,28 @@ const StudentDetail = () => {
                   <CardContent>
                     <div className="space-y-2">
                       {logs.slice(0, 10).map(log => (
-                        <div key={log.id} className="rounded-lg border border-border/40 p-3 bg-muted/10 hover:bg-muted/30 transition-colors">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-xs text-muted-foreground">{new Date(log.logged_at).toLocaleString()}</span>
-                            {log.intensity && (
-                              <Badge variant="secondary" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20">
-                                Intensity: {log.intensity}
-                              </Badge>
-                            )}
+                        <div key={log.id} className="rounded-lg border border-border/40 p-3 bg-muted/10 hover:bg-muted/30 transition-colors group">
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{new Date(log.logged_at).toLocaleString()}</span>
+                              {log.intensity && (
+                                <Badge variant="secondary" className="text-[10px] bg-destructive/10 text-destructive border-destructive/20">
+                                  Intensity: {log.intensity}
+                                </Badge>
+                              )}
+                            </div>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                const { error } = await supabase.from('abc_logs').delete().eq('id', log.id);
+                                if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                                else { toast({ title: 'Log deleted' }); loadDataTab(); }
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                           <div className="grid gap-1.5 sm:grid-cols-3 text-xs">
                             <div className="flex items-start gap-1.5">

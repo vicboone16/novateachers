@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { Play, Square, Plus, Minus, Check, X, Timer, RotateCcw } from 'lucide-react';
-import type { DataCollectionMode, TeacherTarget, TeacherDataSession, DATA_MODE_LABELS } from '@/lib/types';
+import type { DataCollectionMode, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
 interface Props {
   clientId: string;
@@ -60,6 +60,12 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
   // Rating
   const [rating, setRating] = useState(3);
 
+  // Trial-by-trial (skill targets)
+  const [trialResults, setTrialResults] = useState<boolean[]>([]);
+
+  const selectedTarget = targets.find(t => t.id === targetId);
+  const isSkillTarget = selectedTarget?.target_type === 'skill';
+
   const startSession = async () => {
     if (!mode || !currentWorkspace || !user) return;
 
@@ -91,6 +97,7 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
     setIntervalResults([]);
     setElapsed(0);
     setRating(3);
+    setTrialResults([]);
 
     if (['mts', 'partial_interval', 'whole_interval'].includes(mode)) {
       startIntervalTimer();
@@ -143,6 +150,18 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
     }
   };
 
+  const handleTrialResponse = async (correct: boolean) => {
+    if (!session) return;
+    setTrialResults(prev => [...prev, correct]);
+
+    await supabase.from('teacher_data_points').insert({
+      session_id: session.id,
+      value: correct ? 1 : 0,
+      occurred_at: new Date().toISOString(),
+      label: correct ? 'correct' : 'incorrect',
+    });
+  };
+
   const toggleDuration = () => {
     if (durationRunning) {
       if (elapsedRef.current) clearInterval(elapsedRef.current);
@@ -162,7 +181,11 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
 
     let summary: Record<string, any> = {};
 
-    if (mode === 'tally') {
+    if (isSkillTarget && mode === 'tally') {
+      const correct = trialResults.filter(r => r).length;
+      const total = trialResults.length;
+      summary = { trials: total, correct, incorrect: total - correct, percentage: total > 0 ? Math.round((correct / total) * 100) : 0 };
+    } else if (mode === 'tally') {
       summary = { count: tallyCount };
     } else if (['mts', 'partial_interval', 'whole_interval'].includes(mode as string)) {
       const yesCount = intervalResults.filter(r => r === true).length;
@@ -224,7 +247,7 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
                 <SelectTrigger><SelectValue placeholder="Select target (optional)" /></SelectTrigger>
                 <SelectContent>
                   {targets.map(t => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    <SelectItem key={t.id} value={t.id}>{t.name} ({t.target_type})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -288,6 +311,7 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
           <CardTitle className="text-base flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
             Session Active — {MODE_OPTIONS.find(o => o.value === mode)?.label}
+            {selectedTarget && <Badge variant="outline" className="text-[10px] ml-1">{selectedTarget.name}</Badge>}
           </CardTitle>
           <Button variant="destructive" size="sm" onClick={endSession} className="gap-1.5">
             <Square className="h-3.5 w-3.5" />
@@ -296,8 +320,8 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
         </div>
       </CardHeader>
       <CardContent>
-        {/* TALLY */}
-        {mode === 'tally' && (
+        {/* TALLY — with trial-by-trial for skill targets */}
+        {mode === 'tally' && !isSkillTarget && (
           <div className="flex flex-col items-center gap-4 py-6">
             <p className="text-6xl font-bold text-primary font-heading">{tallyCount}</p>
             <p className="text-sm text-muted-foreground">Tap to count</p>
@@ -319,6 +343,47 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
                 <Plus className="h-8 w-8" />
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* TRIAL-BY-TRIAL for skill targets */}
+        {mode === 'tally' && isSkillTarget && (
+          <div className="flex flex-col items-center gap-4 py-6">
+            <p className="text-sm font-semibold text-foreground">Trial {trialResults.length + 1}</p>
+            <div className="flex gap-4">
+              <Button
+                size="lg"
+                className="h-20 w-28 rounded-xl text-lg font-bold bg-accent hover:bg-accent/90 text-accent-foreground"
+                onClick={() => handleTrialResponse(true)}
+              >
+                <Check className="mr-1.5 h-6 w-6" /> Correct
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-20 w-28 rounded-xl text-lg font-bold border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={() => handleTrialResponse(false)}
+              >
+                <X className="mr-1.5 h-6 w-6" /> Incorrect
+              </Button>
+            </div>
+            {trialResults.length > 0 && (
+              <div className="text-center space-y-2">
+                <p className="text-2xl font-bold text-primary">
+                  {Math.round((trialResults.filter(r => r).length / trialResults.length) * 100)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {trialResults.filter(r => r).length}/{trialResults.length} correct
+                </p>
+                <div className="flex flex-wrap gap-1 justify-center mt-1">
+                  {trialResults.map((r, i) => (
+                    <Badge key={i} variant={r ? 'default' : 'outline'} className="text-[10px]">
+                      {i + 1}: {r ? '✓' : '✗'}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
