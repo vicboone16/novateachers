@@ -113,7 +113,11 @@ const TriggerTracker = () => {
   };
 
   const antecedentTags = [...DEFAULT_ANTECEDENT_TAGS, ...customAntecedents.filter((t) => !DEFAULT_ANTECEDENT_TAGS.includes(t))];
-  const behaviorTags = [...DEFAULT_BEHAVIOR_TAGS, ...categories.map((c) => c.name).filter((n) => !DEFAULT_BEHAVIOR_TAGS.includes(n))];
+  const behaviorTags = [
+    ...DEFAULT_BEHAVIOR_TAGS,
+    ...categories.map((c) => c.name),
+    ...customBehaviors,
+  ].filter((tag, index, arr) => arr.indexOf(tag) === index);
   const consequenceTags = DEFAULT_CONSEQUENCE_TAGS;
 
   const handleLog = async () => {
@@ -186,6 +190,13 @@ const TriggerTracker = () => {
       await loadCategories();
     }
     setSavingCategory(false);
+  };
+
+  const addCustomBehaviorTag = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setBehavior(trimmed);
+    setCustomBehaviors((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
   };
 
   // Stats
@@ -349,12 +360,33 @@ const TriggerTracker = () => {
                     onSelect={setBehavior}
                     color="text-destructive"
                   />
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Type additional behavior</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={behavior}
+                        onChange={(e) => setBehavior(e.target.value)}
+                        onBlur={(e) => addCustomBehaviorTag(e.target.value)}
+                        placeholder="Type custom behavior..."
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => addCustomBehaviorTag(behavior)}
+                        disabled={!behavior.trim()}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+
                   <TagSelector
                     label="C — Consequence (what happened after)"
                     tags={consequenceTags}
                     selected={consequence}
                     onSelect={setConsequence}
-                    color="text-accent-foreground"
+                    color="text-foreground"
                   />
 
                   {/* Intensity */}
