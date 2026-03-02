@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import { useAppAccess } from './AppAccessContext';
 import type { Workspace, AgencyMembership, UserPermissions } from '@/lib/types';
 
 interface WorkspaceContextType {
@@ -25,6 +26,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { appRole } = useAppAccess();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
@@ -144,7 +146,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const isSoloMode = currentWorkspace?.mode === 'solo';
-  const currentRole = currentWorkspace ? (membershipsByAgency[currentWorkspace.agency_id] || null) : null;
+  // Prefer role from user_app_access (appRole) over agency_memberships
+  const currentRole = appRole || (currentWorkspace ? (membershipsByAgency[currentWorkspace.agency_id] || null) : null);
   const isAdmin = currentRole === 'owner' || currentRole === 'admin';
 
   return (

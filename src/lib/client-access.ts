@@ -182,17 +182,34 @@ async function fetchClassroomGroupClientIds(userId: string, agencyId: string): P
 }
 
 async function fetchDirectAccessClientIds(userId: string, permission?: ClientPermission): Promise<string[]> {
-  // Try user_student_access first (new name), fall back to user_client_access
+  // Try user_student_access first with app_scope filter
   let accessQuery = supabase
     .from('user_student_access')
     .select(permission ? `client_id, ${permission}` : 'client_id')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('app_scope', 'novateachers');
 
   if (permission) {
     accessQuery = accessQuery.eq(permission, true);
   }
 
   let { data: accessRows, error: accessError } = await accessQuery;
+
+  // If app_scope column doesn't exist, retry without it
+  if (accessError && String(accessError.message || '').includes('app_scope')) {
+    let retryQuery = supabase
+      .from('user_student_access')
+      .select(permission ? `client_id, ${permission}` : 'client_id')
+      .eq('user_id', userId);
+
+    if (permission) {
+      retryQuery = retryQuery.eq(permission, true);
+    }
+
+    const retry = await retryQuery;
+    accessRows = retry.data;
+    accessError = retry.error;
+  }
 
   if (accessError) {
     // Fallback to user_client_access
