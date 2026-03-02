@@ -154,13 +154,13 @@ export interface TeacherDataPoint {
 // ── Classroom Groups ──
 
 export interface ClassroomGroup {
-  id: string;
+  group_id: string;
   agency_id: string;
   name: string;
-  description?: string;
+  grade_band?: string;
+  school_name?: string;
   created_by: string;
   created_at: string;
-  updated_at: string;
 }
 
 export interface ClassroomGroupTeacher {

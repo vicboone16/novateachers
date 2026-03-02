@@ -120,7 +120,7 @@ const ClassroomManager = () => {
         return;
       }
 
-      const groupIds = groupsList.map(g => g.id);
+      const groupIds = groupsList.map(g => g.group_id);
 
       // Fetch child rows — wrap each in try/catch because Core RLS policies
       // may reference columns that don't match the expected schema
@@ -170,11 +170,11 @@ const ClassroomManager = () => {
 
       const enriched: GroupWithMembers[] = groupsList.map(g => ({
         ...g,
-        teachers: teacherRows.filter(t => t.group_id === g.id).map(t => ({
+        teachers: teacherRows.filter(t => t.group_id === g.group_id).map(t => ({
           id: t.id,
           user_id: t.user_id,
         })),
-        students: studentRows.filter(s => s.group_id === g.id).map(s => ({
+        students: studentRows.filter(s => s.group_id === g.group_id).map(s => ({
           id: s.id,
           client_id: s.client_id,
           client: clientMap.get(s.client_id),
@@ -264,7 +264,7 @@ const ClassroomManager = () => {
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this classroom group? Students will not be deleted.')) return;
     try {
-      const { error } = await supabase.from('classroom_groups').delete().eq('id', groupId);
+      const { error } = await supabase.from('classroom_groups').delete().eq('group_id', groupId);
       if (error) throw error;
       toast({ title: 'Classroom deleted' });
       loadAll();
@@ -460,14 +460,14 @@ const ClassroomManager = () => {
               : availableStudents;
 
             return (
-              <Card key={group.id} className="border-border/50">
+              <Card key={group.group_id} className="border-border/50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-base font-heading">{group.name}</CardTitle>
-                      {group.description && <p className="text-xs text-muted-foreground mt-0.5">{group.description}</p>}
+                      {group.grade_band && <p className="text-xs text-muted-foreground mt-0.5">{group.grade_band}{group.school_name ? ` · ${group.school_name}` : ''}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -479,9 +479,9 @@ const ClassroomManager = () => {
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                         <UserPlus className="h-3 w-3" /> Teachers
                       </p>
-                      <Dialog open={assignTeacherGroupId === group.id} onOpenChange={(o) => { if (!o) setAssignTeacherGroupId(null); }}>
+                      <Dialog open={assignTeacherGroupId === group.group_id} onOpenChange={(o) => { if (!o) setAssignTeacherGroupId(null); }}>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAssignTeacherGroupId(group.id)}>
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAssignTeacherGroupId(group.group_id)}>
                             <Plus className="h-3 w-3" /> Add
                           </Button>
                         </DialogTrigger>
@@ -535,7 +535,7 @@ const ClassroomManager = () => {
                         <Badge variant="outline" className="text-[10px] ml-1">{group.students.length}</Badge>
                       </p>
                       <Dialog
-                        open={bulkAssignGroupId === group.id}
+                        open={bulkAssignGroupId === group.group_id}
                         onOpenChange={(o) => {
                           if (!o) {
                             setBulkAssignGroupId(null);
@@ -549,7 +549,7 @@ const ClassroomManager = () => {
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs gap-1"
-                            onClick={() => setBulkAssignGroupId(group.id)}
+                            onClick={() => setBulkAssignGroupId(group.group_id)}
                           >
                             <Plus className="h-3 w-3" /> Add Students
                           </Button>

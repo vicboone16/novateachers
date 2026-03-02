@@ -21,7 +21,7 @@ import { Plus, Search, User, Eye, EyeOff, CalendarClock, Sparkles, Users, Share2
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
 import { fetchAccessibleClients, fetchGroupedRoster } from '@/lib/client-access';
-import type { Client } from '@/lib/types';
+import type { Client, ClassroomGroup } from '@/lib/types';
 import type { GroupedStudentRoster } from '@/lib/client-access';
 
 const GRADE_OPTIONS = ['Pre-K', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -121,7 +121,7 @@ const Students = () => {
             const clientMap = new Map(clientRecords.map(c => [c.id, c]));
 
             const classrooms = Array.from(groupMap.values()).map(g => ({
-              group: { id: g.group_id, agency_id: currentWorkspace.agency_id, name: g.group_name, created_by: '', created_at: '', updated_at: '' },
+              group: { group_id: g.group_id, agency_id: currentWorkspace.agency_id, name: g.group_name, created_by: '', created_at: '' } as ClassroomGroup,
               clients: g.clientIds.map(id => clientMap.get(id)).filter(Boolean) as Client[],
             }));
 
@@ -404,7 +404,7 @@ const Students = () => {
             const cgFiltered = applyFilters(cg.clients);
             if (cgFiltered.length === 0 && hasActiveFilters) return null;
             return (
-              <div key={cg.group.id} className="space-y-3">
+              <div key={cg.group.group_id} className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
                   <h4 className="text-sm font-semibold text-foreground">{cg.group.name}</h4>

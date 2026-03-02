@@ -2,22 +2,15 @@
 -- FIX: Classroom Group RLS policies on NovaTrack Core
 -- Run this SQL in the NovaTrack Core Supabase project
 -- 
--- The error "column classroom_groups.id does not exist" means
--- the RLS policies on child tables reference a column that
--- doesn't exist. This script drops and recreates them safely.
+-- Core uses group_id (not id) as PK on classroom_groups.
 -- ============================================================
 
--- Step 1: Check your classroom_groups table structure
--- SELECT column_name FROM information_schema.columns 
--- WHERE table_name = 'classroom_groups' AND table_schema = 'public';
-
--- Step 2: Drop existing broken policies on child tables
+-- Drop existing broken policies on child tables
 DROP POLICY IF EXISTS "View classroom group teachers" ON public.classroom_group_teachers;
 DROP POLICY IF EXISTS "Admins can manage group teachers" ON public.classroom_group_teachers;
 DROP POLICY IF EXISTS "View classroom group students" ON public.classroom_group_students;
 DROP POLICY IF EXISTS "Admins can manage group students" ON public.classroom_group_students;
 
--- Step 3: Recreate with permissive policies that don't depend on classroom_groups columns
 -- Teachers: any authenticated user in the same agency can see teacher assignments
 CREATE POLICY "View classroom group teachers"
   ON public.classroom_group_teachers FOR SELECT TO authenticated
@@ -26,19 +19,19 @@ CREATE POLICY "View classroom group teachers"
     OR EXISTS (
       SELECT 1 FROM public.classroom_groups cg
       JOIN public.agency_memberships am ON am.agency_id = cg.agency_id
-      WHERE cg.id = classroom_group_teachers.group_id
+      WHERE cg.group_id = classroom_group_teachers.group_id
         AND am.user_id = auth.uid()
     )
   );
 
--- Admins can manage teacher assignments
+-- Admins can insert teacher assignments
 CREATE POLICY "Admins can manage group teachers"
   ON public.classroom_group_teachers FOR INSERT TO authenticated
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.classroom_groups cg
       JOIN public.agency_memberships am ON am.agency_id = cg.agency_id
-      WHERE cg.id = classroom_group_teachers.group_id
+      WHERE cg.group_id = classroom_group_teachers.group_id
         AND am.user_id = auth.uid()
         AND am.role IN ('owner', 'admin')
     )
@@ -50,7 +43,7 @@ CREATE POLICY "Admins can delete group teachers"
     EXISTS (
       SELECT 1 FROM public.classroom_groups cg
       JOIN public.agency_memberships am ON am.agency_id = cg.agency_id
-      WHERE cg.id = classroom_group_teachers.group_id
+      WHERE cg.group_id = classroom_group_teachers.group_id
         AND am.user_id = auth.uid()
         AND am.role IN ('owner', 'admin')
     )
@@ -68,19 +61,19 @@ CREATE POLICY "View classroom group students"
     OR EXISTS (
       SELECT 1 FROM public.classroom_groups cg
       JOIN public.agency_memberships am ON am.agency_id = cg.agency_id
-      WHERE cg.id = classroom_group_students.group_id
+      WHERE cg.group_id = classroom_group_students.group_id
         AND am.user_id = auth.uid()
     )
   );
 
--- Admins can manage student assignments
+-- Admins can insert student assignments
 CREATE POLICY "Admins can manage group students"
   ON public.classroom_group_students FOR INSERT TO authenticated
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.classroom_groups cg
       JOIN public.agency_memberships am ON am.agency_id = cg.agency_id
-      WHERE cg.id = classroom_group_students.group_id
+      WHERE cg.group_id = classroom_group_students.group_id
         AND am.user_id = auth.uid()
         AND am.role IN ('owner', 'admin')
     )
@@ -92,7 +85,7 @@ CREATE POLICY "Admins can delete group students"
     EXISTS (
       SELECT 1 FROM public.classroom_groups cg
       JOIN public.agency_memberships am ON am.agency_id = cg.agency_id
-      WHERE cg.id = classroom_group_students.group_id
+      WHERE cg.group_id = classroom_group_students.group_id
         AND am.user_id = auth.uid()
         AND am.role IN ('owner', 'admin')
     )
