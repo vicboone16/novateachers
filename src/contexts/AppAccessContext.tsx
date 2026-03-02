@@ -79,7 +79,7 @@ export const AppAccessProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .maybeSingle();
 
       if (error) {
-        console.warn('[AppAccess] user_app_access query failed:', error.message);
+        if (import.meta.env.DEV) console.warn('[AppAccess] user_app_access query failed:', error.message);
         // Table might not exist yet — grant access by default to avoid breaking existing users
         setHasAccess(true);
         setAppRole(null);
@@ -95,7 +95,7 @@ export const AppAccessProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setHasAccess(false);
       }
     } catch (err) {
-      console.error('[AppAccess] Unexpected error:', err);
+      if (import.meta.env.DEV) console.error('[AppAccess] Unexpected error:', err);
       // Fail open to avoid locking out users if table doesn't exist
       setHasAccess(true);
       setAppRole(null);

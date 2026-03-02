@@ -86,13 +86,13 @@ const ClassroomManager = () => {
       // Load clients first, trying both table names
       let clientsRes = await supabase.from('clients').select('*').eq('agency_id', agencyId).order('last_name');
       if (clientsRes.error) {
-        console.warn('[Classroom] clients table failed, trying students:', clientsRes.error.message);
+        if (import.meta.env.DEV) console.warn('[Classroom] clients table failed, trying students:', clientsRes.error.message);
         clientsRes = await supabase.from('students').select('*').eq('agency_id', agencyId).order('last_name');
       }
       if (clientsRes.error) {
-        console.error('[Classroom] Could not load students:', clientsRes.error.message);
+        if (import.meta.env.DEV) console.error('[Classroom] Could not load students:', clientsRes.error.message);
       }
-      console.log('[Classroom] Loaded students:', clientsRes.data?.length ?? 0);
+      if (import.meta.env.DEV) console.log('[Classroom] Loaded students:', clientsRes.data?.length ?? 0);
 
       const [groupsRes, membersRes] = await Promise.all([
         supabase.from('classroom_groups').select('*').eq('agency_id', agencyId).order('name'),
@@ -133,12 +133,12 @@ const ClassroomManager = () => {
           .select('id, group_id, user_id')
           .in('group_id', groupIds);
         if (teachersRes.error) {
-          console.warn('[Classroom] Teacher query error (RLS?):', teachersRes.error.message);
+          if (import.meta.env.DEV) console.warn('[Classroom] Teacher query error (RLS?):', teachersRes.error.message);
         } else {
           teacherRows = teachersRes.data || [];
         }
       } catch (e: any) {
-        console.warn('[Classroom] Teacher query exception:', e.message);
+        if (import.meta.env.DEV) console.warn('[Classroom] Teacher query exception:', e.message);
       }
 
       try {
@@ -147,7 +147,7 @@ const ClassroomManager = () => {
           .select('id, group_id, client_id')
           .in('group_id', groupIds);
         if (studentsRes.error) {
-          console.warn('[Classroom] Student query error, trying student_id fallback:', studentsRes.error.message);
+          if (import.meta.env.DEV) console.warn('[Classroom] Student query error, trying student_id fallback:', studentsRes.error.message);
           // Fallback for older schemas using student_id
           const legacyRes = await supabase
             .from('classroom_group_students')
@@ -164,7 +164,7 @@ const ClassroomManager = () => {
           studentRows = studentsRes.data || [];
         }
       } catch (e: any) {
-        console.warn('[Classroom] Student query exception:', e.message);
+        if (import.meta.env.DEV) console.warn('[Classroom] Student query exception:', e.message);
       }
       const clientMap = new Map(normalizeClients(clientsRes.data || []).map(c => [c.id, c]));
 
@@ -183,7 +183,7 @@ const ClassroomManager = () => {
 
       setGroups(enriched);
     } catch (err: any) {
-      console.error('Failed to load classroom groups:', err);
+      if (import.meta.env.DEV) console.error('Failed to load classroom groups:', err);
       toast({ title: 'Error loading classrooms', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -288,7 +288,7 @@ const ClassroomManager = () => {
           setSelectedUserId('');
           return;
         }
-        console.error('[Classroom] Teacher assign error:', error);
+        if (import.meta.env.DEV) console.error('[Classroom] Teacher assign error:', error);
         throw error;
       }
       const member = allMembers.find(m => m.user_id === selectedUserId);
@@ -339,7 +339,7 @@ const ClassroomManager = () => {
       // Ignore harmless duplicate errors
       const message = String(assignError?.message || '').toLowerCase();
       if (assignError && !message.includes('duplicate') && !message.includes('23505')) {
-        console.error('[Classroom] Student assign error:', assignError);
+        if (import.meta.env.DEV) console.error('[Classroom] Student assign error:', assignError);
         throw assignError;
       }
 

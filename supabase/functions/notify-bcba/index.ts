@@ -6,6 +6,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Simple HTML entity escaper to prevent XSS in email templates
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,7 +36,7 @@ Deno.serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY is not configured");
+      throw new Error("Email service not configured");
     }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -45,18 +55,51 @@ Deno.serve(async (req) => {
 
     const senderEmail = claimsData.claims.email as string;
 
-    // Parse body
-    const { clientId, clientName, summaryTitle } = await req.json();
+    // Parse & validate body
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!clientId || !clientName) {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return new Response(JSON.stringify({ error: "Request body must be a JSON object" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { clientId, clientName, summaryTitle } = body as Record<string, unknown>;
+
+    // Validate clientId as UUID
+    if (!clientId || typeof clientId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) {
       return new Response(
-        JSON.stringify({ error: "clientId and clientName are required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "clientId must be a valid UUID" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    if (!clientName || typeof clientName !== "string" || clientName.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "clientName is required and must be under 200 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (summaryTitle !== undefined && (typeof summaryTitle !== "string" || summaryTitle.length > 500)) {
+      return new Response(
+        JSON.stringify({ error: "summaryTitle must be a string under 500 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const safeClientName = escapeHtml(clientName.slice(0, 200));
+    const safeSummaryTitle = escapeHtml(typeof summaryTitle === "string" ? summaryTitle.slice(0, 500) : "BCBA Summary");
+    const safeSenderEmail = escapeHtml(senderEmail || "Unknown");
 
     // Find assigned BCBAs for this student via user_client_access
     const serviceClient = createClient(
@@ -70,7 +113,6 @@ Deno.serve(async (req) => {
       .eq("client_id", clientId);
 
     if (accessError) {
-      console.error("Error fetching client access:", accessError);
       throw new Error("Failed to look up assigned staff");
     }
 
@@ -137,15 +179,15 @@ Deno.serve(async (req) => {
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr>
               <td style="padding: 8px 0; color: #888; width: 120px;">Student</td>
-              <td style="padding: 8px 0; color: #1a1a1a; font-weight: 600;">${clientName}</td>
+              <td style="padding: 8px 0; color: #1a1a1a; font-weight: 600;">${safeClientName}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #888;">Report</td>
-              <td style="padding: 8px 0; color: #1a1a1a;">${summaryTitle || "BCBA Summary"}</td>
+              <td style="padding: 8px 0; color: #1a1a1a;">${safeSummaryTitle}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #888;">Shared by</td>
-              <td style="padding: 8px 0; color: #1a1a1a;">${senderEmail}</td>
+              <td style="padding: 8px 0; color: #1a1a1a;">${safeSenderEmail}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #888;">Date</td>
@@ -170,16 +212,13 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: "NovaTrack <noreply@novabehavior.com>",
           to: [bcba.email],
-          subject: `📋 New Summary: ${clientName} — Review Required`,
+          subject: `📋 New Summary: ${safeClientName} — Review Required`,
           html: emailHtml,
         }),
       });
 
       if (res.ok) {
         sentCount++;
-      } else {
-        const errBody = await res.text();
-        console.error(`Resend error for ${bcba.email}:`, res.status, errBody);
       }
     }
 
@@ -195,11 +234,8 @@ Deno.serve(async (req) => {
       }
     );
   } catch (err) {
-    console.error("notify-bcba error:", err);
     return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : "Unknown error",
-      }),
+      JSON.stringify({ error: "Internal server error" }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
