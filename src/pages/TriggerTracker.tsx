@@ -16,8 +16,17 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2 } from 'lucide-react';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
+
+interface StudentBehavior {
+  id: string;
+  name: string;
+  type?: string;
+  methods?: string[];
+  category?: string;
+  operationalDefinition?: string;
+}
 
 // Default quick-select tags
 const DEFAULT_ANTECEDENT_TAGS = ['Transition', 'Demand', 'Denied access', 'Peer conflict', 'Noise', 'Unstructured time'];
@@ -60,6 +69,10 @@ const TriggerTracker = () => {
   const [customBehaviors, setCustomBehaviors] = useState<string[]>([]);
   const [customConsequences, setCustomConsequences] = useState<string[]>([]);
 
+  // Student-persisted behaviors
+  const [studentBehaviors, setStudentBehaviors] = useState<StudentBehavior[]>([]);
+  const [newBehaviorInput, setNewBehaviorInput] = useState('');
+
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
@@ -68,7 +81,59 @@ const TriggerTracker = () => {
     if (!selectedClientId) return;
     loadLogs();
     loadCategories();
+    loadStudentBehaviors();
   }, [selectedClientId]);
+
+  const loadStudentBehaviors = async () => {
+    const { data } = await supabase
+      .from('students')
+      .select('behaviors')
+      .eq('id', selectedClientId)
+      .single();
+    if (data?.behaviors) {
+      setStudentBehaviors(data.behaviors as StudentBehavior[]);
+    } else {
+      setStudentBehaviors([]);
+    }
+  };
+
+  const saveStudentBehaviors = async (updated: StudentBehavior[]) => {
+    const { error } = await supabase
+      .from('students')
+      .update({ behaviors: updated as any })
+      .eq('id', selectedClientId);
+    if (error) {
+      toast({ title: 'Error saving behaviors', description: error.message, variant: 'destructive' });
+    } else {
+      setStudentBehaviors(updated);
+    }
+  };
+
+  const addBehaviorToStudent = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed || !selectedClientId) return;
+    if (studentBehaviors.some((b) => b.name === trimmed)) {
+      setBehavior(trimmed);
+      return;
+    }
+    const newBehavior: StudentBehavior = {
+      id: crypto.randomUUID(),
+      name: trimmed,
+      type: 'frequency',
+      methods: ['frequency'],
+    };
+    const updated = [...studentBehaviors, newBehavior];
+    await saveStudentBehaviors(updated);
+    setBehavior(trimmed);
+    setNewBehaviorInput('');
+    toast({ title: 'Behavior saved', description: `"${trimmed}" added to student profile` });
+  };
+
+  const deleteBehaviorFromStudent = async (behaviorId: string) => {
+    const updated = studentBehaviors.filter((b) => b.id !== behaviorId);
+    await saveStudentBehaviors(updated);
+    toast({ title: 'Behavior removed' });
+  };
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -115,6 +180,7 @@ const TriggerTracker = () => {
   const antecedentTags = [...DEFAULT_ANTECEDENT_TAGS, ...customAntecedents.filter((t) => !DEFAULT_ANTECEDENT_TAGS.includes(t))];
   const behaviorTags = [
     ...DEFAULT_BEHAVIOR_TAGS,
+    ...studentBehaviors.map((b) => b.name),
     ...categories.map((c) => c.name),
     ...customBehaviors,
   ].filter((tag, index, arr) => arr.indexOf(tag) === index);
@@ -326,12 +392,10 @@ const TriggerTracker = () => {
                 <Zap className="h-3.5 w-3.5" />
                 Quick Log
               </TabsTrigger>
-              {isSoloMode && (
-                <TabsTrigger value="categories" className="gap-1.5">
-                  <ListChecks className="h-3.5 w-3.5" />
-                  Behavior Setup
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="behaviors" className="gap-1.5">
+                <ListChecks className="h-3.5 w-3.5" />
+                Behaviors
+              </TabsTrigger>
               <TabsTrigger value="history" className="gap-1.5">
                 <Clock className="h-3.5 w-3.5" />
                 History
@@ -362,21 +426,21 @@ const TriggerTracker = () => {
                   />
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Type additional behavior</Label>
+                    <Label className="text-xs text-muted-foreground">Or type a new behavior (saves to student profile)</Label>
                     <div className="flex gap-2">
                       <Input
-                        value={behavior}
-                        onChange={(e) => setBehavior(e.target.value)}
-                        onBlur={(e) => addCustomBehaviorTag(e.target.value)}
+                        value={newBehaviorInput}
+                        onChange={(e) => setNewBehaviorInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBehaviorToStudent(newBehaviorInput); } }}
                         placeholder="Type custom behavior..."
                       />
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => addCustomBehaviorTag(behavior)}
-                        disabled={!behavior.trim()}
+                        onClick={() => addBehaviorToStudent(newBehaviorInput)}
+                        disabled={!newBehaviorInput.trim()}
                       >
-                        Add
+                        <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -450,69 +514,118 @@ const TriggerTracker = () => {
               </Card>
             </TabsContent>
 
-            {/* BEHAVIOR SETUP (solo only) */}
-            {isSoloMode && (
-              <TabsContent value="categories">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_1fr]">
-                  <Card className="border-border/50">
-                    <CardHeader>
-                      <CardTitle className="text-base">Add Behavior Category</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label>Name</Label>
-                        <Input placeholder="e.g. Off-task behavior" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
+            {/* BEHAVIORS TAB */}
+            <TabsContent value="behaviors">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,400px)_1fr]">
+                {/* Add behavior */}
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-base">Add Behavior</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Behavior Name</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="e.g. Vocal Protest"
+                          value={newBehaviorInput}
+                          onChange={(e) => setNewBehaviorInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBehaviorToStudent(newBehaviorInput); } }}
+                        />
+                        <Button onClick={() => addBehaviorToStudent(newBehaviorInput)} disabled={!newBehaviorInput.trim()}>
+                          <Plus className="h-4 w-4 mr-1" /> Add
+                        </Button>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label>Description (optional)</Label>
-                        <Textarea placeholder="Describe this behavior" value={newCategoryDescription} onChange={(e) => setNewCategoryDescription(e.target.value)} className="min-h-[80px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Triggers (comma-separated)</Label>
-                        <Input placeholder="Noise, transition, denied access" value={newCategoryTriggers} onChange={(e) => setNewCategoryTriggers(e.target.value)} />
-                      </div>
-                      <Button onClick={handleAddCategory} disabled={savingCategory} className="w-full">
-                        {savingCategory ? 'Saving…' : 'Save Category'}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    {isSoloMode && (
+                      <>
+                        <div className="border-t border-border/50 pt-3 space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Or add a behavior category with triggers</Label>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Category Name</Label>
+                          <Input placeholder="e.g. Off-task behavior" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Description (optional)</Label>
+                          <Textarea placeholder="Describe this behavior" value={newCategoryDescription} onChange={(e) => setNewCategoryDescription(e.target.value)} className="min-h-[80px]" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Triggers (comma-separated)</Label>
+                          <Input placeholder="Noise, transition, denied access" value={newCategoryTriggers} onChange={(e) => setNewCategoryTriggers(e.target.value)} />
+                        </div>
+                        <Button onClick={handleAddCategory} disabled={savingCategory} className="w-full">
+                          {savingCategory ? 'Saving…' : 'Save Category'}
+                        </Button>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
 
-                  <Card className="border-border/50">
-                    <CardHeader>
-                      <CardTitle className="text-base">Current Categories</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {categories.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No categories configured yet.</p>
-                      ) : (
-                        <div className="space-y-3">
+                {/* Current behaviors list with delete */}
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-base">Student Behaviors ({studentBehaviors.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {studentBehaviors.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No behaviors configured for this student.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {studentBehaviors.map((b) => (
+                          <div key={b.id} className="flex items-center justify-between rounded-md border border-border/60 p-2.5">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{b.name}</p>
+                              {b.operationalDefinition && (
+                                <p className="text-xs text-muted-foreground truncate">{b.operationalDefinition}</p>
+                              )}
+                              <div className="flex gap-1 mt-1">
+                                {b.methods?.map((m) => (
+                                  <Badge key={m} variant="secondary" className="text-[10px] font-normal">{m}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => deleteBehaviorFromStudent(b.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Category list (solo mode) */}
+                    {isSoloMode && categories.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border/40">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Behavior Categories</p>
+                        <div className="space-y-2">
                           {categories.map((cat) => (
-                            <div key={cat.id} className="rounded-md border border-border/60 p-3">
+                            <div key={cat.id} className="rounded-md border border-border/60 p-2.5">
                               <div className="mb-1 flex items-center justify-between gap-2">
                                 <p className="text-sm font-medium">{cat.name}</p>
                                 <Badge variant="outline">{(cat.triggers || []).length} triggers</Badge>
                               </div>
                               {cat.description && (
-                                <p className="mb-2 text-xs text-muted-foreground">{cat.description}</p>
+                                <p className="mb-1 text-xs text-muted-foreground">{cat.description}</p>
                               )}
-                              <div className="flex flex-wrap gap-1.5">
-                                {(cat.triggers || []).length > 0 ? (
-                                  cat.triggers?.map((t) => (
-                                    <Badge key={t} variant="secondary" className="font-normal">{t}</Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">No triggers</span>
-                                )}
+                              <div className="flex flex-wrap gap-1">
+                                {(cat.triggers || []).map((t) => (
+                                  <Badge key={t} variant="secondary" className="text-[10px] font-normal">{t}</Badge>
+                                ))}
                               </div>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
             {/* HISTORY */}
             <TabsContent value="history">
