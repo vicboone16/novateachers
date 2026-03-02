@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, GraduationCap, Loader2 } from 'lucide-react';
+import { Building2, GraduationCap, Loader2, Link2 } from 'lucide-react';
+import { RedeemAgencyInviteCode } from '@/components/agency/RedeemAgencyInviteCode';
 
 const WorkspaceSelector = () => {
   const { workspaces, setCurrentWorkspace, loading } = useWorkspace();
   const navigate = useNavigate();
+  const [showJoin, setShowJoin] = useState(false);
 
   const handleSelect = (ws: typeof workspaces[0]) => {
     setCurrentWorkspace(ws);
@@ -68,6 +71,19 @@ const WorkspaceSelector = () => {
             </CardContent>
           </Card>
         )}
+
+        <div className="mt-6 text-center">
+          <Button variant="outline" onClick={() => setShowJoin(true)} className="gap-2">
+            <Link2 className="h-4 w-4" />
+            Join Agency with Code
+          </Button>
+        </div>
+
+        <RedeemAgencyInviteCode
+          open={showJoin}
+          onOpenChange={setShowJoin}
+          onRedeemed={() => window.location.reload()}
+        />
       </div>
     </div>
   );
