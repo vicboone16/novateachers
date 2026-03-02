@@ -4,8 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AppAccessProvider } from "@/contexts/AppAccessContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { BackendGuard } from "@/components/BackendGuard";
+import { AppAccessGuard } from "@/components/AppAccessGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import WorkspaceSelector from "@/pages/WorkspaceSelector";
@@ -35,9 +37,13 @@ const ProtectedRoutes = () => {
   if (!user) return <Login />;
 
   return (
-    <WorkspaceProvider>
-      <WorkspaceRoutes />
-    </WorkspaceProvider>
+    <AppAccessProvider>
+      <AppAccessGuard>
+        <WorkspaceProvider>
+          <WorkspaceRoutes />
+        </WorkspaceProvider>
+      </AppAccessGuard>
+    </AppAccessProvider>
   );
 };
 
