@@ -21,11 +21,17 @@ export function RedeemAgencyInviteCode({ open, onOpenChange, onRedeemed }: Redee
   const [success, setSuccess] = useState(false);
 
   const handleRedeem = async () => {
-    if (!code.trim()) return;
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    // Validate code format: alphanumeric with dashes, max 64 chars
+    if (trimmed.length > 64 || !/^[A-Za-z0-9_-]+$/.test(trimmed)) {
+      toast.error('Invalid invite code format');
+      return;
+    }
     setRedeeming(true);
     try {
       const { data, error } = await (supabase.rpc as any)('redeem_agency_invite_code', {
-        p_code: code.trim(),
+        p_code: trimmed,
       });
       if (error) throw error;
       const result = data as any;
