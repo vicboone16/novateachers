@@ -88,7 +88,7 @@ const Settings = () => {
 
       setTeamMembers(team);
     } catch (err: any) {
-      console.error('Failed to load team members:', err);
+      if (import.meta.env.DEV) console.error('Failed to load team members:', err);
     } finally {
       setLoadingTeam(false);
     }

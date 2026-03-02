@@ -41,9 +41,26 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { studentName, grade, abcLogs, behaviorCategories, sectionType } = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Input validation
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return new Response(
+        JSON.stringify({ error: "Request body must be a JSON object" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { studentName, grade, abcLogs, behaviorCategories, sectionType } = body as Record<string, unknown>;
+
+    // --- Input validation ---
     if (!sectionType || typeof sectionType !== "string" || sectionType.length > 100) {
       return new Response(
         JSON.stringify({ error: "Invalid sectionType" }),
@@ -51,16 +68,53 @@ serve(async (req) => {
       );
     }
 
-    const abcSummary = (abcLogs || [])
-      .slice(0, 30)
+    if (studentName !== undefined && (typeof studentName !== "string" || studentName.length > 200)) {
+      return new Response(
+        JSON.stringify({ error: "studentName must be a string under 200 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (grade !== undefined && (typeof grade !== "string" || grade.length > 50)) {
+      return new Response(
+        JSON.stringify({ error: "grade must be a string under 50 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (abcLogs !== undefined && (!Array.isArray(abcLogs) || abcLogs.length > 50)) {
+      return new Response(
+        JSON.stringify({ error: "abcLogs must be an array with at most 50 entries" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (behaviorCategories !== undefined && (!Array.isArray(behaviorCategories) || behaviorCategories.length > 20)) {
+      return new Response(
+        JSON.stringify({ error: "behaviorCategories must be an array with at most 20 entries" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const safeStudentName = typeof studentName === "string" ? studentName.slice(0, 200) : "Unknown";
+    const safeGrade = typeof grade === "string" ? grade.slice(0, 50) : "Not specified";
+    const safeLogs = Array.isArray(abcLogs) ? abcLogs.slice(0, 50) : [];
+    const safeCategories = Array.isArray(behaviorCategories) ? behaviorCategories.slice(0, 20) : [];
+
+    const abcSummary = safeLogs
       .map(
         (l: any, i: number) =>
-          `${i + 1}. A: ${l.antecedent} | B: ${l.behavior} (${l.behavior_category || "uncategorized"}, intensity ${l.intensity || "N/A"}) | C: ${l.consequence}`
+          `${i + 1}. A: ${String(l.antecedent || "").slice(0, 500)} | B: ${String(l.behavior || "").slice(0, 500)} (${String(l.behavior_category || "uncategorized").slice(0, 100)}, intensity ${String(l.intensity || "N/A").slice(0, 20)}) | C: ${String(l.consequence || "").slice(0, 500)}`
       )
       .join("\n");
 
-    const categorySummary = (behaviorCategories || [])
-      .map((c: any) => `- ${c.name}${c.description ? `: ${c.description}` : ""}${c.triggers?.length ? ` (triggers: ${c.triggers.join(", ")})` : ""}`)
+    const categorySummary = safeCategories
+      .map((c: any) => {
+        const name = String(c.name || "").slice(0, 200);
+        const desc = c.description ? `: ${String(c.description).slice(0, 500)}` : "";
+        const triggers = Array.isArray(c.triggers) ? ` (triggers: ${c.triggers.map((t: any) => String(t).slice(0, 200)).slice(0, 10).join(", ")})` : "";
+        return `- ${name}${desc}${triggers}`;
+      })
       .join("\n");
 
     const sectionInstructions: Record<string, string> = {
@@ -78,17 +132,17 @@ serve(async (req) => {
         "Write age-appropriate transition planning content including post-secondary goals, transition activities, and recommended assessments.",
     };
 
-    const instruction = sectionInstructions[sectionType] || `Write content for a custom IEP section titled "${sectionType}". Use the ABC behavior data to inform your writing. Provide professional, data-driven content appropriate for an IEP document.`;
+    const instruction = sectionInstructions[sectionType] || `Write content for a custom IEP section titled "${sectionType.slice(0, 100)}". Use the ABC behavior data to inform your writing. Provide professional, data-driven content appropriate for an IEP document.`;
 
     const systemPrompt = `You are an experienced special education professional who writes high-quality IEP documents. You use data-driven approaches and follow IDEA compliance standards. Write in professional but accessible language. Do not include disclaimers about not being a licensed professional — you are acting as a drafting assistant.`;
 
-    const userPrompt = `Student: ${studentName || "Unknown"}
-Grade: ${grade || "Not specified"}
+    const userPrompt = `Student: ${safeStudentName}
+Grade: ${safeGrade}
 
 Behavior Categories:
 ${categorySummary || "None recorded"}
 
-Recent ABC Log Data (up to 30 entries):
+Recent ABC Log Data (up to 50 entries):
 ${abcSummary || "No ABC data available"}
 
 Task: ${instruction}
@@ -126,9 +180,8 @@ Provide the content directly, ready to paste into an IEP document section.`;
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      console.error("AI gateway error:", response.status);
       return new Response(
-        JSON.stringify({ error: `AI gateway error [${response.status}]` }),
+        JSON.stringify({ error: "AI service error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -141,7 +194,6 @@ Provide the content directly, ready to paste into an IEP document section.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("generate-iep-goals error:", e);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

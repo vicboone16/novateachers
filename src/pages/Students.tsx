@@ -148,7 +148,7 @@ const Students = () => {
         setClients(roster.all);
       }
     } catch (err: any) {
-      console.error('Failed to load clients:', err);
+      if (import.meta.env.DEV) console.error('Failed to load clients:', err);
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
