@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -17,8 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Copy, Check, Link2 } from 'lucide-react';
-import { z } from 'zod';
+import { ArrowLeft, Copy, Check, Link2, User, Users } from 'lucide-react';
+
+// Only this user ID can access the admin invite generator
+const ADMIN_USER_ID = '98e3f44c-895e-44bd-b79e-d5c7b85a9f1a';
 
 const SCOPE_OPTIONS = [
   { value: 'agency', label: 'Agency — join the entire organization' },
@@ -39,20 +42,10 @@ const APP_CONTEXT_OPTIONS = [
   { value: 'behavior_decoded_parent', label: 'Behavior Decoded (Parent)' },
 ] as const;
 
-const formSchema = z.object({
-  invite_scope: z.enum(['agency', 'group', 'student']),
-  role_slug: z.string().min(1),
-  app_context: z.string().min(1),
-  max_uses: z.number().int().min(1).max(1000),
-  expires_in_days: z.number().int().min(1).max(365),
-  // Optional IDs
-  group_id: z.string().uuid().optional().or(z.literal('')),
-  client_id: z.string().uuid().optional().or(z.literal('')),
-  // Permissions (for student scope)
-  can_view_notes: z.boolean(),
-  can_collect_data: z.boolean(),
-  can_generate_reports: z.boolean(),
-});
+interface ClassroomOption {
+  id: string;
+  name: string;
+}
 
 const GenerateInvite = () => {
   const { currentWorkspace, isAdmin } = useWorkspace();
@@ -60,6 +53,7 @@ const GenerateInvite = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Form state
   const [scope, setScope] = useState<string>('agency');
   const [roleSlug, setRoleSlug] = useState('teacher');
   const [appContext, setAppContext] = useState('novatrack_teacher');
@@ -67,13 +61,50 @@ const GenerateInvite = () => {
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [groupId, setGroupId] = useState('');
   const [clientId, setClientId] = useState('');
+
+  // Permissions
   const [canViewNotes, setCanViewNotes] = useState(true);
   const [canCollectData, setCanCollectData] = useState(true);
   const [canGenerateReports, setCanGenerateReports] = useState(false);
 
+  // Single-person targeting
+  const [inviteMode, setInviteMode] = useState<'generic' | 'individual'>('generic');
+  const [targetEmail, setTargetEmail] = useState('');
+
+  // Auto-assignment to classrooms
+  const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
+  const [selectedClassrooms, setSelectedClassrooms] = useState<Set<string>>(new Set());
+
+  // Result
   const [generating, setGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Load classrooms for auto-assignment
+  useEffect(() => {
+    if (!currentWorkspace) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('classroom_groups')
+          .select('id, name')
+          .eq('agency_id', currentWorkspace.agency_id)
+          .order('name');
+        setClassrooms((data || []) as ClassroomOption[]);
+      } catch {
+        // table may not exist
+      }
+    })();
+  }, [currentWorkspace]);
+
+  const toggleClassroom = (id: string) => {
+    setSelectedClassrooms(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleGenerate = async () => {
     if (!currentWorkspace || !user) return;
@@ -86,11 +117,17 @@ const GenerateInvite = () => {
       p_invite_scope: scope,
       p_role_slug: roleSlug,
       p_app_context: appContext,
-      p_max_uses: maxUses,
+      p_max_uses: inviteMode === 'individual' ? 1 : maxUses,
       p_expires_at: expiresAt.toISOString(),
       p_created_by: user.id,
     };
 
+    // Individual targeting
+    if (inviteMode === 'individual' && targetEmail.trim()) {
+      params.p_target_email = targetEmail.trim().toLowerCase();
+    }
+
+    // Scope-specific IDs
     if (scope === 'group' && groupId) {
       params.p_group_id = groupId;
     }
@@ -103,9 +140,14 @@ const GenerateInvite = () => {
       };
     }
 
+    // Auto-assignment classrooms
+    if (selectedClassrooms.size > 0) {
+      params.p_auto_assign_groups = Array.from(selectedClassrooms);
+    }
+
     setGenerating(true);
     try {
-      const { data, error } = await supabase.rpc('create_invite_code', params);
+      const { data, error } = await (supabase.rpc as any)('create_invite_code', params);
       if (error) throw error;
 
       const code = typeof data === 'string' ? data : (data as any)?.code || JSON.stringify(data);
@@ -125,10 +167,11 @@ const GenerateInvite = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!isAdmin) {
+  // UI-only admin lock: only the designated admin user can access
+  if (!isAdmin || user?.id !== ADMIN_USER_ID) {
     return (
       <div className="py-12 text-center">
-        <p className="text-muted-foreground">Only agency admins can generate invite codes.</p>
+        <p className="text-muted-foreground">Only the agency admin can generate invite codes.</p>
         <Button variant="link" onClick={() => navigate('/students')}>Back to Students</Button>
       </div>
     );
@@ -153,6 +196,47 @@ const GenerateInvite = () => {
             <CardTitle className="text-base font-heading">Invite Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
+            {/* Invite Mode */}
+            <div className="space-y-1.5">
+              <Label>Invite Type</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={inviteMode === 'generic' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 flex-1"
+                  onClick={() => setInviteMode('generic')}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Generic Code
+                </Button>
+                <Button
+                  type="button"
+                  variant={inviteMode === 'individual' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 flex-1"
+                  onClick={() => setInviteMode('individual')}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  For Specific Person
+                </Button>
+              </div>
+            </div>
+
+            {/* Target email (individual) */}
+            {inviteMode === 'individual' && (
+              <div className="space-y-1.5">
+                <Label>Recipient Email</Label>
+                <Input
+                  type="email"
+                  value={targetEmail}
+                  onChange={e => setTargetEmail(e.target.value)}
+                  placeholder="teacher@school.edu"
+                />
+                <p className="text-[10px] text-muted-foreground">Only this person can redeem the code (max 1 use)</p>
+              </div>
+            )}
+
             {/* Scope */}
             <div className="space-y-1.5">
               <Label>Invite Scope</Label>
@@ -219,18 +303,33 @@ const GenerateInvite = () => {
               </div>
             )}
 
-            {/* Usage limits */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Max Uses</Label>
-                <Input
-                  type="number"
-                  value={maxUses}
-                  onChange={e => setMaxUses(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
-                  min={1}
-                  max={1000}
-                />
+            {/* Usage limits (only for generic) */}
+            {inviteMode === 'generic' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Max Uses</Label>
+                  <Input
+                    type="number"
+                    value={maxUses}
+                    onChange={e => setMaxUses(Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)))}
+                    min={1}
+                    max={1000}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Expires In (days)</Label>
+                  <Input
+                    type="number"
+                    value={expiresInDays}
+                    onChange={e => setExpiresInDays(Math.max(1, Math.min(365, parseInt(e.target.value) || 1)))}
+                    min={1}
+                    max={365}
+                  />
+                </div>
               </div>
+            )}
+
+            {inviteMode === 'individual' && (
               <div className="space-y-1.5">
                 <Label>Expires In (days)</Label>
                 <Input
@@ -241,7 +340,7 @@ const GenerateInvite = () => {
                   max={365}
                 />
               </div>
-            </div>
+            )}
 
             {/* Permissions (student scope) */}
             {scope === 'student' && (
@@ -258,6 +357,26 @@ const GenerateInvite = () => {
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-normal">Generate Reports</Label>
                   <Switch checked={canGenerateReports} onCheckedChange={setCanGenerateReports} />
+                </div>
+              </div>
+            )}
+
+            {/* Auto-assign to classrooms */}
+            {classrooms.length > 0 && (
+              <div className="space-y-3 rounded-lg border border-border/40 p-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Auto-Assign to Classrooms</p>
+                <p className="text-[10px] text-muted-foreground">When the code is redeemed, the user will be assigned to these classroom groups.</p>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {classrooms.map(c => (
+                    <div key={c.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`classroom-${c.id}`}
+                        checked={selectedClassrooms.has(c.id)}
+                        onCheckedChange={() => toggleClassroom(c.id)}
+                      />
+                      <label htmlFor={`classroom-${c.id}`} className="text-sm cursor-pointer">{c.name}</label>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -290,8 +409,18 @@ const GenerateInvite = () => {
                   <Badge variant="outline">{scope}</Badge>
                   <Badge variant="secondary">{roleSlug}</Badge>
                   <Badge variant="outline" className="text-muted-foreground">
-                    {maxUses} use{maxUses > 1 ? 's' : ''} · {expiresInDays}d
+                    {inviteMode === 'individual' ? '1 use' : `${maxUses} use${maxUses > 1 ? 's' : ''}`} · {expiresInDays}d
                   </Badge>
+                  {inviteMode === 'individual' && targetEmail && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {targetEmail}
+                    </Badge>
+                  )}
+                  {selectedClassrooms.size > 0 && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {selectedClassrooms.size} classroom{selectedClassrooms.size > 1 ? 's' : ''} auto-assigned
+                    </Badge>
+                  )}
                 </div>
                 <Button
                   variant="outline"
