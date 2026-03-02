@@ -122,28 +122,49 @@ const ClassroomManager = () => {
 
       const groupIds = groupsList.map(g => g.id);
 
-      const [teachersRes, studentsRes] = await Promise.all([
-        supabase.from('classroom_group_teachers').select('id, group_id, user_id').in('group_id', groupIds),
-        supabase.from('classroom_group_students').select('id, group_id, client_id').in('group_id', groupIds),
-      ]);
+      // Fetch child rows — wrap each in try/catch because Core RLS policies
+      // may reference columns that don't match the expected schema
+      let teacherRows: any[] = [];
+      let studentRows: any[] = [];
 
-      const teacherRows = (teachersRes.data || []) as any[];
-      let studentRows = (studentsRes.data || []) as any[];
-
-      // Compatibility fallback for older schemas that use student_id instead of client_id
-      if (studentsRes.error) {
-        const legacyStudentsRes = await supabase
-          .from('classroom_group_students')
-          .select('id, group_id, student_id')
+      try {
+        const teachersRes = await supabase
+          .from('classroom_group_teachers')
+          .select('id, group_id, user_id')
           .in('group_id', groupIds);
-
-        if (!legacyStudentsRes.error) {
-          studentRows = (legacyStudentsRes.data || []).map((s: any) => ({
-            id: s.id,
-            group_id: s.group_id,
-            client_id: s.student_id,
-          }));
+        if (teachersRes.error) {
+          console.warn('[Classroom] Teacher query error (RLS?):', teachersRes.error.message);
+        } else {
+          teacherRows = teachersRes.data || [];
         }
+      } catch (e: any) {
+        console.warn('[Classroom] Teacher query exception:', e.message);
+      }
+
+      try {
+        const studentsRes = await supabase
+          .from('classroom_group_students')
+          .select('id, group_id, client_id')
+          .in('group_id', groupIds);
+        if (studentsRes.error) {
+          console.warn('[Classroom] Student query error, trying student_id fallback:', studentsRes.error.message);
+          // Fallback for older schemas using student_id
+          const legacyRes = await supabase
+            .from('classroom_group_students')
+            .select('id, group_id, student_id')
+            .in('group_id', groupIds);
+          if (!legacyRes.error) {
+            studentRows = (legacyRes.data || []).map((s: any) => ({
+              id: s.id,
+              group_id: s.group_id,
+              client_id: s.student_id,
+            }));
+          }
+        } else {
+          studentRows = studentsRes.data || [];
+        }
+      } catch (e: any) {
+        console.warn('[Classroom] Student query exception:', e.message);
       }
       const clientMap = new Map(normalizeClients(clientsRes.data || []).map(c => [c.id, c]));
 
@@ -255,14 +276,18 @@ const ClassroomManager = () => {
   const handleAssignTeacher = async () => {
     if (!assignTeacherGroupId || !selectedUserId) return;
     try {
-      // Use upsert to avoid duplicate constraint errors
-      const { error } = await supabase
-        .from('classroom_group_teachers')
-        .upsert(
-          { group_id: assignTeacherGroupId, user_id: selectedUserId },
-          { onConflict: 'group_id,user_id', ignoreDuplicates: true }
-        );
+      const row = { group_id: assignTeacherGroupId, user_id: selectedUserId };
+      // Try insert first (simpler, avoids upsert conflict target issues)
+      const { error } = await supabase.from('classroom_group_teachers').insert(row);
       if (error) {
+        const msg = String(error.message || '').toLowerCase();
+        // Ignore duplicate — teacher already assigned
+        if (msg.includes('duplicate') || msg.includes('23505')) {
+          toast({ title: 'Teacher already assigned to this classroom' });
+          setAssignTeacherGroupId(null);
+          setSelectedUserId('');
+          return;
+        }
         console.error('[Classroom] Teacher assign error:', error);
         throw error;
       }
@@ -294,47 +319,26 @@ const ClassroomManager = () => {
     if (!bulkAssignGroupId || bulkSelectedIds.size === 0) return;
     setBulkSaving(true);
     try {
-      const rows = Array.from(bulkSelectedIds).map(client_id => ({
-        group_id: bulkAssignGroupId,
-        client_id,
-      }));
-
+      const ids = Array.from(bulkSelectedIds);
       let assignError: any = null;
+      let usedLegacy = false;
 
-      // Primary path (newer schema)
-      const upsertRes = await supabase
-        .from('classroom_group_students')
-        .upsert(rows, { onConflict: 'group_id,client_id', ignoreDuplicates: true });
-      assignError = upsertRes.error;
-
-      // Fallback when unique conflict target isn't available in some environments
-      if (assignError) {
-        const insertRes = await supabase.from('classroom_group_students').insert(rows);
-        assignError = insertRes.error;
-      }
+      // Try inserting one-by-one to skip duplicates gracefully
+      const rows = ids.map(client_id => ({ group_id: bulkAssignGroupId, client_id }));
+      const { error: insertErr } = await supabase.from('classroom_group_students').insert(rows);
+      assignError = insertErr;
 
       // Legacy schema fallback (student_id column)
       if (assignError && String(assignError.message || '').toLowerCase().includes('client_id')) {
-        const legacyRows = Array.from(bulkSelectedIds).map(client_id => ({
-          group_id: bulkAssignGroupId,
-          student_id: client_id,
-        }));
-
-        const legacyUpsertRes = await supabase
-          .from('classroom_group_students')
-          .upsert(legacyRows as any, { onConflict: 'group_id,student_id', ignoreDuplicates: true });
-
-        assignError = legacyUpsertRes.error;
-
-        if (assignError) {
-          const legacyInsertRes = await supabase.from('classroom_group_students').insert(legacyRows as any);
-          assignError = legacyInsertRes.error;
-        }
+        const legacyRows = ids.map(client_id => ({ group_id: bulkAssignGroupId, student_id: client_id }));
+        const { error: legacyErr } = await supabase.from('classroom_group_students').insert(legacyRows as any);
+        assignError = legacyErr;
+        usedLegacy = true;
       }
 
-      // Ignore harmless duplicate errors on fallback insert path
+      // Ignore harmless duplicate errors
       const message = String(assignError?.message || '').toLowerCase();
-      if (assignError && !message.includes('duplicate key') && !message.includes('23505')) {
+      if (assignError && !message.includes('duplicate') && !message.includes('23505')) {
         console.error('[Classroom] Student assign error:', assignError);
         throw assignError;
       }
