@@ -20,8 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Copy, Check, Link2, User, Users } from 'lucide-react';
 
-// Only this user ID can access the admin invite generator
-const ADMIN_USER_ID = '98e3f44c-895e-44bd-b79e-d5c7b85a9f1a';
+// Admin access is now enforced server-side in the create_invite_code function
 
 const SCOPE_OPTIONS = [
   { value: 'agency', label: 'Agency — join the entire organization' },
@@ -167,11 +166,11 @@ const GenerateInvite = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // UI-only admin lock: only the designated admin user can access
-  if (!isAdmin || user?.id !== ADMIN_USER_ID) {
+  // Role-based admin check (server-side enforced via create_invite_code function)
+  if (!isAdmin) {
     return (
       <div className="py-12 text-center">
-        <p className="text-muted-foreground">Only the agency admin can generate invite codes.</p>
+        <p className="text-muted-foreground">Only agency admins can generate invite codes.</p>
         <Button variant="link" onClick={() => navigate('/students')}>Back to Students</Button>
       </div>
     );
