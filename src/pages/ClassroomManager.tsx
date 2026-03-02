@@ -83,14 +83,20 @@ const ClassroomManager = () => {
     const agencyId = currentWorkspace.agency_id;
 
     try {
-      const [groupsRes, membersRes, clientsRes] = await Promise.all([
+      // Load clients first, trying both table names
+      let clientsRes = await supabase.from('clients').select('*').eq('agency_id', agencyId).order('last_name');
+      if (clientsRes.error) {
+        console.warn('[Classroom] clients table failed, trying students:', clientsRes.error.message);
+        clientsRes = await supabase.from('students').select('*').eq('agency_id', agencyId).order('last_name');
+      }
+      if (clientsRes.error) {
+        console.error('[Classroom] Could not load students:', clientsRes.error.message);
+      }
+      console.log('[Classroom] Loaded students:', clientsRes.data?.length ?? 0);
+
+      const [groupsRes, membersRes] = await Promise.all([
         supabase.from('classroom_groups').select('*').eq('agency_id', agencyId).order('name'),
         supabase.from('agency_memberships').select('user_id, role').eq('agency_id', agencyId),
-        (async () => {
-          let r = await supabase.from('clients').select('*').eq('agency_id', agencyId).order('last_name');
-          if (r.error) r = await supabase.from('students').select('*').eq('agency_id', agencyId).order('last_name');
-          return r;
-        })(),
       ]);
 
       const groupsList = (groupsRes.data || []) as ClassroomGroup[];
@@ -233,17 +239,27 @@ const ClassroomManager = () => {
   const handleAssignTeacher = async () => {
     if (!assignTeacherGroupId || !selectedUserId) return;
     try {
-      const { error } = await supabase.from('classroom_group_teachers').insert({
-        group_id: assignTeacherGroupId,
-        user_id: selectedUserId,
+      // Use upsert to avoid duplicate constraint errors
+      const { error } = await supabase
+        .from('classroom_group_teachers')
+        .upsert(
+          { group_id: assignTeacherGroupId, user_id: selectedUserId },
+          { onConflict: 'group_id,user_id', ignoreDuplicates: true }
+        );
+      if (error) {
+        console.error('[Classroom] Teacher assign error:', error);
+        throw error;
+      }
+      const member = allMembers.find(m => m.user_id === selectedUserId);
+      toast({
+        title: 'Teacher assigned',
+        description: member ? `${member.display_name} (synced from staff)` : undefined,
       });
-      if (error) throw error;
-      toast({ title: 'Teacher assigned' });
       setAssignTeacherGroupId(null);
       setSelectedUserId('');
       loadAll();
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error assigning teacher', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -266,15 +282,21 @@ const ClassroomManager = () => {
         group_id: bulkAssignGroupId,
         client_id,
       }));
-      const { error } = await supabase.from('classroom_group_students').insert(rows);
-      if (error) throw error;
+      // Use upsert with onConflict to avoid duplicate errors
+      const { error } = await supabase
+        .from('classroom_group_students')
+        .upsert(rows, { onConflict: 'group_id,client_id', ignoreDuplicates: true });
+      if (error) {
+        console.error('[Classroom] Student assign error:', error);
+        throw error;
+      }
       toast({ title: `${rows.length} student(s) assigned` });
       setBulkAssignGroupId(null);
       setBulkSelectedIds(new Set());
       setBulkSearch('');
       loadAll();
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error assigning students', description: err.message, variant: 'destructive' });
     } finally {
       setBulkSaving(false);
     }
@@ -411,6 +433,7 @@ const ClassroomManager = () => {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader><DialogTitle>Assign Teacher</DialogTitle></DialogHeader>
+                          <p className="text-xs text-muted-foreground">Showing existing staff members from your agency. Teachers are synced automatically.</p>
                           <div className="space-y-4 pt-2">
                             <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                               <SelectTrigger>
@@ -419,7 +442,11 @@ const ClassroomManager = () => {
                               <SelectContent>
                                 {availableTeachers.map(m => (
                                   <SelectItem key={m.user_id} value={m.user_id}>
-                                    {m.display_name} <span className="text-muted-foreground ml-1">({m.role})</span>
+                                    <span className="flex items-center gap-2">
+                                      {m.display_name}
+                                      <span className="text-muted-foreground text-xs">({m.role})</span>
+                                      <Badge variant="outline" className="text-[9px] h-4 px-1">Staff ✓</Badge>
+                                    </span>
                                   </SelectItem>
                                 ))}
                                 {availableTeachers.length === 0 && (
