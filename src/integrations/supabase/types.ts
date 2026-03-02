@@ -61,7 +61,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_invite_code: {
+        Args: {
+          p_agency_id: string
+          p_app_context?: string
+          p_auto_assign_groups?: string[]
+          p_client_id?: string
+          p_created_by?: string
+          p_expires_at?: string
+          p_group_id?: string
+          p_invite_scope?: string
+          p_max_uses?: number
+          p_permissions?: Json
+          p_role_slug?: string
+          p_target_email?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
