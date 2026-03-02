@@ -91,6 +91,12 @@ export const TeacherSummaries = ({ clientId }: Props) => {
               <pre className="whitespace-pre-wrap text-xs font-mono text-muted-foreground bg-muted/50 rounded-md p-3 max-h-48 overflow-y-auto">
                 {s.sections?.[0]?.content || 'No content'}
               </pre>
+              {isReviewed && s.review_comment && (
+                <div className="rounded-md border border-primary/20 bg-primary/[0.03] p-3 space-y-1">
+                  <p className="text-xs font-semibold text-primary">BCBA Feedback</p>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">{s.review_comment}</p>
+                </div>
+              )}
               {!isReviewed && (
                 <Button
                   size="sm"
