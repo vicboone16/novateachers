@@ -128,7 +128,23 @@ const ClassroomManager = () => {
       ]);
 
       const teacherRows = (teachersRes.data || []) as any[];
-      const studentRows = (studentsRes.data || []) as any[];
+      let studentRows = (studentsRes.data || []) as any[];
+
+      // Compatibility fallback for older schemas that use student_id instead of client_id
+      if (studentsRes.error) {
+        const legacyStudentsRes = await supabase
+          .from('classroom_group_students')
+          .select('id, group_id, student_id')
+          .in('group_id', groupIds);
+
+        if (!legacyStudentsRes.error) {
+          studentRows = (legacyStudentsRes.data || []).map((s: any) => ({
+            id: s.id,
+            group_id: s.group_id,
+            client_id: s.student_id,
+          }));
+        }
+      }
       const clientMap = new Map(normalizeClients(clientsRes.data || []).map(c => [c.id, c]));
 
       const enriched: GroupWithMembers[] = groupsList.map(g => ({
@@ -282,15 +298,49 @@ const ClassroomManager = () => {
         group_id: bulkAssignGroupId,
         client_id,
       }));
-      // Use upsert with onConflict to avoid duplicate errors
-      const { error } = await supabase
+
+      let assignError: any = null;
+
+      // Primary path (newer schema)
+      const upsertRes = await supabase
         .from('classroom_group_students')
         .upsert(rows, { onConflict: 'group_id,client_id', ignoreDuplicates: true });
-      if (error) {
-        console.error('[Classroom] Student assign error:', error);
-        throw error;
+      assignError = upsertRes.error;
+
+      // Fallback when unique conflict target isn't available in some environments
+      if (assignError) {
+        const insertRes = await supabase.from('classroom_group_students').insert(rows);
+        assignError = insertRes.error;
       }
-      toast({ title: `${rows.length} student(s) assigned` });
+
+      // Legacy schema fallback (student_id column)
+      if (assignError && String(assignError.message || '').toLowerCase().includes('client_id')) {
+        const legacyRows = Array.from(bulkSelectedIds).map(client_id => ({
+          group_id: bulkAssignGroupId,
+          student_id: client_id,
+        }));
+
+        const legacyUpsertRes = await supabase
+          .from('classroom_group_students')
+          .upsert(legacyRows as any, { onConflict: 'group_id,student_id', ignoreDuplicates: true });
+
+        assignError = legacyUpsertRes.error;
+
+        if (assignError) {
+          const legacyInsertRes = await supabase.from('classroom_group_students').insert(legacyRows as any);
+          assignError = legacyInsertRes.error;
+        }
+      }
+
+      // Ignore harmless duplicate errors on fallback insert path
+      const message = String(assignError?.message || '').toLowerCase();
+      if (assignError && !message.includes('duplicate key') && !message.includes('23505')) {
+        console.error('[Classroom] Student assign error:', assignError);
+        throw assignError;
+      }
+
+      const rowsCount = bulkSelectedIds.size;
+      toast({ title: `${rowsCount} student(s) assigned` });
       setBulkAssignGroupId(null);
       setBulkSelectedIds(new Set());
       setBulkSearch('');
