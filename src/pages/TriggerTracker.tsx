@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2 } from 'lucide-react';
+import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check } from 'lucide-react';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
 
 interface StudentBehavior {
@@ -64,7 +64,7 @@ const TriggerTracker = () => {
   const [newCategoryTriggers, setNewCategoryTriggers] = useState('');
   const [savingCategory, setSavingCategory] = useState(false);
 
-  // Custom tags (solo mode)
+  // Custom tags (session-only fallback)
   const [customAntecedents, setCustomAntecedents] = useState<string[]>([]);
   const [customBehaviors, setCustomBehaviors] = useState<string[]>([]);
   const [customConsequences, setCustomConsequences] = useState<string[]>([]);
@@ -72,6 +72,14 @@ const TriggerTracker = () => {
   // Student-persisted behaviors
   const [studentBehaviors, setStudentBehaviors] = useState<StudentBehavior[]>([]);
   const [newBehaviorInput, setNewBehaviorInput] = useState('');
+  const [editingBehaviorId, setEditingBehaviorId] = useState<string | null>(null);
+  const [editingBehaviorName, setEditingBehaviorName] = useState('');
+
+  // Persisted custom antecedent/consequence tags (stored on student record)
+  const [persistedAntecedents, setPersistedAntecedents] = useState<string[]>([]);
+  const [persistedConsequences, setPersistedConsequences] = useState<string[]>([]);
+  const [newAntecedentInput, setNewAntecedentInput] = useState('');
+  const [newConsequenceInput, setNewConsequenceInput] = useState('');
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
@@ -87,7 +95,7 @@ const TriggerTracker = () => {
   const loadStudentBehaviors = async () => {
     const { data } = await supabase
       .from('students')
-      .select('behaviors')
+      .select('behaviors, custom_antecedents, custom_consequences')
       .eq('id', selectedClientId)
       .single();
     if (data?.behaviors) {
@@ -95,6 +103,8 @@ const TriggerTracker = () => {
     } else {
       setStudentBehaviors([]);
     }
+    setPersistedAntecedents((data as any)?.custom_antecedents || []);
+    setPersistedConsequences((data as any)?.custom_consequences || []);
   };
 
   const saveStudentBehaviors = async (updated: StudentBehavior[]) => {
@@ -133,6 +143,60 @@ const TriggerTracker = () => {
     const updated = studentBehaviors.filter((b) => b.id !== behaviorId);
     await saveStudentBehaviors(updated);
     toast({ title: 'Behavior removed' });
+  };
+
+  const renameBehavior = async (behaviorId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const updated = studentBehaviors.map((b) =>
+      b.id === behaviorId ? { ...b, name: trimmed } : b
+    );
+    await saveStudentBehaviors(updated);
+    setEditingBehaviorId(null);
+    setEditingBehaviorName('');
+    toast({ title: 'Behavior renamed' });
+  };
+
+  const addPersistedAntecedent = async (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || persistedAntecedents.includes(trimmed)) return;
+    const updated = [...persistedAntecedents, trimmed];
+    const { error } = await supabase
+      .from('students')
+      .update({ custom_antecedents: updated } as any)
+      .eq('id', selectedClientId);
+    if (!error) {
+      setPersistedAntecedents(updated);
+      setNewAntecedentInput('');
+      toast({ title: 'Antecedent saved' });
+    }
+  };
+
+  const removePersistedAntecedent = async (tag: string) => {
+    const updated = persistedAntecedents.filter((t) => t !== tag);
+    await supabase.from('students').update({ custom_antecedents: updated } as any).eq('id', selectedClientId);
+    setPersistedAntecedents(updated);
+  };
+
+  const addPersistedConsequence = async (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || persistedConsequences.includes(trimmed)) return;
+    const updated = [...persistedConsequences, trimmed];
+    const { error } = await supabase
+      .from('students')
+      .update({ custom_consequences: updated } as any)
+      .eq('id', selectedClientId);
+    if (!error) {
+      setPersistedConsequences(updated);
+      setNewConsequenceInput('');
+      toast({ title: 'Consequence saved' });
+    }
+  };
+
+  const removePersistedConsequence = async (tag: string) => {
+    const updated = persistedConsequences.filter((t) => t !== tag);
+    await supabase.from('students').update({ custom_consequences: updated } as any).eq('id', selectedClientId);
+    setPersistedConsequences(updated);
   };
 
   const loadClients = async () => {
@@ -177,14 +241,21 @@ const TriggerTracker = () => {
     }
   };
 
-  const antecedentTags = [...DEFAULT_ANTECEDENT_TAGS, ...customAntecedents.filter((t) => !DEFAULT_ANTECEDENT_TAGS.includes(t))];
+  const antecedentTags = [
+    ...DEFAULT_ANTECEDENT_TAGS,
+    ...persistedAntecedents,
+    ...customAntecedents,
+  ].filter((tag, index, arr) => arr.indexOf(tag) === index);
   const behaviorTags = [
     ...DEFAULT_BEHAVIOR_TAGS,
     ...studentBehaviors.map((b) => b.name),
     ...categories.map((c) => c.name),
     ...customBehaviors,
   ].filter((tag, index, arr) => arr.indexOf(tag) === index);
-  const consequenceTags = DEFAULT_CONSEQUENCE_TAGS;
+  const consequenceTags = [
+    ...DEFAULT_CONSEQUENCE_TAGS,
+    ...persistedConsequences,
+  ].filter((tag, index, arr) => arr.indexOf(tag) === index);
 
   const handleLog = async () => {
     if (!selectedClientId || !antecedent || !behavior || !consequence) {
@@ -562,45 +633,133 @@ const TriggerTracker = () => {
                   </CardContent>
                 </Card>
 
-                {/* Current behaviors list with delete */}
+                {/* Current behaviors list with rename & delete */}
                 <Card className="border-border/50">
                   <CardHeader>
                     <CardTitle className="text-base">Student Behaviors ({studentBehaviors.length})</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
                     {studentBehaviors.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No behaviors configured for this student.</p>
                     ) : (
                       <div className="space-y-2">
                         {studentBehaviors.map((b) => (
-                          <div key={b.id} className="flex items-center justify-between rounded-md border border-border/60 p-2.5">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{b.name}</p>
-                              {b.operationalDefinition && (
-                                <p className="text-xs text-muted-foreground truncate">{b.operationalDefinition}</p>
+                          <div key={b.id} className="flex items-center justify-between rounded-md border border-border/60 p-2.5 gap-2">
+                            <div className="min-w-0 flex-1">
+                              {editingBehaviorId === b.id ? (
+                                <div className="flex items-center gap-1.5">
+                                  <Input
+                                    value={editingBehaviorName}
+                                    onChange={(e) => setEditingBehaviorName(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') renameBehavior(b.id, editingBehaviorName); if (e.key === 'Escape') setEditingBehaviorId(null); }}
+                                    className="h-7 text-sm"
+                                    autoFocus
+                                  />
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => renameBehavior(b.id, editingBehaviorName)}>
+                                    <Check className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingBehaviorId(null)}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-sm font-medium truncate">{b.name}</p>
+                                  {b.operationalDefinition && (
+                                    <p className="text-xs text-muted-foreground truncate">{b.operationalDefinition}</p>
+                                  )}
+                                  <div className="flex gap-1 mt-1">
+                                    {b.methods?.map((m) => (
+                                      <Badge key={m} variant="secondary" className="text-[10px] font-normal">{m}</Badge>
+                                    ))}
+                                  </div>
+                                </>
                               )}
-                              <div className="flex gap-1 mt-1">
-                                {b.methods?.map((m) => (
-                                  <Badge key={m} variant="secondary" className="text-[10px] font-normal">{m}</Badge>
-                                ))}
-                              </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => deleteBehaviorFromStudent(b.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {editingBehaviorId !== b.id && (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => { setEditingBehaviorId(b.id); setEditingBehaviorName(b.name); }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => deleteBehaviorFromStudent(b.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     )}
 
+                    {/* Custom Antecedent Tags */}
+                    <div className="pt-3 border-t border-border/40 space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom Antecedent Tags</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {persistedAntecedents.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="gap-1 pr-1 font-normal">
+                            {tag}
+                            <button onClick={() => removePersistedAntecedent(tag)} className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5">
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </Badge>
+                        ))}
+                        {persistedAntecedents.length === 0 && <span className="text-xs text-muted-foreground">None added</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add antecedent tag…"
+                          value={newAntecedentInput}
+                          onChange={(e) => setNewAntecedentInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPersistedAntecedent(newAntecedentInput); } }}
+                          className="h-8 text-sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => addPersistedAntecedent(newAntecedentInput)} disabled={!newAntecedentInput.trim()}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Custom Consequence Tags */}
+                    <div className="pt-3 border-t border-border/40 space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom Consequence Tags</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {persistedConsequences.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="gap-1 pr-1 font-normal">
+                            {tag}
+                            <button onClick={() => removePersistedConsequence(tag)} className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5">
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </Badge>
+                        ))}
+                        {persistedConsequences.length === 0 && <span className="text-xs text-muted-foreground">None added</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add consequence tag…"
+                          value={newConsequenceInput}
+                          onChange={(e) => setNewConsequenceInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPersistedConsequence(newConsequenceInput); } }}
+                          className="h-8 text-sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => addPersistedConsequence(newConsequenceInput)} disabled={!newConsequenceInput.trim()}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
                     {/* Category list (solo mode) */}
                     {isSoloMode && categories.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-border/40">
+                      <div className="pt-3 border-t border-border/40">
                         <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Behavior Categories</p>
                         <div className="space-y-2">
                           {categories.map((cat) => (
