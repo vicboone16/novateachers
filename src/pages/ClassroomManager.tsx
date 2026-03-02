@@ -203,7 +203,6 @@ const ClassroomManager = () => {
       const { error } = await supabase.from('classroom_groups').insert({
         agency_id: currentWorkspace.agency_id,
         name: newName.trim(),
-        description: newDescription.trim() || null,
         created_by: user.id,
       });
       if (error) throw error;
