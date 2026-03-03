@@ -213,7 +213,7 @@ const IEPWriter = () => {
         supabase.from('clients').select('first_name, last_name, grade').eq('id', selectedClientId).single(),
       ]);
       const c = clientRes.data;
-      const { data, error } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+      const { data, error } = await invokeCloudFunction('generate-iep-goals', {
         body: { studentName: c ? `${c.first_name} ${c.last_name}` : 'Unknown', grade: c?.grade, abcLogs: logsRes.data || [], behaviorCategories: catsRes.data || [], sectionType: section.type === 'custom' ? section.title : section.type },
       });
       if (error) throw error;
@@ -235,7 +235,7 @@ const IEPWriter = () => {
       for (const section of activeDraft.sections) {
         setGeneratingSection(section.id);
         try {
-          const { data } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+          const { data } = await invokeCloudFunction('generate-iep-goals', {
             body: { studentName: c ? `${c.first_name} ${c.last_name}` : 'Unknown', grade: c?.grade, abcLogs: logsRes.data || [], behaviorCategories: catsRes.data || [], sectionType: section.type === 'custom' ? section.title : section.type },
           });
           if (data?.content) updateSection(section.id, data.content);
