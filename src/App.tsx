@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppAccessProvider } from "@/contexts/AppAccessContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
-import { BackendGuard } from "@/components/BackendGuard";
+
 import { AppAccessGuard } from "@/components/AppAccessGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Login from "@/pages/Login";
@@ -92,9 +92,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <BackendGuard>
-            <ProtectedRoutes />
-          </BackendGuard>
+          <ProtectedRoutes />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
