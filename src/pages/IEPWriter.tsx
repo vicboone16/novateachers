@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
