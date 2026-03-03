@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
@@ -395,7 +395,7 @@ export const IEPTab = ({ client }: Props) => {
         supabase.from('behavior_categories').select('*').eq('client_id', client.id),
       ]);
       const tpl = TEMPLATES.find(t => t.key === selectedTemplate)!;
-      const { data, error } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+      const { data, error } = await invokeCloudFunction('generate-iep-goals', {
         body: {
           studentName: `${client.first_name} ${client.last_name}`,
           grade: client.grade,

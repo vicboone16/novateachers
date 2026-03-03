@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -214,7 +214,7 @@ const IEPWriter = () => {
         supabase.from('clients').select('first_name, last_name, grade').eq('id', selectedClientId).single(),
       ]);
       const c = clientRes.data;
-      const { data, error } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+      const { data, error } = await invokeCloudFunction('generate-iep-goals', {
         body: { studentName: c ? `${c.first_name} ${c.last_name}` : 'Unknown', grade: c?.grade, abcLogs: logsRes.data || [], behaviorCategories: catsRes.data || [], sectionType: section.type === 'custom' ? section.title : section.type },
       });
       if (error) throw error;
@@ -236,7 +236,7 @@ const IEPWriter = () => {
       for (const section of activeDraft.sections) {
         setGeneratingSection(section.id);
         try {
-          const { data } = await cloudSupabase.functions.invoke('generate-iep-goals', {
+          const { data } = await invokeCloudFunction('generate-iep-goals', {
             body: { studentName: c ? `${c.first_name} ${c.last_name}` : 'Unknown', grade: c?.grade, abcLogs: logsRes.data || [], behaviorCategories: catsRes.data || [], sectionType: section.type === 'custom' ? section.title : section.type },
           });
           if (data?.content) updateSection(section.id, data.content);
