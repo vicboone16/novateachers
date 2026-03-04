@@ -118,7 +118,7 @@ const StudentDetail = () => {
     );
   }
 
-  const diagnoses: string[] = Array.isArray(client.diagnoses) ? client.diagnoses : [];
+  // diagnoses handled by StudentInfoEditor
 
   return (
     <div className="space-y-6">
@@ -377,13 +377,6 @@ const StudentDetail = () => {
     </div>
   );
 };
-
-const InfoField = ({ label, value }: { label: string; value?: string | null }) => (
-  <div className="space-y-0.5">
-    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-    <p className="text-sm font-medium text-foreground">{value || '—'}</p>
-  </div>
-);
 
 type StatColor = 'primary' | 'accent' | 'warning' | 'destructive';
 
