@@ -354,7 +354,7 @@ export const QuickAddPanel = () => {
                         size="icon"
                         variant="outline"
                         className="h-12 w-12 rounded-full text-lg"
-                        onClick={() => setFreqCount(Math.max(0, freqCount - 1))}
+                        onClick={() => { triggerHaptic(); setFreqCount(Math.max(0, freqCount - 1)); }}
                       >
                         <Minus className="h-5 w-5" />
                       </Button>
@@ -364,7 +364,7 @@ export const QuickAddPanel = () => {
                       <Button
                         size="icon"
                         className="h-16 w-16 rounded-full text-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
-                        onClick={() => setFreqCount(freqCount + 1)}
+                        onClick={() => { triggerHaptic(); setFreqCount(freqCount + 1); }}
                       >
                         <Plus className="h-6 w-6" />
                       </Button>
