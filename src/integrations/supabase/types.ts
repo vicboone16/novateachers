@@ -56,6 +56,157 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_student_changes: {
+        Row: {
+          agency_id: string
+          change_type: string
+          client_id: string
+          created_at: string
+          field_changes: Json
+          id: string
+          requested_by: string
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          agency_id: string
+          change_type?: string
+          client_id: string
+          created_at?: string
+          field_changes?: Json
+          id?: string
+          requested_by: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          agency_id?: string
+          change_type?: string
+          client_id?: string
+          created_at?: string
+          field_changes?: Json
+          id?: string
+          requested_by?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      teacher_message_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size_bytes: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_messages: {
+        Row: {
+          agency_id: string
+          body: string
+          client_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message_type: string
+          metadata: Json | null
+          parent_id: string | null
+          read_at: string | null
+          recipient_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sender_id: string
+          status: string
+          subject: string | null
+          thread_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          body: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          metadata?: Json | null
+          parent_id?: string | null
+          read_at?: string | null
+          recipient_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_id: string
+          status?: string
+          subject?: string | null
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          body?: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          metadata?: Json | null
+          parent_id?: string | null
+          read_at?: string | null
+          recipient_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_id?: string
+          status?: string
+          subject?: string | null
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

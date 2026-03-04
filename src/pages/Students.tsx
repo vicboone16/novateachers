@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Search, User, Eye, EyeOff, CalendarClock, Sparkles, Users, Share2, Settings, KeyRound, Link2 } from 'lucide-react';
+import { Plus, Search, User, Eye, EyeOff, CalendarClock, Sparkles, Users, Share2, Settings, KeyRound, Link2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
 import { fetchAccessibleClients, fetchGroupedRoster } from '@/lib/client-access';
@@ -63,6 +63,9 @@ const Students = () => {
   const [rosterTab, setRosterTab] = useState<RosterTab>('all');
   const [viewAll, setViewAll] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
   const [form, setForm] = useState<AddStudentForm>(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -184,6 +187,65 @@ const Students = () => {
     }
   };
 
+  const handleCsvImport = async () => {
+    if (!csvFile || !currentWorkspace) return;
+    setCsvImporting(true);
+    try {
+      const text = await csvFile.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row');
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+      const firstNameIdx = headers.findIndex(h => h.includes('first'));
+      const lastNameIdx = headers.findIndex(h => h.includes('last'));
+      const gradeIdx = headers.findIndex(h => h === 'grade');
+      const schoolIdx = headers.findIndex(h => h.includes('school'));
+      const districtIdx = headers.findIndex(h => h.includes('district'));
+      const settingIdx = headers.findIndex(h => h.includes('setting'));
+      const diagnosesIdx = headers.findIndex(h => h.includes('diagnos'));
+
+      if (firstNameIdx === -1 || lastNameIdx === -1) {
+        throw new Error('CSV must have "first_name" and "last_name" columns');
+      }
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const firstName = cols[firstNameIdx]?.trim();
+        const lastName = cols[lastNameIdx]?.trim();
+        if (!firstName || !lastName) continue;
+
+        rows.push({
+          first_name: firstName,
+          last_name: lastName,
+          grade: gradeIdx !== -1 ? cols[gradeIdx] || null : null,
+          school_name: schoolIdx !== -1 ? cols[schoolIdx] || null : null,
+          district_name: districtIdx !== -1 ? cols[districtIdx] || null : null,
+          primary_setting: settingIdx !== -1 ? cols[settingIdx] || null : null,
+          diagnoses: diagnosesIdx !== -1 && cols[diagnosesIdx] ? cols[diagnosesIdx].split(';').map(d => d.trim()).filter(Boolean) : null,
+          agency_id: currentWorkspace.agency_id,
+          student_origin: 'solo_teacher',
+          created_in_app: 'novatrack_teacher',
+          funding_mode: 'education',
+        });
+      }
+
+      if (rows.length === 0) throw new Error('No valid rows found in CSV');
+
+      const { error } = await supabase.from('students').insert(rows);
+      if (error) throw error;
+
+      toast({ title: `${rows.length} student(s) imported` });
+      setShowCsvImport(false);
+      setCsvFile(null);
+      loadClients();
+    } catch (err: any) {
+      toast({ title: 'Import error', description: err.message, variant: 'destructive' });
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
   const updateField = (field: keyof AddStudentForm, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   const applyFilters = (list: Client[]) => {
@@ -261,78 +323,106 @@ const Students = () => {
             </>
           )}
           {isSoloMode && (
-            <Dialog open={showAdd} onOpenChange={setShowAdd}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5">
-                  <Plus className="h-4 w-4" />
-                  Add Student
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add Student</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>First Name *</Label>
-                      <Input value={form.first_name} onChange={e => updateField('first_name', e.target.value)} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Last Name *</Label>
-                      <Input value={form.last_name} onChange={e => updateField('last_name', e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>Grade *</Label>
-                      <Select value={form.grade} onValueChange={v => updateField('grade', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
-                        <SelectContent>
-                          {GRADE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Primary Setting</Label>
-                      <Select value={form.primary_setting} onValueChange={v => updateField('primary_setting', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select setting" /></SelectTrigger>
-                        <SelectContent>
-                          {SETTING_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>School Name</Label>
-                      <Input value={form.school_name} onChange={e => updateField('school_name', e.target.value)} placeholder="Optional" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>District Name</Label>
-                      <Input value={form.district_name} onChange={e => updateField('district_name', e.target.value)} placeholder="Optional" />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>IEP Date</Label>
-                      <Input type="date" value={form.iep_date} onChange={e => updateField('iep_date', e.target.value)} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Next IEP Review</Label>
-                      <Input type="date" value={form.next_iep_review_date} onChange={e => updateField('next_iep_review_date', e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Diagnoses</Label>
-                    <Input value={form.diagnoses} onChange={e => updateField('diagnoses', e.target.value)} placeholder="Comma-separated, e.g. ADHD, ASD" />
-                  </div>
-                  <Button onClick={handleAdd} disabled={saving} className="w-full">
-                    {saving ? 'Adding…' : 'Add Student'}
+            <div className="flex gap-2">
+              <Dialog open={showCsvImport} onOpenChange={setShowCsvImport}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Upload className="h-4 w-4" />
+                    CSV Import
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Import Students from CSV</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Upload a CSV with columns: <strong>first_name</strong>, <strong>last_name</strong> (required), and optionally: grade, school_name, district_name, primary_setting, diagnoses (semicolon-separated).
+                    </p>
+                    <Input
+                      type="file"
+                      accept=".csv"
+                      onChange={e => setCsvFile(e.target.files?.[0] || null)}
+                    />
+                    <Button onClick={handleCsvImport} disabled={csvImporting || !csvFile} className="w-full">
+                      {csvImporting ? 'Importing…' : 'Import Students'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={showAdd} onOpenChange={setShowAdd}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1.5">
+                    <Plus className="h-4 w-4" />
+                    Add Student
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Add Student</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>First Name *</Label>
+                        <Input value={form.first_name} onChange={e => updateField('first_name', e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Last Name *</Label>
+                        <Input value={form.last_name} onChange={e => updateField('last_name', e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>Grade *</Label>
+                        <Select value={form.grade} onValueChange={v => updateField('grade', v)}>
+                          <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
+                          <SelectContent>
+                            {GRADE_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Primary Setting</Label>
+                        <Select value={form.primary_setting} onValueChange={v => updateField('primary_setting', v)}>
+                          <SelectTrigger><SelectValue placeholder="Select setting" /></SelectTrigger>
+                          <SelectContent>
+                            {SETTING_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>School Name</Label>
+                        <Input value={form.school_name} onChange={e => updateField('school_name', e.target.value)} placeholder="Optional" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>District Name</Label>
+                        <Input value={form.district_name} onChange={e => updateField('district_name', e.target.value)} placeholder="Optional" />
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>IEP Date</Label>
+                        <Input type="date" value={form.iep_date} onChange={e => updateField('iep_date', e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Next IEP Review</Label>
+                        <Input type="date" value={form.next_iep_review_date} onChange={e => updateField('next_iep_review_date', e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Diagnoses</Label>
+                      <Input value={form.diagnoses} onChange={e => updateField('diagnoses', e.target.value)} placeholder="Comma-separated, e.g. ADHD, ASD" />
+                    </div>
+                    <Button onClick={handleAdd} disabled={saving} className="w-full">
+                      {saving ? 'Adding…' : 'Add Student'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
         </div>
       </div>

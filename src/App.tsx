@@ -19,6 +19,7 @@ import Settings from "@/pages/Settings";
 import ClassroomManager from "@/pages/ClassroomManager";
 import JoinInvite from "@/pages/JoinInvite";
 import GenerateInvite from "@/pages/GenerateInvite";
+import Inbox from "@/pages/Inbox";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const WorkspaceRoutes = () => {
         <Route path="/classrooms" element={<ClassroomManager />} />
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />
+        <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/students" replace />} />
       </Route>
