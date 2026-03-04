@@ -144,24 +144,17 @@ const Inbox = () => {
       const threadMsgs = data as TeacherMessage[];
       setThreadMessages(threadMsgs);
 
-      // Resolve names for thread participants
+      // Resolve names for thread participants via edge function
       const threadUserIds = new Set<string>();
       threadMsgs.forEach(m => { threadUserIds.add(m.sender_id); threadUserIds.add(m.recipient_id); });
       const unknownIds = Array.from(threadUserIds).filter(id => !userNames.has(id));
       if (unknownIds.length > 0) {
-        try {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, display_name, email')
-            .in('id', unknownIds);
-          if (profiles) {
-            const map = new Map<string, string>(userNames);
-            for (const p of profiles as any[]) {
-              map.set(p.id, p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8));
-            }
-            setUserNames(map);
-          }
-        } catch { /* profiles may not exist */ }
+        const resolved = await resolveDisplayNames(unknownIds, session?.access_token);
+        setUserNames(prev => {
+          const map = new Map(prev);
+          resolved.forEach((name, id) => map.set(id, name));
+          return map;
+        });
       }
 
       // Mark unread messages as read
