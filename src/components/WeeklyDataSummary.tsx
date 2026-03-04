@@ -224,10 +224,10 @@ export const WeeklyDataSummary = () => {
   };
 
   const sendSummaryToBCBA = async () => {
-    if (!hasData || selectedRecipients.length === 0) {
-      toast({ title: 'Select at least one recipient', variant: 'destructive' });
-      return;
-    }
+    if (!hasData) return;
+
+    // If no assigned staff, send to self as a saved copy
+    const recipients = selectedRecipients.length > 0 ? selectedRecipients : [user?.id!];
 
     const body = buildSummaryBody();
     const student = clients.find(c => c.id === selectedClientId);
