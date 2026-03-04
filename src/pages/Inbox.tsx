@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { AttachmentUploader, AttachmentList, uploadAttachments } from '@/components/inbox/InboxAttachments';
+import ComposeMessage from '@/components/inbox/ComposeMessage';
 
 interface TeacherMessage {
   id: string;
@@ -71,6 +72,7 @@ const Inbox = () => {
   const [sending, setSending] = useState(false);
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [senderNames, setSenderNames] = useState<Map<string, string>>(new Map());
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const loadMessages = useCallback(async () => {
     if (!user) return;
@@ -313,10 +315,18 @@ const Inbox = () => {
             Messages from your supervisors and team
           </p>
         </div>
-        {unreadCount > 0 && (
-          <Badge variant="destructive" className="text-xs">{unreadCount} unread</Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <Badge variant="destructive" className="text-xs">{unreadCount} unread</Badge>
+          )}
+          <Button onClick={() => setComposeOpen(true)} className="gap-1.5">
+            <Send className="h-3.5 w-3.5" />
+            Compose
+          </Button>
+        </div>
       </div>
+
+      <ComposeMessage open={composeOpen} onOpenChange={setComposeOpen} onSent={loadMessages} />
 
       <Tabs value={tab} onValueChange={v => setTab(v as 'inbox' | 'sent')}>
         <TabsList>
