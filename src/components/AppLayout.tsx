@@ -1,6 +1,8 @@
+import { useEffect, useState, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +25,32 @@ export const AppLayout = () => {
   const { user, signOut } = useAuth();
   const { workspaces, currentWorkspace, setCurrentWorkspace, isSoloMode } = useWorkspace();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadUnread = useCallback(async () => {
+    if (!user) return;
+    const { count, error } = await supabase
+      .from('teacher_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', user.id)
+      .eq('is_read', false)
+      .is('parent_id', null);
+    if (!error && count !== null) setUnreadCount(count);
+  }, [user]);
+
+  useEffect(() => { loadUnread(); }, [loadUnread]);
+
+  // Realtime unread updates
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('unread-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teacher_messages' }, () => {
+        loadUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadUnread]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -113,6 +141,11 @@ export const AppLayout = () => {
             >
               <Icon className="h-4 w-4" />
               {label}
+              {to === '/inbox' && unreadCount > 0 && (
+                <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
