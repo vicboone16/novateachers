@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { AttachmentUploader, AttachmentList, uploadAttachments } from '@/components/inbox/InboxAttachments';
 import ComposeMessage from '@/components/inbox/ComposeMessage';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 
 interface TeacherMessage {
   id: string;
@@ -59,7 +60,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const Inbox = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { toast } = useToast();
 
@@ -91,23 +92,16 @@ const Inbox = () => {
       const msgs = (data || []) as TeacherMessage[];
       setMessages(msgs);
 
-      // Resolve all user names (senders + recipients)
+      // Resolve all user names via edge function (profiles + auth metadata fallback)
       const userIds = new Set<string>();
       msgs.forEach(m => { userIds.add(m.sender_id); userIds.add(m.recipient_id); });
       if (userIds.size > 0) {
-        try {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, display_name, email')
-            .in('id', Array.from(userIds));
-          if (profiles) {
-            const map = new Map<string, string>(userNames);
-            for (const p of profiles as any[]) {
-              map.set(p.id, p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8));
-            }
-            setUserNames(map);
-          }
-        } catch { /* profiles may not exist */ }
+        const resolved = await resolveDisplayNames(Array.from(userIds), session?.access_token);
+        setUserNames(prev => {
+          const map = new Map(prev);
+          resolved.forEach((name, id) => map.set(id, name));
+          return map;
+        });
       }
     } catch (err: any) {
       toast({ title: 'Error loading messages', description: err.message, variant: 'destructive' });
@@ -150,24 +144,17 @@ const Inbox = () => {
       const threadMsgs = data as TeacherMessage[];
       setThreadMessages(threadMsgs);
 
-      // Resolve names for thread participants
+      // Resolve names for thread participants via edge function
       const threadUserIds = new Set<string>();
       threadMsgs.forEach(m => { threadUserIds.add(m.sender_id); threadUserIds.add(m.recipient_id); });
       const unknownIds = Array.from(threadUserIds).filter(id => !userNames.has(id));
       if (unknownIds.length > 0) {
-        try {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, display_name, email')
-            .in('id', unknownIds);
-          if (profiles) {
-            const map = new Map<string, string>(userNames);
-            for (const p of profiles as any[]) {
-              map.set(p.id, p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8));
-            }
-            setUserNames(map);
-          }
-        } catch { /* profiles may not exist */ }
+        const resolved = await resolveDisplayNames(unknownIds, session?.access_token);
+        setUserNames(prev => {
+          const map = new Map(prev);
+          resolved.forEach((name, id) => map.set(id, name));
+          return map;
+        });
       }
 
       // Mark unread messages as read

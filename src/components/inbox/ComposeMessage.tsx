@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ const MESSAGE_TYPES = [
 ];
 
 const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
 
@@ -65,7 +66,7 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
     if (!currentWorkspace) return;
     setLoadingRecipients(true);
     try {
-      // Fetch agency members from Core profiles
+      // Fetch agency members from Core
       const { data } = await supabase
         .from('user_agency_access')
         .select('user_id')
@@ -74,19 +75,14 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
       if (data && data.length > 0) {
         const userIds = data.map((d: any) => d.user_id).filter((id: string) => id !== user?.id);
         if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, display_name, email')
-            .in('id', userIds);
-
-          if (profiles) {
-            setRecipients(
-              (profiles as any[]).map(p => ({
-                id: p.id,
-                name: p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8),
-              }))
-            );
-          }
+          // Resolve names via edge function (profiles + auth metadata fallback)
+          const resolved = await resolveDisplayNames(userIds, session?.access_token);
+          setRecipients(
+            userIds.map(id => ({
+              id,
+              name: resolved.get(id) || id.slice(0, 8),
+            }))
+          );
         }
       }
     } catch {
