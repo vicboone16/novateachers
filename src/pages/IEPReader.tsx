@@ -25,9 +25,14 @@ import {
   Shield,
   Eye,
   ThumbsUp,
+  Send,
+  Activity,
+  ShieldCheck,
+  Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import type { Client } from '@/lib/types';
 
 interface IEPDocument {
@@ -50,18 +55,26 @@ const PIPELINE_STEPS = [
   { key: 'cleaning', label: 'OCR Cleaning', progress: 20 },
   { key: 'cleaned', label: 'Cleaned', progress: 30 },
   { key: 'sections_detected', label: 'Sections Found', progress: 40 },
-  { key: 'goals_extracted', label: 'Goals Extracted', progress: 60 },
-  { key: 'progress_extracted', label: 'Progress Extracted', progress: 70 },
-  { key: 'services_extracted', label: 'Services Extracted', progress: 80 },
-  { key: 'accommodations_extracted', label: 'Accommodations Extracted', progress: 90 },
+  { key: 'goals_extracted', label: 'Goals Extracted', progress: 55 },
+  { key: 'progress_extracted', label: 'Progress Extracted', progress: 65 },
+  { key: 'services_extracted', label: 'Services Extracted', progress: 75 },
+  { key: 'accommodations_extracted', label: 'Accommodations Extracted', progress: 85 },
+  { key: 'validating', label: 'Validating Goals', progress: 92 },
   { key: 'ready', label: 'Ready for Review', progress: 100 },
   { key: 'error', label: 'Error', progress: 0 },
 ];
+
+const QUALITY_COLORS: Record<string, string> = {
+  high: 'border-green-500 text-green-700 bg-green-50',
+  medium: 'border-amber-500 text-amber-700 bg-amber-50',
+  low: 'border-destructive text-destructive bg-destructive/5',
+};
 
 const IEPReader = () => {
   const { user, session } = useAuth();
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -70,6 +83,9 @@ const IEPReader = () => {
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sendingToWriter, setSendingToWriter] = useState<string | null>(null);
+  const [linkingGoal, setLinkingGoal] = useState<string | null>(null);
+  const [targets, setTargets] = useState<any[]>([]);
 
   // Extracted data for selected doc
   const [goals, setGoals] = useState<any[]>([]);
@@ -79,7 +95,7 @@ const IEPReader = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => { if (currentWorkspace) loadClients(); }, [currentWorkspace]);
-  useEffect(() => { if (selectedClientId) loadDocuments(); }, [selectedClientId]);
+  useEffect(() => { if (selectedClientId) { loadDocuments(); loadTargets(); } }, [selectedClientId]);
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -98,6 +114,14 @@ const IEPReader = () => {
       .order('created_at', { ascending: false });
     setDocuments((data || []) as IEPDocument[]);
     setLoading(false);
+  };
+
+  const loadTargets = async () => {
+    const { data } = await supabase
+      .from('teacher_targets')
+      .select('*')
+      .eq('client_id', selectedClientId);
+    setTargets(data || []);
   };
 
   const loadExtractedData = useCallback(async (docId: string) => {
@@ -131,7 +155,6 @@ const IEPReader = () => {
 
     setUploading(true);
     try {
-      // Upload to storage
       const path = `${user.id}/${selectedClientId}/${Date.now()}_${file.name}`;
       const { error: uploadErr } = await supabase.storage
         .from('iep-uploads')
@@ -139,7 +162,6 @@ const IEPReader = () => {
 
       if (uploadErr) throw uploadErr;
 
-      // Create document record
       const { data: doc, error: insertErr } = await supabase
         .from('iep_documents')
         .insert({
@@ -159,7 +181,6 @@ const IEPReader = () => {
       toast({ title: 'IEP uploaded successfully' });
       loadDocuments();
 
-      // Extract text from PDF client-side and kick off pipeline
       if (doc) {
         const text = await extractTextFromFile(file);
         if (text) {
@@ -175,9 +196,7 @@ const IEPReader = () => {
     }
   };
 
-  // Simple text extraction (for text-based PDFs; OCR handled by AI)
   const extractTextFromFile = async (file: File): Promise<string | null> => {
-    // For now read as text — the AI will clean OCR artifacts
     try {
       const text = await file.text();
       return text || null;
@@ -253,10 +272,19 @@ const IEPReader = () => {
         }, token);
       }
 
+      // Step 8: Goal Quality Validation
+      if (goalsResult?.result?.goals?.length) {
+        await updateStatus('validating');
+        await invokeCloudFunction('process-iep', {
+          step: 'validate_goals',
+          document_id: docId,
+          goals_json: goalsResult.result.goals,
+        }, token);
+      }
+
       await updateStatus('ready');
       toast({ title: 'IEP processing complete', description: 'Document is ready for review.' });
 
-      // Reload extracted data
       loadExtractedData(docId);
       loadDocuments();
     } catch (err: any) {
@@ -277,9 +305,71 @@ const IEPReader = () => {
     toast({ title: 'Goal approved' });
   };
 
+  // ─── Send approved goal to IEP Writer ──────────────────────
+  const sendGoalToWriter = async (goal: any) => {
+    if (!selectedClientId || !user || !currentWorkspace) return;
+    setSendingToWriter(goal.id);
+    try {
+      const gd = goal.goal_data || {};
+      const goalText = gd.goal_statement_clean || gd.goal_statement_raw || '';
+      const content = [
+        `**Goal Area:** ${gd.domain || gd.area_of_need || '—'}`,
+        `**Baseline:** ${gd.baseline?.value || '—'}`,
+        `**Target:** ${gd.criterion?.details || (gd.criterion?.value ? `${gd.criterion.value}${gd.criterion.unit || ''}` : '—')}`,
+        `**Measurement:** ${gd.measurement_method || '—'}`,
+        `**Goal Statement:** ${goalText}`,
+        gd.mastery_criteria ? `**Mastery Criteria:** ${gd.mastery_criteria}` : '',
+        gd.short_term_objectives?.length ? `\n**Short-Term Objectives:**\n${gd.short_term_objectives.map((o: any, i: number) => `${i + 1}. ${o.objective_text_clean || o.objective_text_raw}`).join('\n')}` : '',
+      ].filter(Boolean).join('\n');
+
+      const sections = [
+        { id: crypto.randomUUID(), type: 'goals' as const, title: `Goal: ${gd.domain || 'Imported'}`, content, order: 0 },
+      ];
+
+      const { error } = await supabase.from('iep_drafts').insert({
+        client_id: selectedClientId,
+        created_by: user.id,
+        agency_id: currentWorkspace.agency_id,
+        title: `Imported Goal — ${gd.domain || gd.area_of_need || 'IEP Reader'}`,
+        sections,
+        status: 'draft',
+        draft_type: 'imported_goal',
+      });
+
+      if (error) throw error;
+      toast({ title: 'Goal sent to IEP Writer', description: 'A new draft has been created.' });
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setSendingToWriter(null);
+    }
+  };
+
+  // ─── Link goal to data collection target ───────────────────
+  const linkGoalToTarget = async (goal: any, targetId: string) => {
+    setLinkingGoal(goal.id);
+    try {
+      const gd = goal.goal_data || {};
+      const updatedData = { ...gd, linked_target_id: targetId };
+      await supabase.from('iep_extracted_goals').update({ goal_data: updatedData }).eq('id', goal.id);
+      if (selectedDoc) loadExtractedData(selectedDoc.id);
+      toast({ title: 'Goal linked to data collection target' });
+    } catch (err: any) {
+      toast({ title: 'Failed to link', description: err.message, variant: 'destructive' });
+    } finally {
+      setLinkingGoal(null);
+    }
+  };
+
   const getProgressPercent = (status: string) => {
     const step = PIPELINE_STEPS.find(s => s.key === status);
     return step?.progress || 0;
+  };
+
+  const getQualityLevel = (score: number) => {
+    if (score >= 80) return 'high';
+    if (score >= 50) return 'medium';
+    return 'low';
   };
 
   // ─── Render ────────────────────────────────────────────────
@@ -497,15 +587,27 @@ const IEPReader = () => {
                 <p className="text-sm text-muted-foreground py-8 text-center">No goals extracted yet</p>
               ) : goals.map(g => {
                 const gd = g.goal_data || {};
+                const qualityScore = gd.quality_score;
+                const qualityLevel = qualityScore != null ? getQualityLevel(qualityScore) : null;
+                const complianceIssues = gd.compliance_issues || [];
+                const linkedTargetId = gd.linked_target_id;
+                const linkedTarget = targets.find(t => t.id === linkedTargetId);
+
                 return (
                   <Card key={g.id} className={cn(g.is_approved && 'border-green-500/30 bg-green-500/5')}>
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             {gd.domain && <Badge variant="outline" className="text-[10px]">{gd.domain}</Badge>}
                             {gd.goal_index_label && <span className="text-xs text-muted-foreground">{gd.goal_index_label}</span>}
                             {g.is_approved && <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
+                            {qualityLevel && (
+                              <Badge className={cn('text-[10px]', QUALITY_COLORS[qualityLevel])}>
+                                <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
+                                Quality: {qualityScore}%
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm">{gd.goal_statement_clean || gd.goal_statement_raw || 'No statement'}</p>
                         </div>
@@ -531,6 +633,18 @@ const IEPReader = () => {
                         )}
                       </div>
 
+                      {/* Compliance issues from validator */}
+                      {complianceIssues.length > 0 && (
+                        <div className="rounded-md bg-amber-50 border border-amber-200 p-2 space-y-1">
+                          <p className="text-xs font-medium text-amber-800 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Compliance Flags
+                          </p>
+                          {complianceIssues.map((ci: any, i: number) => (
+                            <p key={i} className="text-xs text-amber-700">• {ci.note || ci.type}</p>
+                          ))}
+                        </div>
+                      )}
+
                       {gd.issues?.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {gd.issues.map((issue: any, i: number) => (
@@ -541,11 +655,55 @@ const IEPReader = () => {
                         </div>
                       )}
 
-                      {!g.is_approved && (
-                        <Button size="sm" variant="outline" onClick={() => approveGoal(g.id)} className="gap-1 mt-2">
-                          <ThumbsUp className="h-3 w-3" /> Approve
-                        </Button>
+                      {/* Linked data collection target */}
+                      {linkedTarget && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Activity className="h-3 w-3" />
+                          Linked to: <Badge variant="secondary" className="text-[10px]">{linkedTarget.name}</Badge>
+                        </div>
                       )}
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {!g.is_approved && (
+                          <Button size="sm" variant="outline" onClick={() => approveGoal(g.id)} className="gap-1">
+                            <ThumbsUp className="h-3 w-3" /> Approve
+                          </Button>
+                        )}
+
+                        {g.is_approved && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => sendGoalToWriter(g)}
+                            disabled={sendingToWriter === g.id}
+                            className="gap-1"
+                          >
+                            {sendingToWriter === g.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                            Send to IEP Writer
+                          </Button>
+                        )}
+
+                        {/* Link to data collection target */}
+                        {targets.length > 0 && (
+                          <Select
+                            value={linkedTargetId || ''}
+                            onValueChange={(v) => linkGoalToTarget(g, v)}
+                          >
+                            <SelectTrigger className="h-8 w-auto text-xs gap-1 border-dashed">
+                              <Link2 className="h-3 w-3" />
+                              <SelectValue placeholder="Link to target…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {targets.map(t => (
+                                <SelectItem key={t.id} value={t.id}>
+                                  {t.name} ({t.target_type})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 );
