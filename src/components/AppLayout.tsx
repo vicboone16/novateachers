@@ -11,13 +11,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/students', label: 'Students', icon: Users },
   { to: '/tracker', label: 'Trigger Tracker', icon: Activity },
   { to: '/iep', label: 'IEP Writer', icon: FileText },
+  { to: '/iep-reader', label: 'IEP Reader', icon: BookOpen },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
 ];
 

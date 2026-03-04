@@ -15,6 +15,7 @@ import Students from "@/pages/Students";
 import StudentDetail from "@/pages/StudentDetail";
 import TriggerTracker from "@/pages/TriggerTracker";
 import IEPWriter from "@/pages/IEPWriter";
+import IEPReader from "@/pages/IEPReader";
 import Settings from "@/pages/Settings";
 import ClassroomManager from "@/pages/ClassroomManager";
 import JoinInvite from "@/pages/JoinInvite";
@@ -75,6 +76,7 @@ const WorkspaceRoutes = () => {
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
         <Route path="/iep" element={<IEPWriter />} />
+        <Route path="/iep-reader" element={<IEPReader />} />
         <Route path="/classrooms" element={<ClassroomManager />} />
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />
