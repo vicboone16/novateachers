@@ -331,7 +331,7 @@ const ClassroomManager = () => {
 
       // Legacy schema fallback (student_id column)
       if (assignError && String(assignError.message || '').toLowerCase().includes('client_id')) {
-        const legacyRows = ids.map(client_id => ({ group_id: bulkAssignGroupId, student_id: client_id }));
+        const legacyRows = ids.map(client_id => ({ group_id: bulkAssignGroupId, student_id: client_id, agency_id: agencyId }));
         const { error: legacyErr } = await supabase.from('classroom_group_students').insert(legacyRows as any);
         assignError = legacyErr;
         usedLegacy = true;
