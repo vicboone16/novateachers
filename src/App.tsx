@@ -23,6 +23,7 @@ import GenerateInvite from "@/pages/GenerateInvite";
 import Inbox from "@/pages/Inbox";
 import { WeeklyDataSummary } from "@/components/WeeklyDataSummary";
 import NotFound from "@/pages/NotFound";
+import InstallApp from "@/pages/InstallApp";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,7 @@ const WorkspaceRoutes = () => {
         <Route path="/invites" element={<GenerateInvite />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/install" element={<InstallApp />} />
         <Route path="/" element={<Navigate to="/students" replace />} />
       </Route>
       <Route path="*" element={<NotFound />} />
