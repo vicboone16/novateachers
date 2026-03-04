@@ -399,10 +399,74 @@ export const WeeklyDataSummary = () => {
       )}
 
       {hasData && (
-        <Button onClick={sendSummaryToBCBA} disabled={sending} className="gap-1.5">
-          <Send className="h-4 w-4" />
-          Send Summary to Inbox
-        </Button>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-primary" /> Send To
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingStaff ? (
+              <p className="text-sm text-muted-foreground">Loading assigned staff…</p>
+            ) : assignedStaff.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No other staff assigned to this student. Summaries will be saved to your Inbox.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {assignedStaff.map(staff => (
+                  <div key={staff.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`staff-${staff.id}`}
+                      checked={selectedRecipients.includes(staff.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedRecipients(prev =>
+                          checked
+                            ? [...prev, staff.id]
+                            : prev.filter(id => id !== staff.id)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`staff-${staff.id}`} className="text-sm cursor-pointer">
+                      {staff.name}
+                    </Label>
+                  </div>
+                ))}
+                {assignedStaff.length > 1 && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setSelectedRecipients(assignedStaff.map(s => s.id))}
+                    >
+                      Select all
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setSelectedRecipients([])}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            <Button
+              onClick={sendSummaryToBCBA}
+              disabled={sending || (assignedStaff.length > 0 && selectedRecipients.length === 0)}
+              className="gap-1.5 w-full"
+            >
+              <Send className="h-4 w-4" />
+              {assignedStaff.length === 0
+                ? 'Save Summary to Inbox'
+                : `Send to ${selectedRecipients.length} recipient${selectedRecipients.length !== 1 ? 's' : ''}`
+              }
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
