@@ -71,8 +71,10 @@ const Inbox = () => {
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
-  const [senderNames, setSenderNames] = useState<Map<string, string>>(new Map());
+  const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
   const [composeOpen, setComposeOpen] = useState(false);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const loadMessages = useCallback(async () => {
     if (!user) return;
@@ -89,8 +91,9 @@ const Inbox = () => {
       const msgs = (data || []) as TeacherMessage[];
       setMessages(msgs);
 
-      // Resolve sender names
-      const userIds = new Set(msgs.map(m => m.sender_id));
+      // Resolve all user names (senders + recipients)
+      const userIds = new Set<string>();
+      msgs.forEach(m => { userIds.add(m.sender_id); userIds.add(m.recipient_id); });
       if (userIds.size > 0) {
         try {
           const { data: profiles } = await supabase
@@ -98,11 +101,11 @@ const Inbox = () => {
             .select('id, first_name, last_name, display_name, email')
             .in('id', Array.from(userIds));
           if (profiles) {
-            const map = new Map<string, string>();
+            const map = new Map<string, string>(userNames);
             for (const p of profiles as any[]) {
               map.set(p.id, p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8));
             }
-            setSenderNames(map);
+            setUserNames(map);
           }
         } catch { /* profiles may not exist */ }
       }
@@ -144,9 +147,31 @@ const Inbox = () => {
       .order('created_at', { ascending: true });
 
     if (!error && data) {
-      setThreadMessages(data as TeacherMessage[]);
+      const threadMsgs = data as TeacherMessage[];
+      setThreadMessages(threadMsgs);
+
+      // Resolve names for thread participants
+      const threadUserIds = new Set<string>();
+      threadMsgs.forEach(m => { threadUserIds.add(m.sender_id); threadUserIds.add(m.recipient_id); });
+      const unknownIds = Array.from(threadUserIds).filter(id => !userNames.has(id));
+      if (unknownIds.length > 0) {
+        try {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, display_name, email')
+            .in('id', unknownIds);
+          if (profiles) {
+            const map = new Map<string, string>(userNames);
+            for (const p of profiles as any[]) {
+              map.set(p.id, p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8));
+            }
+            setUserNames(map);
+          }
+        } catch { /* profiles may not exist */ }
+      }
+
       // Mark unread messages as read
-      const unread = (data as TeacherMessage[]).filter(m => !m.is_read && m.recipient_id === user?.id);
+      const unread = threadMsgs.filter(m => !m.is_read && m.recipient_id === user?.id);
       if (unread.length > 0) {
         await supabase
           .from('teacher_messages')
@@ -248,7 +273,7 @@ const Inbox = () => {
               <h3 className="font-semibold">{rootMsg?.subject || 'No subject'}</h3>
             </div>
             <p className="text-xs text-muted-foreground">
-              {senderNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
+              {userNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
             </p>
           </div>
           {rootMsg && rootMsg.recipient_id === user?.id && rootMsg.status !== 'reviewed' && rootMsg.status !== 'completed' && (
@@ -269,32 +294,56 @@ const Inbox = () => {
         <div className="space-y-3">
           {threadMessages.map(msg => {
             const parentMsg = msg.parent_id ? threadMessages.find(m => m.id === msg.parent_id) : null;
+
+            const scrollToParent = () => {
+              if (!parentMsg) return;
+              const el = messageRefs.current.get(parentMsg.id);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setHighlightedMsgId(parentMsg.id);
+                setTimeout(() => setHighlightedMsgId(null), 1500);
+              }
+            };
+
             return (
-              <Card key={msg.id} className={cn(msg.sender_id === user?.id ? 'ml-8' : 'mr-8')}>
-                <CardContent className="p-4">
-                  {parentMsg && (
-                    <div className="mb-2 flex items-start gap-2 rounded-md bg-muted/50 p-2 border-l-2 border-muted-foreground/30">
-                      <ArrowLeft className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground rotate-[135deg]" />
-                      <div className="min-w-0">
-                        <span className="text-[11px] font-medium text-muted-foreground">
-                          Replying to {parentMsg.sender_id === user?.id ? 'You' : senderNames.get(parentMsg.sender_id) || parentMsg.sender_id.slice(0, 8)}
-                        </span>
-                        <p className="text-xs text-muted-foreground/70 truncate">{parentMsg.body.slice(0, 100)}</p>
-                      </div>
+              <div
+                key={msg.id}
+                ref={el => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
+              >
+                <Card className={cn(
+                  msg.sender_id === user?.id ? 'ml-8' : 'mr-8',
+                  'transition-all duration-300',
+                  highlightedMsgId === msg.id && 'ring-2 ring-primary/50 bg-primary/5'
+                )}>
+                  <CardContent className="p-4">
+                    {parentMsg && (
+                      <button
+                        type="button"
+                        onClick={scrollToParent}
+                        className="mb-2 flex w-full items-start gap-2 rounded-md bg-muted/50 p-2 border-l-2 border-muted-foreground/30 hover:bg-muted/80 hover:border-primary/50 transition-colors cursor-pointer text-left"
+                      >
+                        <ArrowLeft className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground rotate-[135deg]" />
+                        <div className="min-w-0">
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            Replying to {parentMsg.sender_id === user?.id ? 'You' : userNames.get(parentMsg.sender_id) || parentMsg.sender_id.slice(0, 8)}
+                          </span>
+                          <p className="text-xs text-muted-foreground/70 truncate">{parentMsg.body.slice(0, 100)}</p>
+                        </div>
+                      </button>
+                    )}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">
+                        {msg.sender_id === user?.id ? 'You' : userNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(msg.created_at), 'MMM d, h:mm a')}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">
-                      {msg.sender_id === user?.id ? 'You' : senderNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(msg.created_at), 'MMM d, h:mm a')}
-                    </span>
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                  <AttachmentList messageId={msg.id} />
-                </CardContent>
-              </Card>
+                    <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                    <AttachmentList messageId={msg.id} />
+                  </CardContent>
+                </Card>
+              </div>
             );
           })}
         </div>
@@ -394,7 +443,7 @@ const Inbox = () => {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {tab === 'inbox' ? `From: ${senderNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}` : `To: ${msg.recipient_id.slice(0, 8)}`}
+                      {tab === 'inbox' ? `From: ${userNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}` : `To: ${userNames.get(msg.recipient_id) || msg.recipient_id.slice(0, 8)}`}
                       {' · '}
                       {msg.body.slice(0, 80)}
                     </p>
