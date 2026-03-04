@@ -224,28 +224,38 @@ export const WeeklyDataSummary = () => {
   };
 
   const sendSummaryToBCBA = async () => {
-    if (!hasData) return;
+    if (!hasData || selectedRecipients.length === 0) {
+      toast({ title: 'Select at least one recipient', variant: 'destructive' });
+      return;
+    }
 
-    // Find BCBA recipient from resolvedUser's agencies
-    // For now, we'll prompt user to specify or use first admin
     const body = buildSummaryBody();
     const student = clients.find(c => c.id === selectedClientId);
     const studentName = student ? displayName(student) : 'Student';
+    const subject = `Weekly Data Summary: ${studentName} (${weekLabel})`;
+    const metadata = { app_source: 'teacher_hub', week_start: weekStart.toISOString(), week_end: weekEnd.toISOString() };
 
     setSending(true);
     try {
-      const { error } = await supabase.from('teacher_messages').insert({
+      // Send to each selected recipient
+      const inserts = selectedRecipients.map(recipientId => ({
         agency_id: agencyId || currentWorkspace?.agency_id,
         sender_id: user?.id,
-        recipient_id: user?.id, // Self-copy for now; user can forward
+        recipient_id: recipientId,
         client_id: selectedClientId,
-        subject: `Weekly Data Summary: ${studentName} (${weekLabel})`,
+        subject,
         body,
         message_type: 'data_summary',
-        metadata: { app_source: 'teacher_hub', week_start: weekStart.toISOString(), week_end: weekEnd.toISOString() },
-      });
+        metadata,
+      }));
+
+      const { error } = await supabase.from('teacher_messages').insert(inserts);
       if (error) throw error;
-      toast({ title: '✓ Summary sent', description: 'Available in your Inbox to forward to your supervisor' });
+
+      const recipientNames = selectedRecipients
+        .map(id => assignedStaff.find(s => s.id === id)?.name || 'staff')
+        .join(', ');
+      toast({ title: '✓ Summary sent', description: `Sent to ${recipientNames}` });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
