@@ -434,16 +434,16 @@ export const QuickAddPanel = () => {
                 {/* ABC Tab */}
                 <TabsContent value="abc" className="mt-3 space-y-2">
                   <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-500">Antecedent</span>
-                    <TagRow tags={DEFAULT_ANTECEDENT_TAGS} selected={abcAntecedent} onSelect={setAbcAntecedent} color="orange" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Antecedent</span>
+                    <TagRow tags={DEFAULT_ANTECEDENT_TAGS} selected={abcAntecedent} onSelect={setAbcAntecedent} color="primary" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-red-500">Behavior</span>
-                    <TagRow tags={behaviorNames.length > 0 ? behaviorNames : ['Elopement', 'Verbal outburst', 'Aggression', 'Non-compliance']} selected={abcBehavior} onSelect={setAbcBehavior} color="red" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-destructive">Behavior</span>
+                    <TagRow tags={behaviorNames.length > 0 ? behaviorNames : ['Elopement', 'Verbal outburst', 'Aggression', 'Non-compliance']} selected={abcBehavior} onSelect={setAbcBehavior} color="destructive" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-500">Consequence</span>
-                    <TagRow tags={DEFAULT_CONSEQUENCE_TAGS} selected={abcConsequence} onSelect={setAbcConsequence} color="blue" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-foreground">Consequence</span>
+                    <TagRow tags={DEFAULT_CONSEQUENCE_TAGS} selected={abcConsequence} onSelect={setAbcConsequence} color="accent" />
                   </div>
                   <Button
                     onClick={saveABC}
