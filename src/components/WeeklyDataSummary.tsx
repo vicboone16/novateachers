@@ -238,7 +238,7 @@ export const WeeklyDataSummary = () => {
     setSending(true);
     try {
       // Send to each selected recipient
-      const inserts = selectedRecipients.map(recipientId => ({
+      const inserts = recipients.map(recipientId => ({
         agency_id: agencyId || currentWorkspace?.agency_id,
         sender_id: user?.id,
         recipient_id: recipientId,
@@ -252,8 +252,8 @@ export const WeeklyDataSummary = () => {
       const { error } = await supabase.from('teacher_messages').insert(inserts);
       if (error) throw error;
 
-      const recipientNames = selectedRecipients
-        .map(id => assignedStaff.find(s => s.id === id)?.name || 'staff')
+      const recipientNames = recipients
+        .map(id => assignedStaff.find(s => s.id === id)?.name || 'your Inbox')
         .join(', ');
       toast({ title: '✓ Summary sent', description: `Sent to ${recipientNames}` });
     } catch (err: any) {
