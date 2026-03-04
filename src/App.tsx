@@ -21,6 +21,7 @@ import ClassroomManager from "@/pages/ClassroomManager";
 import JoinInvite from "@/pages/JoinInvite";
 import GenerateInvite from "@/pages/GenerateInvite";
 import Inbox from "@/pages/Inbox";
+import { WeeklyDataSummary } from "@/components/WeeklyDataSummary";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const WorkspaceRoutes = () => {
         <Route path="/tracker" element={<TriggerTracker />} />
         <Route path="/iep" element={<IEPWriter />} />
         <Route path="/iep-reader" element={<IEPReader />} />
+        <Route path="/data-summary" element={<WeeklyDataSummary />} />
         <Route path="/classrooms" element={<ClassroomManager />} />
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />

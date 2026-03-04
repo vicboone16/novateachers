@@ -11,12 +11,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QuickAddPanel } from '@/components/QuickAddPanel';
 
 const navItems = [
   { to: '/students', label: 'Students', icon: Users },
   { to: '/tracker', label: 'Trigger Tracker', icon: Activity },
+  { to: '/data-summary', label: 'Data Summary', icon: BarChart3 },
   { to: '/iep', label: 'IEP Writer', icon: FileText },
   { to: '/iep-reader', label: 'IEP Reader', icon: BookOpen },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
@@ -153,9 +155,12 @@ export const AppLayout = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24">
         <Outlet />
       </main>
+
+      {/* Quick Add Panel */}
+      <QuickAddPanel />
     </div>
   );
 };
