@@ -37,6 +37,9 @@ export const WeeklyDataSummary = () => {
   const [abcLogs, setAbcLogs] = useState<ABCEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
 
   const weekStart = useMemo(() => {
     const ref = subWeeks(new Date(), weekOffset);
