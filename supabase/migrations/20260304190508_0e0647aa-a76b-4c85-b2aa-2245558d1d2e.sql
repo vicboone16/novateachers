@@ -1,0 +1,1 @@
+ALTER TABLE public.teacher_messages ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES public.teacher_messages(id);
