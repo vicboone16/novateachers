@@ -277,24 +277,28 @@ const Inbox = () => {
                   </span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                <AttachmentList messageId={msg.id} />
               </CardContent>
             </Card>
           ))}
         </div>
 
         {/* Reply box */}
-        <div className="flex gap-2">
-          <Textarea
-            value={replyText}
-            onChange={e => setReplyText(e.target.value)}
-            placeholder="Write a reply…"
-            rows={2}
-            className="flex-1"
-          />
-          <Button onClick={handleReply} disabled={sending || !replyText.trim()} className="self-end gap-1.5">
-            <Send className="h-3.5 w-3.5" />
-            {sending ? 'Sending…' : 'Reply'}
-          </Button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Textarea
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              placeholder="Write a reply…"
+              rows={2}
+              className="flex-1"
+            />
+            <Button onClick={handleReply} disabled={sending || !replyText.trim()} className="self-end gap-1.5">
+              <Send className="h-3.5 w-3.5" />
+              {sending ? 'Sending…' : 'Reply'}
+            </Button>
+          </div>
+          <AttachmentUploader files={replyFiles} onFilesChange={setReplyFiles} />
         </div>
       </div>
     );
