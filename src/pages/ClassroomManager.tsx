@@ -322,15 +322,16 @@ const ClassroomManager = () => {
       const ids = Array.from(bulkSelectedIds);
       let assignError: any = null;
       let usedLegacy = false;
+      const agencyId = currentWorkspace?.agency_id;
 
-      // Try inserting one-by-one to skip duplicates gracefully
-      const rows = ids.map(client_id => ({ group_id: bulkAssignGroupId, client_id }));
+      // Try inserting with agency_id to satisfy not-null constraint
+      const rows = ids.map(client_id => ({ group_id: bulkAssignGroupId, client_id, agency_id: agencyId }));
       const { error: insertErr } = await supabase.from('classroom_group_students').insert(rows);
       assignError = insertErr;
 
       // Legacy schema fallback (student_id column)
       if (assignError && String(assignError.message || '').toLowerCase().includes('client_id')) {
-        const legacyRows = ids.map(client_id => ({ group_id: bulkAssignGroupId, student_id: client_id }));
+        const legacyRows = ids.map(client_id => ({ group_id: bulkAssignGroupId, student_id: client_id, agency_id: agencyId }));
         const { error: legacyErr } = await supabase.from('classroom_group_students').insert(legacyRows as any);
         assignError = legacyErr;
         usedLegacy = true;
