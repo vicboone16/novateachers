@@ -27,15 +27,17 @@ Deno.serve(async (req) => {
       return json({ error: "Unauthorized" }, 401);
     }
 
-    const localSupabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Validate JWT against Core (where users actually authenticate)
+    const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL")!;
+    const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY")!;
+    const coreAuth = createClient(coreUrl, coreAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const { data: { user: callingUser }, error: userError } =
-      await localSupabase.auth.getUser();
+      await coreAuth.auth.getUser();
     if (userError || !callingUser) {
+      console.error("Auth error:", userError?.message);
       return json({ error: "Invalid token" }, 401);
     }
 
