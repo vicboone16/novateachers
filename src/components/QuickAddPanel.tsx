@@ -284,14 +284,14 @@ export const QuickAddPanel = () => {
   return (
     <div className="fixed bottom-0 inset-x-0 z-50">
       {/* Toggle button */}
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="mx-auto max-w-3xl px-4 flex justify-center">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 rounded-t-lg bg-primary px-4 py-2 text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 rounded-t-lg bg-primary px-6 py-3 text-primary-foreground text-base font-semibold shadow-lg hover:bg-primary/90 transition-colors"
         >
-          <Zap className="h-4 w-4" />
+          <Zap className="h-5 w-5" />
           Quick Add
-          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
         </button>
       </div>
 
