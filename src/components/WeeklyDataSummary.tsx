@@ -68,6 +68,55 @@ export const WeeklyDataSummary = () => {
     } catch { /* silent */ }
   };
 
+  const loadAssignedStaff = async () => {
+    if (!selectedClientId) return;
+    setLoadingStaff(true);
+    setAssignedStaff([]);
+    setSelectedRecipients([]);
+
+    try {
+      // Try user_student_access first, fallback to user_client_access
+      let staffIds: string[] = [];
+
+      const { data: accessRows, error: accessErr } = await supabase
+        .from('user_student_access')
+        .select('user_id')
+        .eq('client_id', selectedClientId)
+        .neq('user_id', user?.id || '');
+
+      if (!accessErr && accessRows) {
+        staffIds = accessRows.map((r: any) => r.user_id);
+      } else {
+        const { data: fallbackRows } = await supabase
+          .from('user_client_access')
+          .select('user_id')
+          .eq('client_id', selectedClientId)
+          .neq('user_id', user?.id || '');
+        staffIds = (fallbackRows || []).map((r: any) => r.user_id);
+      }
+
+      if (staffIds.length === 0) {
+        setLoadingStaff(false);
+        return;
+      }
+
+      // Resolve display names
+      const nameMap = await resolveDisplayNames(staffIds);
+      const staff = staffIds.map(id => ({
+        id,
+        name: nameMap.get(id) || id.slice(0, 8) + '…',
+      }));
+
+      setAssignedStaff(staff);
+      // Auto-select all by default
+      setSelectedRecipients(staffIds);
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
   const loadWeekData = async () => {
     setLoading(true);
     const startStr = format(weekStart, 'yyyy-MM-dd');
