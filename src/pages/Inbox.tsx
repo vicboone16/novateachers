@@ -69,6 +69,7 @@ const Inbox = () => {
   const [threadMessages, setThreadMessages] = useState<TeacherMessage[]>([]);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [senderNames, setSenderNames] = useState<Map<string, string>>(new Map());
 
   const loadMessages = useCallback(async () => {
@@ -160,7 +161,7 @@ const Inbox = () => {
     try {
       const rootMsg = threadMessages[0];
       const recipientId = rootMsg.sender_id === user.id ? rootMsg.recipient_id : rootMsg.sender_id;
-      const { error } = await supabase.from('teacher_messages').insert({
+      const { data: inserted, error } = await supabase.from('teacher_messages').insert({
         agency_id: currentWorkspace.agency_id,
         thread_id: selectedThread,
         parent_id: threadMessages[threadMessages.length - 1].id,
@@ -169,9 +170,16 @@ const Inbox = () => {
         message_type: 'note',
         subject: rootMsg.subject ? `Re: ${rootMsg.subject}` : null,
         body: replyText.trim(),
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // Upload attachments if any
+      if (replyFiles.length > 0 && inserted) {
+        await uploadAttachments(inserted.id, user.id, replyFiles);
+      }
+
       setReplyText('');
+      setReplyFiles([]);
       loadThread(selectedThread);
     } catch (err: any) {
       toast({ title: 'Error sending reply', description: err.message, variant: 'destructive' });
