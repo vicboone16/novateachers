@@ -21,29 +21,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // --- Authenticate caller via Lovable Cloud JWT ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return json({ error: "Unauthorized" }, 401);
     }
 
-    // Validate JWT against Core (where users actually authenticate)
-    const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL")!;
-    const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY")!;
-    const coreAuth = createClient(coreUrl, coreAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user: callingUser }, error: userError } =
-      await coreAuth.auth.getUser();
-    if (userError || !callingUser) {
-      console.error("Auth error:", userError?.message);
-      return json({ error: "Invalid token" }, 401);
-    }
-
-    // --- Parse request body ---
     const { email, app_slug } = await req.json();
-
     if (!email || typeof email !== "string") {
       return json({ error: "email is required" }, 400);
     }
@@ -51,80 +34,54 @@ Deno.serve(async (req) => {
     const slug = app_slug || "novateachers";
     const normalizedEmail = email.toLowerCase().trim();
 
-    // --- Resolve against Nova Core ---
+    // Use Service Role Key client to bypass RLS
     const core = getCoreClient();
 
-    // Step 1: Find user_id from profiles
+    // Step 1: Resolve user_id from profiles
     const { data: profile, error: profileErr } = await core
       .from("profiles")
       .select("user_id, first_name, last_name, display_name, email")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
-    let userId: string | null = profile?.user_id ?? null;
-
-    // Step 1b: Fallback — check user_app_access by email
-    if (!userId) {
-      const { data: fallback } = await core
-        .from("user_app_access")
-        .select("user_id")
-        .eq("email", normalizedEmail)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-
-      userId = fallback?.user_id ?? null;
+    if (profileErr) {
+      console.error("Profile lookup error:", profileErr.message);
+      return json({ error: "Profile lookup failed" }, 500);
     }
 
-    if (!userId) {
+    if (!profile?.user_id) {
       return json({ error: "User not found in Nova Core" }, 404);
     }
 
-    // Step 2: Verify app-specific access
-    const { data: appAccess } = await core
-      .from("user_app_access")
-      .select("agency_id, role, is_active")
-      .eq("user_id", userId)
-      .eq("app_slug", slug)
-      .eq("is_active", true);
+    const userId = profile.user_id;
 
-    if (!appAccess || appAccess.length === 0) {
-      return json({ error: "No access to this app", user_id: userId }, 403);
+    // Step 2: Get agencies from user_agency_access
+    const { data: agencies, error: agenciesErr } = await core
+      .from("user_agency_access")
+      .select("agency_id, role")
+      .eq("user_id", userId);
+
+    if (agenciesErr) {
+      console.error("Agency access error:", agenciesErr.message);
+      return json({ error: "Failed to fetch agencies" }, 500);
     }
-
-    const agencies = appAccess.map((a: any) => ({
-      agency_id: a.agency_id,
-      role: a.role,
-    }));
-
-    // Step 3: Get student-level permissions for this app
-    const { data: studentAccess } = await core
-      .from("user_student_access")
-      .select(
-        "student_id, can_view_notes, can_collect_data, can_generate_reports"
-      )
-      .eq("user_id", userId)
-      .eq("app_scope", slug);
-
-    // Step 4: Get active agency context
-    const { data: agencyCtx } = await core
-      .from("user_agency_context")
-      .select("current_agency_id")
-      .eq("user_id", userId)
-      .maybeSingle();
 
     return json({
       user_id: userId,
-      display_name: profile?.display_name ?? null,
-      first_name: profile?.first_name ?? null,
-      last_name: profile?.last_name ?? null,
+      display_name: profile.display_name ?? null,
+      first_name: profile.first_name ?? null,
+      last_name: profile.last_name ?? null,
       email: normalizedEmail,
       app_slug: slug,
-      agencies,
-      current_agency_id: agencyCtx?.current_agency_id ?? null,
-      student_permissions: studentAccess ?? [],
+      agencies: (agencies ?? []).map((a: any) => ({
+        agency_id: a.agency_id,
+        role: a.role,
+      })),
+      current_agency_id: agencies?.[0]?.agency_id ?? null,
+      student_permissions: [],
     });
   } catch (err) {
+    console.error("Unhandled error:", err);
     return json({ error: "Internal server error" }, 500);
   }
 });
