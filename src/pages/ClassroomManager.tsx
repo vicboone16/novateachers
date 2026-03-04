@@ -58,6 +58,8 @@ const ClassroomManager = () => {
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newGradeBand, setNewGradeBand] = useState('');
+  const [newSchoolName, setNewSchoolName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -194,34 +196,34 @@ const ClassroomManager = () => {
   async function fetchUserProfiles(userIds: string[]): Promise<{ user_id: string; display_name: string }[]> {
     if (userIds.length === 0) return [];
 
-    // Try profiles table first (common pattern)
+    // Try profiles table with correct Core schema columns
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, first_name, last_name, display_name, email')
         .in('id', userIds);
 
       if (!error && data?.length) {
         return data.map((p: any) => ({
           user_id: p.id,
-          display_name: p.full_name || p.email || p.id.slice(0, 8) + '…',
+          display_name: p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8) + '…',
         }));
       }
     } catch {
-      // profiles table may not exist
+      // profiles table may not exist or different schema
     }
 
-    // Fallback: try user_profiles or just return IDs
+    // Fallback: try user_agency_access which may have display info
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', userIds);
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
 
       if (!error && data?.length) {
         return data.map((p: any) => ({
-          user_id: p.user_id,
-          display_name: p.full_name || p.email || p.user_id.slice(0, 8) + '…',
+          user_id: p.id,
+          display_name: p.email || p.id.slice(0, 8) + '…',
         }));
       }
     } catch {
@@ -243,15 +245,20 @@ const ClassroomManager = () => {
     if (!currentWorkspace || !user || !newName.trim()) return;
     setCreating(true);
     try {
-      const { error } = await supabase.from('classroom_groups').insert({
+      const insertData: any = {
         agency_id: currentWorkspace.agency_id,
         name: newName.trim(),
         created_by: user.id,
-      });
+      };
+      if (newGradeBand.trim()) insertData.grade_band = newGradeBand.trim();
+      if (newSchoolName.trim()) insertData.school_name = newSchoolName.trim();
+      const { error } = await supabase.from('classroom_groups').insert(insertData);
       if (error) throw error;
       toast({ title: 'Classroom created' });
       setShowCreate(false);
       setNewName('');
+      setNewGradeBand('');
+      setNewSchoolName('');
       setNewDescription('');
       loadAll();
     } catch (err: any) {
@@ -423,6 +430,16 @@ const ClassroomManager = () => {
               <div className="space-y-1.5">
                 <Label>Name *</Label>
                 <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Room 204 — 3rd Grade" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Grade Band</Label>
+                  <Input value={newGradeBand} onChange={e => setNewGradeBand(e.target.value)} placeholder="e.g. 3rd–5th" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>School Name</Label>
+                  <Input value={newSchoolName} onChange={e => setNewSchoolName(e.target.value)} placeholder="e.g. Lincoln Elementary" />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Description</Label>
