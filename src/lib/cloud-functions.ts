@@ -1,7 +1,8 @@
 /**
- * Helper to invoke Lovable Cloud edge functions from the NovaTrack Core-connected app.
- * Uses the Cloud project URL + anon key from environment variables.
+ * Helper to call Nova Core edge functions and Cloud edge functions.
  */
+
+const CORE_URL = 'https://yboqqmkghwhlhhnsegje.supabase.co';
 const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL;
 const CLOUD_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -50,6 +51,9 @@ export interface ResolvedUser {
   app_slug: string;
   agencies: { agency_id: string; role: string }[];
   current_agency_id: string | null;
+  roles?: string[];
+  students?: any[];
+  visible_student_ids?: string[];
   student_permissions: {
     student_id: string;
     can_view_notes: boolean;
@@ -59,16 +63,29 @@ export interface ResolvedUser {
 }
 
 /**
- * Resolve a user's identity and permissions from Nova Core.
- * Requires a valid auth token (from the logged-in session).
+ * Resolve a user's identity and permissions via Nova Core's check-user-access endpoint.
+ * No service_role key needed — the Core function handles RLS bypass internally.
  */
 export async function resolveUser(
   email: string,
-  authToken: string,
+  _authToken?: string,
   appSlug = 'novateachers'
 ): Promise<InvokeResult<ResolvedUser>> {
-  return invokeCloudFunction<ResolvedUser>('resolve-user', {
-    email,
-    app_slug: appSlug,
-  }, authToken);
+  try {
+    const res = await fetch(`${CORE_URL}/functions/v1/check-user-access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, app_slug: appSlug }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return { data: null, error: new Error(text || `HTTP ${res.status}`) };
+    }
+
+    const data = await res.json();
+    return { data, error: null };
+  } catch (err: any) {
+    return { data: null, error: err };
+  }
 }
