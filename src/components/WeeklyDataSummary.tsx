@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -7,10 +7,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays } from 'lucide-react';
+import { resolveDisplayNames } from '@/lib/resolve-names';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import type { Client } from '@/lib/types';
 
@@ -34,6 +37,9 @@ export const WeeklyDataSummary = () => {
   const [abcLogs, setAbcLogs] = useState<ABCEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
 
   const weekStart = useMemo(() => {
     const ref = subWeeks(new Date(), weekOffset);
@@ -48,7 +54,10 @@ export const WeeklyDataSummary = () => {
   }, [currentWorkspace]);
 
   useEffect(() => {
-    if (selectedClientId) loadWeekData();
+    if (selectedClientId) {
+      loadWeekData();
+      loadAssignedStaff();
+    }
   }, [selectedClientId, weekOffset]);
 
   const loadClients = async () => {
@@ -57,6 +66,55 @@ export const WeeklyDataSummary = () => {
       const data = await fetchAccessibleClients({ currentWorkspace, isSoloMode, userId: user?.id });
       setClients(normalizeClients(data));
     } catch { /* silent */ }
+  };
+
+  const loadAssignedStaff = async () => {
+    if (!selectedClientId) return;
+    setLoadingStaff(true);
+    setAssignedStaff([]);
+    setSelectedRecipients([]);
+
+    try {
+      // Try user_student_access first, fallback to user_client_access
+      let staffIds: string[] = [];
+
+      const { data: accessRows, error: accessErr } = await supabase
+        .from('user_student_access')
+        .select('user_id')
+        .eq('client_id', selectedClientId)
+        .neq('user_id', user?.id || '');
+
+      if (!accessErr && accessRows) {
+        staffIds = accessRows.map((r: any) => r.user_id);
+      } else {
+        const { data: fallbackRows } = await supabase
+          .from('user_client_access')
+          .select('user_id')
+          .eq('client_id', selectedClientId)
+          .neq('user_id', user?.id || '');
+        staffIds = (fallbackRows || []).map((r: any) => r.user_id);
+      }
+
+      if (staffIds.length === 0) {
+        setLoadingStaff(false);
+        return;
+      }
+
+      // Resolve display names
+      const nameMap = await resolveDisplayNames(staffIds);
+      const staff = staffIds.map(id => ({
+        id,
+        name: nameMap.get(id) || id.slice(0, 8) + '…',
+      }));
+
+      setAssignedStaff(staff);
+      // Auto-select all by default
+      setSelectedRecipients(staffIds);
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingStaff(false);
+    }
   };
 
   const loadWeekData = async () => {
@@ -168,26 +226,36 @@ export const WeeklyDataSummary = () => {
   const sendSummaryToBCBA = async () => {
     if (!hasData) return;
 
-    // Find BCBA recipient from resolvedUser's agencies
-    // For now, we'll prompt user to specify or use first admin
+    // If no assigned staff, send to self as a saved copy
+    const recipients = selectedRecipients.length > 0 ? selectedRecipients : [user?.id!];
+
     const body = buildSummaryBody();
     const student = clients.find(c => c.id === selectedClientId);
     const studentName = student ? displayName(student) : 'Student';
+    const subject = `Weekly Data Summary: ${studentName} (${weekLabel})`;
+    const metadata = { app_source: 'teacher_hub', week_start: weekStart.toISOString(), week_end: weekEnd.toISOString() };
 
     setSending(true);
     try {
-      const { error } = await supabase.from('teacher_messages').insert({
+      // Send to each selected recipient
+      const inserts = recipients.map(recipientId => ({
         agency_id: agencyId || currentWorkspace?.agency_id,
         sender_id: user?.id,
-        recipient_id: user?.id, // Self-copy for now; user can forward
+        recipient_id: recipientId,
         client_id: selectedClientId,
-        subject: `Weekly Data Summary: ${studentName} (${weekLabel})`,
+        subject,
         body,
         message_type: 'data_summary',
-        metadata: { app_source: 'teacher_hub', week_start: weekStart.toISOString(), week_end: weekEnd.toISOString() },
-      });
+        metadata,
+      }));
+
+      const { error } = await supabase.from('teacher_messages').insert(inserts);
       if (error) throw error;
-      toast({ title: '✓ Summary sent', description: 'Available in your Inbox to forward to your supervisor' });
+
+      const recipientNames = recipients
+        .map(id => assignedStaff.find(s => s.id === id)?.name || 'your Inbox')
+        .join(', ');
+      toast({ title: '✓ Summary sent', description: `Sent to ${recipientNames}` });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -331,10 +399,74 @@ export const WeeklyDataSummary = () => {
       )}
 
       {hasData && (
-        <Button onClick={sendSummaryToBCBA} disabled={sending} className="gap-1.5">
-          <Send className="h-4 w-4" />
-          Send Summary to Inbox
-        </Button>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-primary" /> Send To
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loadingStaff ? (
+              <p className="text-sm text-muted-foreground">Loading assigned staff…</p>
+            ) : assignedStaff.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No other staff assigned to this student. Summaries will be saved to your Inbox.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {assignedStaff.map(staff => (
+                  <div key={staff.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`staff-${staff.id}`}
+                      checked={selectedRecipients.includes(staff.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedRecipients(prev =>
+                          checked
+                            ? [...prev, staff.id]
+                            : prev.filter(id => id !== staff.id)
+                        );
+                      }}
+                    />
+                    <Label htmlFor={`staff-${staff.id}`} className="text-sm cursor-pointer">
+                      {staff.name}
+                    </Label>
+                  </div>
+                ))}
+                {assignedStaff.length > 1 && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setSelectedRecipients(assignedStaff.map(s => s.id))}
+                    >
+                      Select all
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setSelectedRecipients([])}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            <Button
+              onClick={sendSummaryToBCBA}
+              disabled={sending || (assignedStaff.length > 0 && selectedRecipients.length === 0)}
+              className="gap-1.5 w-full"
+            >
+              <Send className="h-4 w-4" />
+              {assignedStaff.length === 0
+                ? 'Save Summary to Inbox'
+                : `Send to ${selectedRecipients.length} recipient${selectedRecipients.length !== 1 ? 's' : ''}`
+              }
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
