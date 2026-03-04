@@ -155,9 +155,12 @@ export const AppLayout = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24">
         <Outlet />
       </main>
+
+      {/* Quick Add Panel */}
+      <QuickAddPanel />
     </div>
   );
 };
