@@ -298,7 +298,7 @@ export const QuickAddPanel = () => {
       {/* Panel */}
       {expanded && (
         <div className="border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
-          <div className="mx-auto max-w-6xl px-4 py-4 space-y-3">
+          <div className="mx-auto max-w-3xl px-6 py-5 space-y-4">
             {/* Student + Behavior selectors */}
             <div className="flex flex-wrap gap-3">
               <div className="min-w-[180px] flex-1 max-w-xs">
