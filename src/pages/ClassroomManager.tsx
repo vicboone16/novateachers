@@ -27,6 +27,7 @@ import {
 import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client, ClassroomGroup } from '@/lib/types';
 
 // ── Types ──
@@ -192,45 +193,18 @@ const ClassroomManager = () => {
     }
   };
 
-  /** Try to fetch display names from a profiles table; fall back to auth user metadata */
   async function fetchUserProfiles(userIds: string[]): Promise<{ user_id: string; display_name: string }[]> {
     if (userIds.length === 0) return [];
 
-    // Try profiles table with correct Core schema columns
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, display_name, email')
-        .in('id', userIds);
-
-      if (!error && data?.length) {
-        return data.map((p: any) => ({
-          user_id: p.id,
-          display_name: p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || p.id.slice(0, 8) + '…',
-        }));
-      }
+      const nameMap = await resolveDisplayNames(userIds);
+      return userIds.map(id => ({
+        user_id: id,
+        display_name: nameMap.get(id) || id.slice(0, 8) + '…',
+      }));
     } catch {
-      // profiles table may not exist or different schema
+      return userIds.map(id => ({ user_id: id, display_name: id.slice(0, 8) + '…' }));
     }
-
-    // Fallback: try user_agency_access which may have display info
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .in('id', userIds);
-
-      if (!error && data?.length) {
-        return data.map((p: any) => ({
-          user_id: p.id,
-          display_name: p.email || p.id.slice(0, 8) + '…',
-        }));
-      }
-    } catch {
-      // table doesn't exist
-    }
-
-    return userIds.map(id => ({ user_id: id, display_name: id.slice(0, 8) + '…' }));
   }
 
   // ── Helpers ──
