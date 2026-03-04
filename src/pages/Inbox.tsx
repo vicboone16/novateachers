@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { AttachmentUploader, AttachmentList, uploadAttachments } from '@/components/inbox/InboxAttachments';
 import ComposeMessage from '@/components/inbox/ComposeMessage';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 
 interface TeacherMessage {
   id: string;
