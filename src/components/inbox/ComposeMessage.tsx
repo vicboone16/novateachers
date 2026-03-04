@@ -43,7 +43,7 @@ const MESSAGE_TYPES = [
 ];
 
 const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
 
