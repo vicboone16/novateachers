@@ -54,7 +54,10 @@ export const WeeklyDataSummary = () => {
   }, [currentWorkspace]);
 
   useEffect(() => {
-    if (selectedClientId) loadWeekData();
+    if (selectedClientId) {
+      loadWeekData();
+      loadAssignedStaff();
+    }
   }, [selectedClientId, weekOffset]);
 
   const loadClients = async () => {
