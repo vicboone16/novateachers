@@ -12,16 +12,19 @@ interface InvokeResult<T = any> {
 
 export async function invokeCloudFunction<T = any>(
   functionName: string,
-  body: Record<string, any>
+  body: Record<string, any>,
+  authToken?: string
 ): Promise<InvokeResult<T>> {
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken || CLOUD_ANON_KEY}`,
+      'apikey': CLOUD_ANON_KEY,
+    };
+
     const res = await fetch(`${CLOUD_URL}/functions/v1/${functionName}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CLOUD_ANON_KEY}`,
-        'apikey': CLOUD_ANON_KEY,
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -35,4 +38,37 @@ export async function invokeCloudFunction<T = any>(
   } catch (err: any) {
     return { data: null, error: err };
   }
+}
+
+/** Resolved user identity & permissions from Nova Core */
+export interface ResolvedUser {
+  user_id: string;
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  app_slug: string;
+  agencies: { agency_id: string; role: string }[];
+  current_agency_id: string | null;
+  student_permissions: {
+    student_id: string;
+    can_view_notes: boolean;
+    can_collect_data: boolean;
+    can_generate_reports: boolean;
+  }[];
+}
+
+/**
+ * Resolve a user's identity and permissions from Nova Core.
+ * Requires a valid auth token (from the logged-in session).
+ */
+export async function resolveUser(
+  email: string,
+  authToken: string,
+  appSlug = 'novateachers'
+): Promise<InvokeResult<ResolvedUser>> {
+  return invokeCloudFunction<ResolvedUser>('resolve-user', {
+    email,
+    app_slug: appSlug,
+  }, authToken);
 }
