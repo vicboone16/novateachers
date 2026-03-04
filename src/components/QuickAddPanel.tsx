@@ -95,6 +95,13 @@ export const QuickAddPanel = () => {
     } catch { /* silent */ }
   };
 
+  const triggerHaptic = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(15);
+    }
+  };
+
+
   const loadBehaviors = async () => {
     const { data } = await supabase
       .from('students')
