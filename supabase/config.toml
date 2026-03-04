@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.notify-pending-change]
 verify_jwt = false
+
+[functions.resolve-display-names]
+verify_jwt = false
