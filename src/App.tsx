@@ -21,7 +21,6 @@ import ClassroomManager from "@/pages/ClassroomManager";
 import JoinInvite from "@/pages/JoinInvite";
 import GenerateInvite from "@/pages/GenerateInvite";
 import Inbox from "@/pages/Inbox";
-import Inbox from "@/pages/Inbox";
 import { WeeklyDataSummary } from "@/components/WeeklyDataSummary";
 import NotFound from "@/pages/NotFound";
 
