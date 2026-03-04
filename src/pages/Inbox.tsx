@@ -4,32 +4,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Inbox as InboxIcon,
   Mail,
   MailOpen,
   CheckCircle2,
-  Clock,
   Send,
   ArrowLeft,
   FileText,
-  AlertCircle,
   MessageSquare,
   ClipboardCheck,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { AttachmentUploader, AttachmentList, uploadAttachments } from '@/components/inbox/InboxAttachments';
 
 interface TeacherMessage {
   id: string;
