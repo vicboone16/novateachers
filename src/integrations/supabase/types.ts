@@ -332,6 +332,90 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_duration_entries: {
+        Row: {
+          agency_id: string
+          behavior_name: string
+          client_id: string
+          created_at: string
+          duration_seconds: number
+          id: string
+          logged_date: string
+          notes: string | null
+          target_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          behavior_name: string
+          client_id: string
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          logged_date?: string
+          notes?: string | null
+          target_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          behavior_name?: string
+          client_id?: string
+          created_at?: string
+          duration_seconds?: number
+          id?: string
+          logged_date?: string
+          notes?: string | null
+          target_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      teacher_frequency_entries: {
+        Row: {
+          agency_id: string
+          behavior_name: string
+          client_id: string
+          count: number
+          created_at: string
+          id: string
+          logged_date: string
+          notes: string | null
+          target_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          behavior_name: string
+          client_id: string
+          count?: number
+          created_at?: string
+          id?: string
+          logged_date?: string
+          notes?: string | null
+          target_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          behavior_name?: string
+          client_id?: string
+          count?: number
+          created_at?: string
+          id?: string
+          logged_date?: string
+          notes?: string | null
+          target_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       teacher_message_attachments: {
         Row: {
           created_at: string
@@ -440,6 +524,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teacher_quick_notes: {
+        Row: {
+          agency_id: string
+          behavior_name: string | null
+          client_id: string
+          created_at: string
+          id: string
+          logged_at: string
+          note: string
+          target_id: string | null
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          behavior_name?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          logged_at?: string
+          note: string
+          target_id?: string | null
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          behavior_name?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          logged_at?: string
+          note?: string
+          target_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
