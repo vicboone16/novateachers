@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Pencil, Save, X, Clock, AlertTriangle } from 'lucide-react';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
 
 interface Props {
@@ -89,6 +90,15 @@ const StudentInfoEditor = ({ client, onRefresh }: Props) => {
           title: 'Change submitted for review',
           description: 'Your supervisor will be notified to approve these changes.',
         });
+
+        // Fire notification email to assigned BCBAs (fire-and-forget)
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        invokeCloudFunction('notify-pending-change', {
+          clientId: client.id,
+          clientName: [client.first_name, client.last_name].filter(Boolean).join(' ') || 'Unknown Student',
+          fieldChanges: changes,
+        }, token).catch(() => { /* non-critical */ });
       } else {
         // Solo-owned student — save directly
         const updates: Record<string, string> = {};

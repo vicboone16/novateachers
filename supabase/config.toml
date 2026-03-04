@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.resolve-user]
 verify_jwt = false
+
+[functions.notify-pending-change]
+verify_jwt = false
