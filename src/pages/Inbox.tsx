@@ -4,32 +4,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Inbox as InboxIcon,
   Mail,
   MailOpen,
   CheckCircle2,
-  Clock,
   Send,
   ArrowLeft,
   FileText,
-  AlertCircle,
   MessageSquare,
   ClipboardCheck,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { AttachmentUploader, AttachmentList, uploadAttachments } from '@/components/inbox/InboxAttachments';
 
 interface TeacherMessage {
   id: string;
@@ -77,6 +69,7 @@ const Inbox = () => {
   const [threadMessages, setThreadMessages] = useState<TeacherMessage[]>([]);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [senderNames, setSenderNames] = useState<Map<string, string>>(new Map());
 
   const loadMessages = useCallback(async () => {
@@ -168,7 +161,7 @@ const Inbox = () => {
     try {
       const rootMsg = threadMessages[0];
       const recipientId = rootMsg.sender_id === user.id ? rootMsg.recipient_id : rootMsg.sender_id;
-      const { error } = await supabase.from('teacher_messages').insert({
+      const { data: inserted, error } = await supabase.from('teacher_messages').insert({
         agency_id: currentWorkspace.agency_id,
         thread_id: selectedThread,
         parent_id: threadMessages[threadMessages.length - 1].id,
@@ -177,9 +170,16 @@ const Inbox = () => {
         message_type: 'note',
         subject: rootMsg.subject ? `Re: ${rootMsg.subject}` : null,
         body: replyText.trim(),
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // Upload attachments if any
+      if (replyFiles.length > 0 && inserted) {
+        await uploadAttachments(inserted.id, user.id, replyFiles);
+      }
+
       setReplyText('');
+      setReplyFiles([]);
       loadThread(selectedThread);
     } catch (err: any) {
       toast({ title: 'Error sending reply', description: err.message, variant: 'destructive' });
@@ -277,24 +277,28 @@ const Inbox = () => {
                   </span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                <AttachmentList messageId={msg.id} />
               </CardContent>
             </Card>
           ))}
         </div>
 
         {/* Reply box */}
-        <div className="flex gap-2">
-          <Textarea
-            value={replyText}
-            onChange={e => setReplyText(e.target.value)}
-            placeholder="Write a reply…"
-            rows={2}
-            className="flex-1"
-          />
-          <Button onClick={handleReply} disabled={sending || !replyText.trim()} className="self-end gap-1.5">
-            <Send className="h-3.5 w-3.5" />
-            {sending ? 'Sending…' : 'Reply'}
-          </Button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Textarea
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              placeholder="Write a reply…"
+              rows={2}
+              className="flex-1"
+            />
+            <Button onClick={handleReply} disabled={sending || !replyText.trim()} className="self-end gap-1.5">
+              <Send className="h-3.5 w-3.5" />
+              {sending ? 'Sending…' : 'Reply'}
+            </Button>
+          </div>
+          <AttachmentUploader files={replyFiles} onFilesChange={setReplyFiles} />
         </div>
       </div>
     );

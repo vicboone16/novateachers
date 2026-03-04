@@ -15,6 +15,7 @@ import { TargetManager } from '@/components/TargetManager';
 import { IEPTab } from '@/components/IEPTab';
 import { BCBASummary } from '@/components/BCBASummary';
 import { TeacherSummaries } from '@/components/TeacherSummaries';
+import StudentInfoEditor from '@/components/StudentInfoEditor';
 import { useToast } from '@/hooks/use-toast';
 import type { Client, ABCLog, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
@@ -117,7 +118,7 @@ const StudentDetail = () => {
     );
   }
 
-  const diagnoses: string[] = Array.isArray(client.diagnoses) ? client.diagnoses : [];
+  // diagnoses handled by StudentInfoEditor
 
   return (
     <div className="space-y-6">
@@ -161,35 +162,7 @@ const StudentDetail = () => {
 
         {/* ── OVERVIEW ── */}
         <TabsContent value="overview" className="animate-in fade-in-50 duration-300">
-          <Card className="border-border/40 shadow-sm">
-            <CardHeader><CardTitle className="text-base font-heading">Student Information</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <InfoField label="First Name" value={client.first_name} />
-                <InfoField label="Last Name" value={client.last_name} />
-                <InfoField label="Grade" value={client.grade} />
-                <InfoField label="School" value={client.school_name} />
-                <InfoField label="District" value={client.district_name} />
-                <InfoField label="Primary Setting" value={client.primary_setting} />
-                {client.date_of_birth && (
-                  <InfoField label="Date of Birth" value={new Date(client.date_of_birth).toLocaleDateString()} />
-                )}
-                {client.funding_mode && <InfoField label="Funding Mode" value={client.funding_mode} />}
-              </div>
-              {diagnoses.length > 0 && (
-                <div className="mt-5 pt-4 border-t border-border/40">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Diagnoses</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {diagnoses.map((d, i) => (
-                      <Badge key={i} variant="secondary" className="bg-warning/10 text-warning border-warning/20">
-                        {d}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <StudentInfoEditor client={client} onRefresh={loadClient} />
         </TabsContent>
 
         {/* ── DATA ── */}
@@ -404,13 +377,6 @@ const StudentDetail = () => {
     </div>
   );
 };
-
-const InfoField = ({ label, value }: { label: string; value?: string | null }) => (
-  <div className="space-y-0.5">
-    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-    <p className="text-sm font-medium text-foreground">{value || '—'}</p>
-  </div>
-);
 
 type StatColor = 'primary' | 'accent' | 'warning' | 'destructive';
 
