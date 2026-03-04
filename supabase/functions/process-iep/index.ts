@@ -667,12 +667,125 @@ ${JSON.stringify(progress_json).slice(0, 20000)}`,
         break;
       }
 
+      // ─── Step 8: Goal Quality & Compliance Validation ─────────
+      case "validate_goals": {
+        if (!goals_json) throw new Error("Missing goals_json");
+
+        const validateTools = [{
+          type: "function",
+          function: {
+            name: "return_validation",
+            description: "Return goal quality and compliance validation results",
+            parameters: {
+              type: "object",
+              properties: {
+                validated_goals: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      goal_key: { type: "string" },
+                      quality_score: { type: "number", description: "0-100 overall quality score" },
+                      is_measurable: { type: "boolean" },
+                      compliance_issues: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            type: { type: "string", description: "non_measurable|missing_baseline|missing_criterion|vague_behavior|missing_condition|missing_measurement|non_idea_compliant|other" },
+                            severity: { type: "string", enum: ["low", "medium", "high"] },
+                            note: { type: "string" },
+                            suggestion: { type: "string" },
+                          },
+                          required: ["type", "severity", "note"],
+                        },
+                      },
+                      measurability: {
+                        type: "object",
+                        properties: {
+                          has_condition: { type: "boolean" },
+                          has_observable_behavior: { type: "boolean" },
+                          has_criterion: { type: "boolean" },
+                          has_measurement_method: { type: "boolean" },
+                          has_timeline: { type: "boolean" },
+                        },
+                      },
+                    },
+                    required: ["goal_key", "quality_score", "is_measurable", "compliance_issues"],
+                  },
+                },
+              },
+              required: ["validated_goals"],
+            },
+          },
+        }];
+
+        result = await callAI(GLOBAL_SYSTEM,
+          `You are an IEP compliance validator. Analyze each goal for:
+
+1. MEASURABILITY (IDEA-compliant goals must have):
+   - Condition (Given..., When..., During...)
+   - Observable/measurable behavior (student will...)
+   - Criterion (with X% accuracy, in Y out of Z trials, etc.)
+   - Measurement method (teacher observation, work samples, probes, etc.)
+   - Timeline (by annual review, within 36 weeks, etc.)
+
+2. COMPLIANCE FLAGS:
+   - non_measurable: Goal cannot be objectively measured
+   - missing_baseline: No current performance level referenced
+   - missing_criterion: No success criteria defined
+   - vague_behavior: Behavior is not observable (e.g., "understand", "appreciate")
+   - missing_condition: No condition under which behavior occurs
+   - missing_measurement: No data collection method specified
+   - non_idea_compliant: Other IDEA compliance issues
+
+3. QUALITY SCORE (0-100):
+   - 90-100: Exemplary, fully measurable
+   - 70-89: Good, minor improvements needed
+   - 50-69: Adequate, significant gaps
+   - 0-49: Poor, needs substantial revision
+
+For each issue, provide a specific suggestion for improvement.
+
+GOALS TO VALIDATE:
+${JSON.stringify(goals_json).slice(0, 30000)}`,
+          true, validateTools);
+
+        // Update each goal's goal_data with quality scores
+        if (document_id && result.validated_goals?.length > 0) {
+          for (const vg of result.validated_goals) {
+            // Find the matching goal in DB and update its goal_data
+            const { data: existingGoals } = await supabase
+              .from("iep_extracted_goals")
+              .select("id, goal_data")
+              .eq("document_id", document_id)
+              .eq("goal_key", vg.goal_key)
+              .limit(1);
+
+            if (existingGoals?.[0]) {
+              const existing = existingGoals[0];
+              const updatedData = {
+                ...(existing.goal_data as any),
+                quality_score: vg.quality_score,
+                is_measurable: vg.is_measurable,
+                compliance_issues: vg.compliance_issues,
+                measurability: vg.measurability,
+              };
+              await supabase
+                .from("iep_extracted_goals")
+                .update({ goal_data: updatedData })
+                .eq("id", existing.id);
+            }
+          }
+        }
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Unknown step: ${step}` }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-    }
 
     return new Response(JSON.stringify({ result }), {
       status: 200,

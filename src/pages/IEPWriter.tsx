@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -16,7 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
-import { Plus, FileText, Save, Trash2, Sparkles, Loader2, Copy, Share2, Download, ClipboardList } from 'lucide-react';
+import { Plus, FileText, Save, Trash2, Sparkles, Loader2, Copy, Share2, Download, ClipboardList, History, ArrowRight } from 'lucide-react';
 import type { Client, IEPDraft, IEPSection } from '@/lib/types';
 
 // ── Same section definitions with guided prompts ──
@@ -79,9 +79,20 @@ const SECTION_DEFS: {
   },
 ];
 
+interface SimilarGoal {
+  goal_key: string;
+  domain: string;
+  goal_statement: string;
+  baseline: string;
+  criterion: string;
+  measurement: string;
+  match_score: number;
+  source_doc: string;
+}
+
 const IEPWriter = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -98,8 +109,59 @@ const IEPWriter = () => {
   const [guidedTemplate, setGuidedTemplate] = useState<string | null>(null);
   const [guidedValues, setGuidedValues] = useState<Record<string, string>>({});
 
+  // Goal Similarity Engine
+  const [similarGoals, setSimilarGoals] = useState<SimilarGoal[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [showSimilarPanel, setShowSimilarPanel] = useState(false);
+
   useEffect(() => { if (currentWorkspace) loadClients(); }, [currentWorkspace]);
   useEffect(() => { if (selectedClientId) loadDrafts(); }, [selectedClientId]);
+
+  // Load similar goals when goals section is being edited
+  const searchSimilarGoals = useCallback(async () => {
+    if (!selectedClientId) return;
+    setLoadingSimilar(true);
+    try {
+      // Fetch all extracted goals for this student from past IEP documents
+      const { data: docs } = await supabase
+        .from('iep_documents')
+        .select('id, file_name')
+        .eq('student_id', selectedClientId);
+
+      if (!docs?.length) { setSimilarGoals([]); setLoadingSimilar(false); return; }
+
+      const docIds = docs.map(d => d.id);
+      const docMap = Object.fromEntries(docs.map(d => [d.id, d.file_name]));
+
+      const { data: goals } = await supabase
+        .from('iep_extracted_goals')
+        .select('*')
+        .in('document_id', docIds)
+        .eq('is_approved', true);
+
+      if (!goals?.length) { setSimilarGoals([]); setLoadingSimilar(false); return; }
+
+      const mapped: SimilarGoal[] = goals.map(g => {
+        const gd = g.goal_data as any || {};
+        return {
+          goal_key: g.goal_key,
+          domain: gd.domain || gd.area_of_need || '',
+          goal_statement: gd.goal_statement_clean || gd.goal_statement_raw || '',
+          baseline: gd.baseline?.value || '',
+          criterion: gd.criterion?.details || (gd.criterion?.value ? `${gd.criterion.value}${gd.criterion.unit || ''}` : ''),
+          measurement: gd.measurement_method || '',
+          match_score: gd.confidence?.overall || 0.8,
+          source_doc: docMap[g.document_id] || 'Unknown',
+        };
+      });
+
+      setSimilarGoals(mapped);
+    } catch {
+      setSimilarGoals([]);
+    } finally {
+      setLoadingSimilar(false);
+    }
+  }, [selectedClientId]);
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -247,6 +309,32 @@ const IEPWriter = () => {
     } finally { setGeneratingAll(false); setGeneratingSection(null); }
   };
 
+  // Insert a similar goal into the goals section
+  const insertSimilarGoal = (sg: SimilarGoal) => {
+    if (!activeDraft) return;
+    const content = [
+      `**Goal Area:** ${sg.domain || '—'}`,
+      `**Baseline:** ${sg.baseline || '—'}`,
+      `**Target:** ${sg.criterion || '—'}`,
+      `**Measurement:** ${sg.measurement || '—'}`,
+      `**Goal Statement:** ${sg.goal_statement}`,
+    ].join('\n');
+
+    const goalSection = activeDraft.sections.find(s => s.type === 'goals');
+    if (goalSection) {
+      const existing = goalSection.content;
+      updateSection(goalSection.id, existing ? `${existing}\n\n---\n\n${content}` : content);
+    } else {
+      setActiveDraft({
+        ...activeDraft,
+        sections: [...activeDraft.sections, {
+          id: crypto.randomUUID(), type: 'goals', title: `Goal: ${sg.domain}`, content, order: activeDraft.sections.length,
+        }],
+      });
+    }
+    toast({ title: 'Historical goal inserted into draft' });
+  };
+
   const statusColors: Record<string, string> = {
     draft: 'bg-muted text-muted-foreground', review: 'bg-primary/10 text-primary',
     final: 'bg-accent/10 text-accent-foreground', shared: 'bg-accent text-accent-foreground',
@@ -329,10 +417,17 @@ const IEPWriter = () => {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => setActiveDraft(null)}>← Back</Button>
+              <Button variant="ghost" size="sm" onClick={() => { setActiveDraft(null); setShowSimilarPanel(false); }}>← Back</Button>
               <Input value={activeDraft.title} onChange={e => setActiveDraft({ ...activeDraft, title: e.target.value })} className="max-w-xs border-none bg-transparent text-lg font-semibold focus-visible:ring-0" />
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                onClick={() => { setShowSimilarPanel(!showSimilarPanel); if (!showSimilarPanel && similarGoals.length === 0) searchSimilarGoals(); }}
+                size="sm" variant="outline" className="gap-1.5 text-xs"
+              >
+                <History className="h-3.5 w-3.5" />
+                {showSimilarPanel ? 'Hide' : 'Similar Goals'}
+              </Button>
               <Button onClick={generateAllSections} disabled={generatingAll || !!generatingSection} size="sm" variant="outline" className="gap-1.5 text-xs">
                 {generatingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                 {generatingAll ? 'Generating…' : 'AI All'}
@@ -343,6 +438,61 @@ const IEPWriter = () => {
               <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5"><Save className="h-3.5 w-3.5" /> {saving ? 'Saving…' : 'Save'}</Button>
             </div>
           </div>
+
+          {/* Goal Similarity Panel */}
+          {showSimilarPanel && (
+            <Card className="border-primary/20 bg-primary/[0.02]">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-1.5">
+                    <History className="h-4 w-4" />
+                    Historical Goals from IEP Reader
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={searchSimilarGoals} disabled={loadingSimilar} className="gap-1 text-xs">
+                    {loadingSimilar ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {loadingSimilar ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : similarGoals.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    No historical goals found. Upload and process IEP documents in the IEP Reader first.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      {similarGoals.length} approved goal{similarGoals.length !== 1 ? 's' : ''} found from past IEPs. Click to insert into your draft.
+                    </p>
+                    {similarGoals.map((sg, i) => (
+                      <div key={i} className="flex items-start gap-2 rounded-md border border-border/60 p-2.5 hover:bg-accent/30 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            {sg.domain && <Badge variant="outline" className="text-[10px]">{sg.domain}</Badge>}
+                            <span className="text-[10px] text-muted-foreground truncate">from {sg.source_doc}</span>
+                          </div>
+                          <p className="text-xs line-clamp-2">{sg.goal_statement}</p>
+                          {sg.baseline && <p className="text-[10px] text-muted-foreground mt-0.5">Baseline: {sg.baseline}</p>}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 h-7 gap-1 text-xs text-primary"
+                          onClick={() => insertSimilarGoal(sg)}
+                        >
+                          <ArrowRight className="h-3 w-3" /> Use
+                        </Button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Template selector */}
           <Card className="border-border/50 bg-muted/30">
