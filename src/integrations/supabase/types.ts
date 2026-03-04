@@ -56,6 +56,240 @@ export type Database = {
         }
         Relationships: []
       }
+      iep_documents: {
+        Row: {
+          agency_id: string
+          created_at: string
+          file_name: string
+          file_size_bytes: number | null
+          file_url: string
+          global_issues: Json | null
+          id: string
+          iep_cycle_end: string | null
+          iep_cycle_start: string | null
+          ocr_cleaned_text: string | null
+          ocr_confidence: number | null
+          ocr_raw_text: string | null
+          pipeline_error: string | null
+          pipeline_status: string
+          sections_detected: Json | null
+          student_id: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          file_name: string
+          file_size_bytes?: number | null
+          file_url: string
+          global_issues?: Json | null
+          id?: string
+          iep_cycle_end?: string | null
+          iep_cycle_start?: string | null
+          ocr_cleaned_text?: string | null
+          ocr_confidence?: number | null
+          ocr_raw_text?: string | null
+          pipeline_error?: string | null
+          pipeline_status?: string
+          sections_detected?: Json | null
+          student_id: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          file_url?: string
+          global_issues?: Json | null
+          id?: string
+          iep_cycle_end?: string | null
+          iep_cycle_start?: string | null
+          ocr_cleaned_text?: string | null
+          ocr_confidence?: number | null
+          ocr_raw_text?: string | null
+          pipeline_error?: string | null
+          pipeline_status?: string
+          sections_detected?: Json | null
+          student_id?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      iep_extracted_accommodations: {
+        Row: {
+          accommodation_data: Json
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          document_id: string
+          id: string
+          is_approved: boolean
+        }
+        Insert: {
+          accommodation_data?: Json
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          is_approved?: boolean
+        }
+        Update: {
+          accommodation_data?: Json
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          is_approved?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iep_extracted_accommodations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "iep_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iep_extracted_goals: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          document_id: string
+          goal_data: Json
+          goal_key: string
+          id: string
+          is_approved: boolean
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id: string
+          goal_data?: Json
+          goal_key: string
+          id?: string
+          is_approved?: boolean
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id?: string
+          goal_data?: Json
+          goal_key?: string
+          id?: string
+          is_approved?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iep_extracted_goals_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "iep_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iep_extracted_progress: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          document_id: string
+          id: string
+          is_approved: boolean
+          link_confidence: number | null
+          linked_goal_id: string | null
+          progress_data: Json
+          progress_key: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          is_approved?: boolean
+          link_confidence?: number | null
+          linked_goal_id?: string | null
+          progress_data?: Json
+          progress_key: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          is_approved?: boolean
+          link_confidence?: number | null
+          linked_goal_id?: string | null
+          progress_data?: Json
+          progress_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iep_extracted_progress_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "iep_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iep_extracted_progress_linked_goal_id_fkey"
+            columns: ["linked_goal_id"]
+            isOneToOne: false
+            referencedRelation: "iep_extracted_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iep_extracted_services: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          document_id: string
+          id: string
+          is_approved: boolean
+          service_data: Json
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          is_approved?: boolean
+          service_data?: Json
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          is_approved?: boolean
+          service_data?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iep_extracted_services_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "iep_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_student_changes: {
         Row: {
           agency_id: string
