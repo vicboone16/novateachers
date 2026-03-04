@@ -267,22 +267,36 @@ const Inbox = () => {
 
         {/* Messages in thread */}
         <div className="space-y-3">
-          {threadMessages.map(msg => (
-            <Card key={msg.id} className={cn(msg.sender_id === user?.id ? 'ml-8' : 'mr-8')}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">
-                    {msg.sender_id === user?.id ? 'You' : senderNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(msg.created_at), 'MMM d, h:mm a')}
-                  </span>
-                </div>
-                <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                <AttachmentList messageId={msg.id} />
-              </CardContent>
-            </Card>
-          ))}
+          {threadMessages.map(msg => {
+            const parentMsg = msg.parent_id ? threadMessages.find(m => m.id === msg.parent_id) : null;
+            return (
+              <Card key={msg.id} className={cn(msg.sender_id === user?.id ? 'ml-8' : 'mr-8')}>
+                <CardContent className="p-4">
+                  {parentMsg && (
+                    <div className="mb-2 flex items-start gap-2 rounded-md bg-muted/50 p-2 border-l-2 border-muted-foreground/30">
+                      <ArrowLeft className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground rotate-[135deg]" />
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          Replying to {parentMsg.sender_id === user?.id ? 'You' : senderNames.get(parentMsg.sender_id) || parentMsg.sender_id.slice(0, 8)}
+                        </span>
+                        <p className="text-xs text-muted-foreground/70 truncate">{parentMsg.body.slice(0, 100)}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">
+                      {msg.sender_id === user?.id ? 'You' : senderNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(msg.created_at), 'MMM d, h:mm a')}
+                    </span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                  <AttachmentList messageId={msg.id} />
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Reply box */}
