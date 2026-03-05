@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { logEvent } from '@/lib/supervisorSignals';
 import { supabase } from '@/integrations/supabase/client';
-import { Mic, Wand2, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Wand2, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface BehaviorEvent {
   event_type: string;
@@ -35,25 +36,106 @@ interface Props {
   classroomId?: string | null;
 }
 
+// Check browser support for Web Speech API
+const getSpeechRecognition = () => {
+  const w = window as any;
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
+};
+
 export const BehaviorCaptureModal = ({ open, onOpenChange, clientId, agencyId, classroomId }: Props) => {
   const { toast } = useToast();
   const [text, setText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<AIParseResult | null>(null);
 
+  // Voice-to-text state
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    setVoiceSupported(!!getSpeechRecognition());
+  }, []);
+
+  // Cleanup on modal close
+  useEffect(() => {
+    if (!open && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  }, [open]);
+
+  const toggleVoice = useCallback(() => {
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) {
+      toast({ title: 'Voice not supported', description: 'Your browser does not support speech recognition', variant: 'destructive' });
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    let finalTranscript = text;
+
+    recognition.onresult = (event: any) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += (finalTranscript ? ' ' : '') + transcript;
+          setText(finalTranscript);
+        } else {
+          interim += transcript;
+        }
+      }
+      // Show interim text appended
+      if (interim) {
+        setText(finalTranscript + (finalTranscript ? ' ' : '') + interim);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error !== 'aborted') {
+        toast({ title: 'Voice error', description: event.error, variant: 'destructive' });
+      }
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening, text, toast]);
+
   const handleConvert = async () => {
     if (!text.trim()) return;
     setProcessing(true);
     setResult(null);
 
+    // Stop listening if active
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+
     try {
-      // Try AI edge function for parsing
       const { data, error } = await supabase.functions.invoke('parse-behavior-narrative', {
         body: { narrative: text, clientId },
       });
 
       if (error || !data?.events) {
-        // Fallback: store raw narrative as an event
         await logEvent({
           clientId,
           agencyId,
@@ -70,7 +152,6 @@ export const BehaviorCaptureModal = ({ open, onOpenChange, clientId, agencyId, c
 
       setResult(data as AIParseResult);
     } catch {
-      // Fallback: store raw
       try {
         await logEvent({
           clientId,
@@ -137,18 +218,38 @@ export const BehaviorCaptureModal = ({ open, onOpenChange, clientId, agencyId, c
               <Textarea
                 value={text}
                 onChange={e => setText(e.target.value)}
-                placeholder="Describe what happened in plain language… e.g. 'Marcus threw a chair during math, then eloped from the room. Staff guided him back after 3 minutes.'"
-                className="min-h-[120px] resize-none pr-10"
+                placeholder={isListening
+                  ? 'Listening… speak now'
+                  : "Describe what happened in plain language… e.g. 'Marcus threw a chair during math, then eloped from the room. Staff guided him back after 3 minutes.'"
+                }
+                className={cn(
+                  'min-h-[120px] resize-none pr-12 transition-all',
+                  isListening && 'ring-2 ring-destructive border-destructive'
+                )}
               />
-              <button
-                type="button"
-                className="absolute right-2 top-2 rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="Voice input (coming soon)"
-                disabled
-              >
-                <Mic className="h-4 w-4" />
-              </button>
+              {voiceSupported && (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  className={cn(
+                    'absolute right-2 top-2 rounded-full p-2 transition-all',
+                    isListening
+                      ? 'bg-destructive text-destructive-foreground animate-pulse shadow-lg'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                  title={isListening ? 'Stop listening' : 'Start voice input'}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+              )}
             </div>
+
+            {isListening && (
+              <div className="flex items-center gap-2 text-xs text-destructive font-medium">
+                <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                Recording… tap the mic or Convert when done
+              </div>
+            )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3 } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 
@@ -29,6 +29,7 @@ export const AppLayout = () => {
   const { workspaces, currentWorkspace, setCurrentWorkspace, isSoloMode } = useWorkspace();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [signalCount, setSignalCount] = useState(0);
 
   const loadUnread = useCallback(async () => {
     if (!user) return;
