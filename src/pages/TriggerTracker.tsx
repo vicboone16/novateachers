@@ -47,6 +47,8 @@ const TriggerTracker = () => {
   const [logs, setLogs] = useState<ABCLog[]>([]);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showCaptureModal, setShowCaptureModal] = useState(false);
+  const [categories, setCategories] = useState<BehaviorCategory[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Quick log
   const [antecedent, setAntecedent] = useState('');
