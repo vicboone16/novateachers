@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { Play, Square, Plus, Minus, Check, X, Timer, RotateCcw } from 'lucide-react';
+import { trackReinforcementEvent } from '@/lib/supervisorSignals';
 import type { DataCollectionMode, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
 interface Props {
@@ -211,6 +212,18 @@ export const DataCollectionSession = ({ clientId, targets, onSessionEnd, onNavig
       .from('teacher_data_sessions')
       .update({ ended_at: new Date().toISOString(), summary_json: summary })
       .eq('id', session.id);
+
+    // If session involved reinforcement-related data, reset the gap timer
+    const targetName = selectedTarget?.name?.toLowerCase() || '';
+    const modeStr = mode || '';
+    if (
+      targetName.includes('reinforc') ||
+      targetName.includes('reward') ||
+      targetName.includes('token') ||
+      modeStr === 'rating' // Rating sessions often measure engagement/reinforcement
+    ) {
+      trackReinforcementEvent(clientId);
+    }
 
     toast({ title: 'Session ended', description: `Summary: ${JSON.stringify(summary)}` });
     setRunning(false);
