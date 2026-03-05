@@ -38,6 +38,7 @@ interface Props {
 const MESSAGE_TYPES = [
   { value: 'note', label: 'General Note' },
   { value: 'bip', label: 'Behavior Intervention Plan' },
+  { value: 'fba', label: 'Functional Behavior Assessment' },
   { value: 'action_item', label: 'Action Item / Task' },
   { value: 'document', label: 'Document' },
 ];
