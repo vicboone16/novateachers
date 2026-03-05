@@ -152,6 +152,20 @@ export const AppLayout = () => {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Signal notification bell */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-muted-foreground"
+              title="Signals sent"
+            >
+              <Bell className="h-4 w-4" />
+              {signalCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground px-0.5 animate-pulse">
+                  {signalCount > 9 ? '9+' : signalCount}
+                </span>
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
