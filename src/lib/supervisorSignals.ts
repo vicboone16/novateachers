@@ -72,8 +72,49 @@ export async function logEvent(params: LogEventParams) {
   return data;
 }
 
+// ── CRITICAL behaviors that always warrant signals ──
+const CRITICAL_BEHAVIORS = [
+  'aggression', 'physical aggression', 'elopement', 'sib', 'self-injury', 'self injury',
+  'weapon', 'property destruction',
+];
+
+const ESCALATION_BEHAVIORS = [
+  'aggression', 'physical aggression', 'elopement', 'sib', 'self-injury', 'self injury',
+];
+
+// ── Threshold rules ──
+// Returns signal params if intensity/behavior warrants auto-signal, else null
+export function evaluateIncidentThreshold(
+  behaviorName: string,
+  intensity: number
+): { signalType: SignalType; severity: SignalSeverity; title: string; message: string } | null {
+  const norm = behaviorName.toLowerCase().trim();
+  const isCriticalBehavior = CRITICAL_BEHAVIORS.some(b => norm.includes(b));
+
+  // CRITICAL: intensity >= 4, or safety-critical behaviors at intensity >= 3
+  if (intensity >= 4 || (isCriticalBehavior && intensity >= 3)) {
+    return {
+      signalType: 'incident',
+      severity: 'critical',
+      title: 'Critical incident logged',
+      message: `${behaviorName} at intensity ${intensity} — immediate clinical review needed`,
+    };
+  }
+
+  // ACTION: intensity 3 (non-critical behavior)
+  if (intensity >= 3) {
+    return {
+      signalType: 'incident',
+      severity: 'action',
+      title: 'High-intensity incident logged',
+      message: `${behaviorName} logged at intensity ${intensity}`,
+    };
+  }
+
+  return null;
+}
+
 // ── Escalation Detection (client-side rolling window) ──
-const ESCALATION_BEHAVIORS = ['aggression', 'elopement', 'sib', 'self-injury', 'physical aggression'];
 const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const THRESHOLD = 3;
 

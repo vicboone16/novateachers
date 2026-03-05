@@ -18,7 +18,7 @@ import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
-import { logEvent, createSignal, trackBehaviorForEscalation } from '@/lib/supervisorSignals';
+import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold } from '@/lib/supervisorSignals';
 import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
 import { BehaviorCaptureModal } from '@/components/BehaviorCaptureModal';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
@@ -305,20 +305,21 @@ const TriggerTracker = () => {
         });
       } catch (e) { console.warn('[Beacon] logEvent failed (non-blocking):', e); }
 
-      // ── Incident severity >= 3 → signal ──
-      if (intensity >= 3) {
+      // ── Threshold-based incident signal ──
+      const threshold = evaluateIncidentThreshold(behavior, intensity);
+      if (threshold) {
         try {
           await createSignal({
             clientId: selectedClientId,
             agencyId: effectiveAgencyId,
-            signalType: 'incident',
-            severity: intensity >= 4 ? 'critical' : 'action',
-            title: 'High-intensity incident logged',
-            message: `${behavior} logged at intensity ${intensity}`,
+            signalType: threshold.signalType,
+            severity: threshold.severity,
+            title: threshold.title,
+            message: threshold.message,
             drivers: { behavior, intensity, antecedent, consequence },
             source: { app: 'beacon', trigger: 'auto_severity' },
           });
-          toast({ title: '⚠ Supervisor signal sent', description: `Intensity ${intensity} triggered alert` });
+          toast({ title: `⚠ Supervisor signal sent (${threshold.severity})`, description: threshold.message });
         } catch (e) { console.warn('[Beacon] createSignal failed (non-blocking):', e); }
       }
 
