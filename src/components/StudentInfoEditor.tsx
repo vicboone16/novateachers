@@ -220,6 +220,29 @@ const StudentInfoEditor = ({ client, onRefresh }: Props) => {
             </div>
           </div>
         )}
+
+        {/* Pinned FBA/BIP Documents */}
+        {!editing && Array.isArray(client.documents) && client.documents.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-border/40">
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Pinned Documents</p>
+            <div className="space-y-2">
+              {client.documents.map((doc, i) => (
+                <details key={doc.id || i} className="group rounded-lg border border-border/40 bg-muted/10">
+                  <summary className="flex items-center gap-2 p-2.5 cursor-pointer hover:bg-muted/30 transition-colors">
+                    <Badge variant="outline" className={`text-[10px] ${doc.type === 'fba' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-accent/10 border-accent/20 text-accent'}`}>
+                      {doc.type.toUpperCase()}
+                    </Badge>
+                    <span className="text-sm font-medium flex-1 truncate">{doc.title}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(doc.pinned_at).toLocaleDateString()}</span>
+                  </summary>
+                  <div className="px-3 pb-3 pt-1 text-xs whitespace-pre-wrap text-muted-foreground max-h-60 overflow-y-auto">
+                    {doc.content}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

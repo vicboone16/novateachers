@@ -202,11 +202,11 @@ const FBABIPPanel = ({ client }: Props) => {
         agency_id: currentWorkspace.agency_id,
         sender_id: user.id,
         recipient_id: shareRecipientId,
-        message_type: 'document',
+        message_type: shareDocType,
         subject: `${shareDocType.toUpperCase()} Draft – ${clientName}`,
         body: content,
         client_id: client.id,
-        metadata: { document_type: shareDocType, auto_generated: true },
+        metadata: { document_type: shareDocType, auto_generated: true, app_source: 'teacher_hub' },
       });
       if (error) throw error;
       toast({ title: `${shareDocType.toUpperCase()} sent to supervisor` });
