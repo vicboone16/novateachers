@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare, Trash2, Brain } from 'lucide-react';
 import { normalizeClient, displayName } from '@/lib/student-utils';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { DataCollectionSession } from '@/components/DataCollectionSession';
@@ -16,6 +16,7 @@ import { IEPTab } from '@/components/IEPTab';
 import { BCBASummary } from '@/components/BCBASummary';
 import { TeacherSummaries } from '@/components/TeacherSummaries';
 import StudentInfoEditor from '@/components/StudentInfoEditor';
+import FBABIPPanel from '@/components/FBABIPPanel';
 import { useToast } from '@/hooks/use-toast';
 import type { Client, ABCLog, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
@@ -157,6 +158,9 @@ const StudentDetail = () => {
           )}
           <TabsTrigger value="iep" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
             <FileText className="h-3.5 w-3.5" /> IEP
+          </TabsTrigger>
+          <TabsTrigger value="fba-bip" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
+            <Brain className="h-3.5 w-3.5" /> FBA/BIP
           </TabsTrigger>
         </TabsList>
 
@@ -372,6 +376,11 @@ const StudentDetail = () => {
         {/* ── IEP ── */}
         <TabsContent value="iep" className="animate-in fade-in-50 duration-300">
           <IEPTab client={client} />
+        </TabsContent>
+
+        {/* ── FBA/BIP ── */}
+        <TabsContent value="fba-bip" className="animate-in fade-in-50 duration-300">
+          <FBABIPPanel client={client} />
         </TabsContent>
       </Tabs>
     </div>
