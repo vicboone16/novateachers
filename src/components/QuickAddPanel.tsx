@@ -131,6 +131,36 @@ export const QuickAddPanel = () => {
         logged_date: new Date().toISOString().slice(0, 10),
       });
       if (error) throw error;
+      // Event stream wiring
+      try {
+        await logEvent({
+          clientId: selectedClientId,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior',
+          eventName: selectedBehavior,
+          value: freqCount,
+          metadata: { source: 'quick_add_frequency' },
+        });
+      } catch (e) { console.warn('[Beacon] logEvent frequency failed:', e); }
+
+      // Escalation check
+      const esc = trackBehaviorForEscalation(selectedBehavior);
+      if (esc?.escalated) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: 'escalation',
+            severity: 'action',
+            title: 'Escalation detected',
+            message: `${esc.count} ${esc.behavior} events within 10 minutes`,
+            drivers: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
+            source: { app: 'beacon', trigger: 'escalation_rule' },
+          });
+          toast({ title: '🚨 Escalation alert sent' });
+        } catch (e) { console.warn('[Beacon] escalation signal failed:', e); }
+      }
+
       toast({ title: `✓ ${freqCount}× ${selectedBehavior} saved` });
       setFreqCount(0);
     } catch (err: any) {
@@ -242,6 +272,18 @@ export const QuickAddPanel = () => {
         logged_at: new Date().toISOString(),
       });
       if (error) throw error;
+      // Event stream wiring
+      try {
+        await logEvent({
+          clientId: selectedClientId,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior',
+          eventName: abcBehavior,
+          intensity: 3,
+          metadata: { antecedent: abcAntecedent, consequence: abcConsequence, source: 'quick_add_abc' },
+        });
+      } catch (e) { console.warn('[Beacon] logEvent abc failed:', e); }
+
       toast({ title: '✓ ABC logged' });
       setAbcAntecedent('');
       setAbcBehavior('');
