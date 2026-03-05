@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppAccess } from '@/contexts/AppAccessContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check } from 'lucide-react';
+import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
+import { logEvent, createSignal, trackBehaviorForEscalation } from '@/lib/supervisorSignals';
+import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
+import { BehaviorCaptureModal } from '@/components/BehaviorCaptureModal';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
 
 interface StudentBehavior {
@@ -36,10 +40,13 @@ const DEFAULT_CONSEQUENCE_TAGS = ['Redirected', 'Break given', 'Verbal prompt', 
 const TriggerTracker = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { user } = useAuth();
+  const { agencyId } = useAppAccess();
   const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [logs, setLogs] = useState<ABCLog[]>([]);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
   const [categories, setCategories] = useState<BehaviorCategory[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -257,6 +264,8 @@ const TriggerTracker = () => {
     ...persistedConsequences,
   ].filter((tag, index, arr) => arr.indexOf(tag) === index);
 
+  const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
+
   const handleLog = async () => {
     if (!selectedClientId || !antecedent || !behavior || !consequence) {
       toast({ title: 'Tap an A, B, and C tag to log', variant: 'destructive' });
@@ -283,6 +292,60 @@ const TriggerTracker = () => {
       });
 
       if (error) throw error;
+
+      // ── Event stream wiring ──
+      try {
+        await logEvent({
+          clientId: selectedClientId,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior',
+          eventName: behavior,
+          intensity,
+          metadata: { antecedent, consequence, notes: notesParts.filter(Boolean).join(' • ') },
+        });
+      } catch (e) { console.warn('[Beacon] logEvent failed (non-blocking):', e); }
+
+      // ── Incident severity >= 3 → signal ──
+      if (intensity >= 3) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: 'incident',
+            severity: intensity >= 4 ? 'critical' : 'action',
+            title: 'High-intensity incident logged',
+            message: `${behavior} logged at intensity ${intensity}`,
+            drivers: { behavior, intensity, antecedent, consequence },
+            source: { app: 'beacon', trigger: 'auto_severity' },
+          });
+          toast({ title: '⚠ Supervisor signal sent', description: `Intensity ${intensity} triggered alert` });
+        } catch (e) { console.warn('[Beacon] createSignal failed (non-blocking):', e); }
+      }
+
+      // ── Escalation detection ──
+      const esc = trackBehaviorForEscalation(behavior);
+      if (esc?.escalated) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: 'escalation',
+            severity: 'action',
+            title: 'Escalation detected',
+            message: `${esc.count} ${esc.behavior} events within 10 minutes`,
+            drivers: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
+            source: { app: 'beacon', trigger: 'escalation_rule' },
+          });
+          await logEvent({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            eventType: 'ai',
+            eventName: 'escalation_flagged',
+            metadata: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
+          });
+          toast({ title: '🚨 Escalation alert sent', description: `${esc.count}× ${esc.behavior} in 10 min` });
+        } catch (e) { console.warn('[Beacon] escalation signal failed:', e); }
+      }
 
       toast({ title: '✓ Logged', description: `${behavior} recorded` });
       setAntecedent('');
@@ -408,9 +471,33 @@ const TriggerTracker = () => {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight font-heading">Trigger Tracker</h2>
-        <p className="text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight font-heading">Trigger Tracker</h2>
+          <p className="text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowCaptureModal(true)}
+            disabled={!selectedClientId}
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Describe what happened</span>
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowNotifyModal(true)}
+            disabled={!selectedClientId}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Notify Supervisor</span>
+          </Button>
+        </div>
       </div>
 
       <div className="max-w-sm">
@@ -926,6 +1013,24 @@ const TriggerTracker = () => {
               </div>
             </TabsContent>
           </Tabs>
+        </>
+      )}
+
+      {/* Modals */}
+      {selectedClientId && (
+        <>
+          <NotifySupervisorModal
+            open={showNotifyModal}
+            onOpenChange={setShowNotifyModal}
+            clientId={selectedClientId}
+            agencyId={effectiveAgencyId}
+          />
+          <BehaviorCaptureModal
+            open={showCaptureModal}
+            onOpenChange={setShowCaptureModal}
+            clientId={selectedClientId}
+            agencyId={effectiveAgencyId}
+          />
         </>
       )}
     </div>
