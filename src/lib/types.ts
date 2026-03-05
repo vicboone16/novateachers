@@ -35,8 +35,18 @@ export interface Client {
   funding_mode?: string;
   student_origin?: string;
   created_in_app?: string;
+  documents?: PinnedDocument[];
   created_at: string;
   updated_at: string;
+}
+
+export interface PinnedDocument {
+  id: string;
+  type: 'fba' | 'bip';
+  title: string;
+  content: string;
+  pinned_at: string;
+  pinned_by: string;
 }
 
 export interface ClientAccess {

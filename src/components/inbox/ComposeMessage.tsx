@@ -114,6 +114,7 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
           message_type: messageType,
           subject: subject.trim() || null,
           body: body.trim(),
+          metadata: { app_source: 'teacher_hub' },
         })
         .select('id')
         .single();
