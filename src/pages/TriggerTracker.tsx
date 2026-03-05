@@ -40,12 +40,13 @@ const DEFAULT_CONSEQUENCE_TAGS = ['Redirected', 'Break given', 'Verbal prompt', 
 const TriggerTracker = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { user } = useAuth();
+  const { agencyId } = useAppAccess();
   const { toast } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [logs, setLogs] = useState<ABCLog[]>([]);
-  const [categories, setCategories] = useState<BehaviorCategory[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
 
   // Quick log
   const [antecedent, setAntecedent] = useState('');
@@ -261,6 +262,8 @@ const TriggerTracker = () => {
     ...persistedConsequences,
   ].filter((tag, index, arr) => arr.indexOf(tag) === index);
 
+  const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
+
   const handleLog = async () => {
     if (!selectedClientId || !antecedent || !behavior || !consequence) {
       toast({ title: 'Tap an A, B, and C tag to log', variant: 'destructive' });
@@ -287,6 +290,60 @@ const TriggerTracker = () => {
       });
 
       if (error) throw error;
+
+      // ── Event stream wiring ──
+      try {
+        await logEvent({
+          clientId: selectedClientId,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior',
+          eventName: behavior,
+          intensity,
+          metadata: { antecedent, consequence, notes: notesParts.filter(Boolean).join(' • ') },
+        });
+      } catch (e) { console.warn('[Beacon] logEvent failed (non-blocking):', e); }
+
+      // ── Incident severity >= 3 → signal ──
+      if (intensity >= 3) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: 'incident',
+            severity: intensity >= 4 ? 'critical' : 'action',
+            title: 'High-intensity incident logged',
+            message: `${behavior} logged at intensity ${intensity}`,
+            drivers: { behavior, intensity, antecedent, consequence },
+            source: { app: 'beacon', trigger: 'auto_severity' },
+          });
+          toast({ title: '⚠ Supervisor signal sent', description: `Intensity ${intensity} triggered alert` });
+        } catch (e) { console.warn('[Beacon] createSignal failed (non-blocking):', e); }
+      }
+
+      // ── Escalation detection ──
+      const esc = trackBehaviorForEscalation(behavior);
+      if (esc?.escalated) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: 'escalation',
+            severity: 'action',
+            title: 'Escalation detected',
+            message: `${esc.count} ${esc.behavior} events within 10 minutes`,
+            drivers: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
+            source: { app: 'beacon', trigger: 'escalation_rule' },
+          });
+          await logEvent({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            eventType: 'ai',
+            eventName: 'escalation_flagged',
+            metadata: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
+          });
+          toast({ title: '🚨 Escalation alert sent', description: `${esc.count}× ${esc.behavior} in 10 min` });
+        } catch (e) { console.warn('[Beacon] escalation signal failed:', e); }
+      }
 
       toast({ title: '✓ Logged', description: `${behavior} recorded` });
       setAntecedent('');
