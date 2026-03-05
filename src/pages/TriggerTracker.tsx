@@ -18,7 +18,7 @@ import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
-import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold } from '@/lib/supervisorSignals';
+import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold, trackLowRatings, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
 import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
 import { BehaviorCaptureModal } from '@/components/BehaviorCaptureModal';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
@@ -346,6 +346,42 @@ const TriggerTracker = () => {
           });
           toast({ title: '🚨 Escalation alert sent', description: `${esc.count}× ${esc.behavior} in 10 min` });
         } catch (e) { console.warn('[Beacon] escalation signal failed:', e); }
+      }
+
+      // ── WATCH: Repeated low behavior ratings ──
+      const lowRating = trackLowRatings(selectedClientId, intensity);
+      if (lowRating) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: lowRating.signalType,
+            severity: lowRating.severity,
+            title: lowRating.title,
+            message: lowRating.message,
+            drivers: { count: lowRating.count, window_hours: 1 },
+            source: { app: 'beacon', trigger: 'low_rating_pattern' },
+          });
+          toast({ title: '👁 Watch signal: low ratings', description: lowRating.message });
+        } catch (e) { console.warn('[Beacon] low-rating signal failed:', e); }
+      }
+
+      // ── WATCH: Reinforcement gap ──
+      const gap = trackBehaviorForReinforcementGap(selectedClientId);
+      if (gap) {
+        try {
+          await createSignal({
+            clientId: selectedClientId,
+            agencyId: effectiveAgencyId,
+            signalType: gap.signalType,
+            severity: gap.severity,
+            title: gap.title,
+            message: gap.message,
+            drivers: { gap_minutes: gap.gapMinutes },
+            source: { app: 'beacon', trigger: 'reinforcement_gap' },
+          });
+          toast({ title: '👁 Watch signal: reinforcement gap', description: gap.message });
+        } catch (e) { console.warn('[Beacon] reinforcement gap signal failed:', e); }
       }
 
       toast({ title: '✓ Logged', description: `${behavior} recorded` });
