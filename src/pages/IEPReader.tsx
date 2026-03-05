@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -156,7 +157,8 @@ const IEPReader = () => {
     setUploading(true);
     try {
       const path = `${user.id}/${selectedClientId}/${Date.now()}_${file.name}`;
-      const { error: uploadErr } = await supabase.storage
+      // Use Cloud client for storage (bucket lives on Lovable Cloud)
+      const { error: uploadErr } = await cloudSupabase.storage
         .from('iep-uploads')
         .upload(path, file);
 
