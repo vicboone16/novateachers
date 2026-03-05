@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3 } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 
@@ -29,6 +29,7 @@ export const AppLayout = () => {
   const { workspaces, currentWorkspace, setCurrentWorkspace, isSoloMode } = useWorkspace();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [signalCount, setSignalCount] = useState(0);
 
   const loadUnread = useCallback(async () => {
     if (!user) return;
@@ -56,7 +57,21 @@ export const AppLayout = () => {
     }
   }, [user]);
 
-  useEffect(() => { loadUnread(); }, [loadUnread]);
+  // ── Signal count (recent unacknowledged signals from this teacher) ──
+  const loadSignals = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { count, error } = await (supabase.from as any)('supervisor_signals')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', user.id)
+        .eq('acknowledged', false);
+      if (!error && count !== null) setSignalCount(count);
+    } catch {
+      // Table may not exist on Core yet – silent
+    }
+  }, [user]);
+
+  useEffect(() => { loadUnread(); loadSignals(); }, [loadUnread, loadSignals]);
 
   // Realtime unread updates
   useEffect(() => {
@@ -69,6 +84,18 @@ export const AppLayout = () => {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, loadUnread]);
+
+  // Realtime signal updates
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('signal-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supervisor_signals' }, () => {
+        loadSignals();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadSignals]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -125,6 +152,20 @@ export const AppLayout = () => {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Signal notification bell */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-muted-foreground"
+              title="Signals sent"
+            >
+              <Bell className="h-4 w-4" />
+              {signalCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground px-0.5 animate-pulse">
+                  {signalCount > 9 ? '9+' : signalCount}
+                </span>
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
