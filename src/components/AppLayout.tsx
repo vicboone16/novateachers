@@ -32,13 +32,28 @@ export const AppLayout = () => {
 
   const loadUnread = useCallback(async () => {
     if (!user) return;
-    const { count, error } = await supabase
-      .from('teacher_messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
-      .eq('is_read', false)
-      .is('parent_id', null);
-    if (!error && count !== null) setUnreadCount(count);
+    try {
+      // Try with parent_id filter first (threaded inbox)
+      const { count, error } = await supabase
+        .from('teacher_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false)
+        .is('parent_id', null);
+      if (!error && count !== null) {
+        setUnreadCount(count);
+        return;
+      }
+      // Fallback: parent_id column may not exist on Core yet
+      const { count: fallbackCount, error: fallbackErr } = await supabase
+        .from('teacher_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false);
+      if (!fallbackErr && fallbackCount !== null) setUnreadCount(fallbackCount);
+    } catch {
+      // Silently handle if table doesn't exist
+    }
   }, [user]);
 
   useEffect(() => { loadUnread(); }, [loadUnread]);
