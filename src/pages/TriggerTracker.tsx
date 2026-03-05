@@ -1015,6 +1015,24 @@ const TriggerTracker = () => {
           </Tabs>
         </>
       )}
+
+      {/* Modals */}
+      {selectedClientId && (
+        <>
+          <NotifySupervisorModal
+            open={showNotifyModal}
+            onOpenChange={setShowNotifyModal}
+            clientId={selectedClientId}
+            agencyId={effectiveAgencyId}
+          />
+          <BehaviorCaptureModal
+            open={showCaptureModal}
+            onOpenChange={setShowCaptureModal}
+            clientId={selectedClientId}
+            agencyId={effectiveAgencyId}
+          />
+        </>
+      )}
     </div>
   );
 };
