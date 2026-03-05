@@ -267,7 +267,7 @@ export const WeeklyDataSummary = () => {
     <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight font-heading">Data Summary</h2>
-        <p className="text-sm text-muted-foreground">Weekly aggregation of Quick Add data</p>
+        <p className="text-sm text-muted-foreground">Weekly aggregation of Student Data</p>
       </div>
 
       <div className="flex flex-wrap gap-3 items-end">
