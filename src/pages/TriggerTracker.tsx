@@ -471,9 +471,33 @@ const TriggerTracker = () => {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight font-heading">Trigger Tracker</h2>
-        <p className="text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight font-heading">Trigger Tracker</h2>
+          <p className="text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowCaptureModal(true)}
+            disabled={!selectedClientId}
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Describe what happened</span>
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowNotifyModal(true)}
+            disabled={!selectedClientId}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Notify Supervisor</span>
+          </Button>
+        </div>
       </div>
 
       <div className="max-w-sm">
