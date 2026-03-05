@@ -18,7 +18,7 @@ import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
-import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold, trackLowRatings, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
+import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold, trackLowRatings, trackBehaviorForReinforcementGap, trackReinforcementEvent } from '@/lib/supervisorSignals';
 import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
 import { BehaviorCaptureModal } from '@/components/BehaviorCaptureModal';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
