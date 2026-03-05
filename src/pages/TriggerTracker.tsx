@@ -384,6 +384,12 @@ const TriggerTracker = () => {
         } catch (e) { console.warn('[Beacon] reinforcement gap signal failed:', e); }
       }
 
+      // ── Reset reinforcement gap timer if consequence indicates reinforcement ──
+      const consNorm = consequence.toLowerCase();
+      if (consNorm.includes('reinforc') || consNorm.includes('reward') || consNorm.includes('token') || consNorm.includes('praise') || consNorm.includes('preferred')) {
+        trackReinforcementEvent(selectedClientId);
+      }
+
       toast({ title: '✓ Logged', description: `${behavior} recorded` });
       setAntecedent('');
       setBehavior('');
