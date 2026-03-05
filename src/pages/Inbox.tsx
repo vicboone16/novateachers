@@ -34,7 +34,7 @@ interface TeacherMessage {
   parent_id: string | null;
   sender_id: string;
   recipient_id: string;
-  message_type: 'note' | 'bip' | 'action_item' | 'document';
+  message_type: string;
   subject: string | null;
   body: string;
   metadata: Record<string, any>;
