@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      abc_logs: {
+        Row: {
+          antecedent: string
+          behavior: string
+          behavior_category: string | null
+          client_id: string
+          consequence: string
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          intensity: number | null
+          logged_at: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          antecedent: string
+          behavior: string
+          behavior_category?: string | null
+          client_id: string
+          consequence: string
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          intensity?: number | null
+          logged_at?: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          antecedent?: string
+          behavior?: string
+          behavior_category?: string | null
+          client_id?: string
+          consequence?: string
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          intensity?: number | null
+          logged_at?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       agency_invite_codes: {
         Row: {
           agency_id: string
@@ -53,6 +98,36 @@ export type Database = {
           role?: string
           updated_at?: string
           uses?: number
+        }
+        Relationships: []
+      }
+      behavior_categories: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          triggers: string[] | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          triggers?: string[] | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          triggers?: string[] | null
         }
         Relationships: []
       }
