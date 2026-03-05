@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppAccess } from '@/contexts/AppAccessContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check } from 'lucide-react';
+import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
+import { logEvent, createSignal, trackBehaviorForEscalation } from '@/lib/supervisorSignals';
+import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
+import { BehaviorCaptureModal } from '@/components/BehaviorCaptureModal';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
 
 interface StudentBehavior {
