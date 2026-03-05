@@ -57,7 +57,21 @@ export const AppLayout = () => {
     }
   }, [user]);
 
-  useEffect(() => { loadUnread(); }, [loadUnread]);
+  // ── Signal count (recent unacknowledged signals from this teacher) ──
+  const loadSignals = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { count, error } = await (supabase.from as any)('supervisor_signals')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', user.id)
+        .eq('acknowledged', false);
+      if (!error && count !== null) setSignalCount(count);
+    } catch {
+      // Table may not exist on Core yet – silent
+    }
+  }, [user]);
+
+  useEffect(() => { loadUnread(); loadSignals(); }, [loadUnread, loadSignals]);
 
   // Realtime unread updates
   useEffect(() => {
@@ -70,6 +84,18 @@ export const AppLayout = () => {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, loadUnread]);
+
+  // Realtime signal updates
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('signal-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'supervisor_signals' }, () => {
+        loadSignals();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadSignals]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
