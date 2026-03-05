@@ -24,6 +24,8 @@ import { format } from 'date-fns';
 import { AttachmentUploader, AttachmentList, uploadAttachments } from '@/components/inbox/InboxAttachments';
 import ComposeMessage from '@/components/inbox/ComposeMessage';
 import { resolveDisplayNames } from '@/lib/resolve-names';
+import AIReviewPanel from '@/components/inbox/AIReviewPanel';
+import PinToStudentButton from '@/components/inbox/PinToStudentButton';
 
 interface TeacherMessage {
   id: string;
@@ -182,16 +184,26 @@ const Inbox = () => {
     try {
       const rootMsg = threadMessages[0];
       const recipientId = rootMsg.sender_id === user.id ? rootMsg.recipient_id : rootMsg.sender_id;
-      const { data: inserted, error } = await supabase.from('teacher_messages').insert({
+      const replyPayload: Record<string, any> = {
         agency_id: currentWorkspace.agency_id,
         thread_id: selectedThread,
-        parent_id: threadMessages[threadMessages.length - 1].id,
         sender_id: user.id,
         recipient_id: recipientId,
         message_type: 'note',
         subject: rootMsg.subject ? `Re: ${rootMsg.subject}` : null,
         body: replyText.trim(),
-      }).select('id').single();
+        metadata: { app_source: 'teacher_hub' },
+      };
+      // Try with parent_id first; omit if column doesn't exist on Core
+      let inserted: any = null;
+      let error: any = null;
+      ({ data: inserted, error } = await supabase.from('teacher_messages').insert({
+        ...replyPayload,
+        parent_id: threadMessages[threadMessages.length - 1].id,
+      }).select('id').single());
+      if (error?.message?.includes('parent_id')) {
+        ({ data: inserted, error } = await supabase.from('teacher_messages').insert(replyPayload).select('id').single());
+      }
       if (error) throw error;
 
       // Upload attachments if any
@@ -335,6 +347,22 @@ const Inbox = () => {
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
                     <AttachmentList messageId={msg.id} />
+                    {/* AI Review + Pin for FBA/BIP documents */}
+                    {(msg.message_type === 'fba' || msg.message_type === 'bip' || (msg.metadata as any)?.document_type === 'fba' || (msg.metadata as any)?.document_type === 'bip') && msg.recipient_id === user?.id && (
+                      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/30">
+                        <AIReviewPanel
+                          documentContent={msg.body}
+                          documentType={(msg.message_type === 'fba' || (msg.metadata as any)?.document_type === 'fba') ? 'fba' : 'bip'}
+                          studentName={(msg.metadata as any)?.student_name}
+                        />
+                        <PinToStudentButton
+                          messageBody={msg.body}
+                          documentType={(msg.message_type === 'fba' || (msg.metadata as any)?.document_type === 'fba') ? 'fba' : 'bip'}
+                          clientId={msg.client_id}
+                          subject={msg.subject}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.generate-bip]
 verify_jwt = false
+
+[functions.review-fba-bip]
+verify_jwt = false
