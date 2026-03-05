@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { Play, Square, Plus, Minus, Check, X, Timer, RotateCcw } from 'lucide-react';
+import { trackReinforcementEvent } from '@/lib/supervisorSignals';
 import type { DataCollectionMode, TeacherTarget, TeacherDataSession } from '@/lib/types';
 
 interface Props {
