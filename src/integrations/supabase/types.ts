@@ -131,6 +131,100 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_group_students: {
+        Row: {
+          agency_id: string | null
+          client_id: string
+          created_at: string
+          group_id: string
+          id: string
+        }
+        Insert: {
+          agency_id?: string | null
+          client_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+        }
+        Update: {
+          agency_id?: string | null
+          client_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_group_students_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      classroom_group_teachers: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_group_teachers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      classroom_groups: {
+        Row: {
+          agency_id: string
+          created_at: string
+          created_by: string
+          grade_band: string | null
+          group_id: string
+          name: string
+          school_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          created_by: string
+          grade_band?: string | null
+          group_id?: string
+          name: string
+          school_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          created_by?: string
+          grade_band?: string | null
+          group_id?: string
+          name?: string
+          school_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       iep_documents: {
         Row: {
           agency_id: string
