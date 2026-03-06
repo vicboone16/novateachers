@@ -24,6 +24,7 @@ import Inbox from "@/pages/Inbox";
 import { WeeklyDataSummary } from "@/components/WeeklyDataSummary";
 import NotFound from "@/pages/NotFound";
 import InstallApp from "@/pages/InstallApp";
+import ResetPassword from "@/pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -100,7 +101,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <ProtectedRoutes />
+          <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/*" element={<ProtectedRoutes />} />
+          </Routes>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
