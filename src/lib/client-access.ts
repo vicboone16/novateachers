@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { normalizeClients } from '@/lib/student-utils';
 import type { Client, Workspace, ClassroomGroup } from '@/lib/types';
 
