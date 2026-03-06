@@ -430,6 +430,20 @@ const ClassroomManager = () => {
     toast({ title: 'Link copied!' });
   };
 
+  const handleRevokeGuestCode = async (codeId: string) => {
+    try {
+      const { error } = await cloudSupabase
+        .from('guest_access_codes')
+        .update({ is_active: false } as any)
+        .eq('id', codeId);
+      if (error) throw error;
+      toast({ title: 'Guest code revoked' });
+      loadAll();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   // ── Guard ──
 
   if (!isAdmin) {
