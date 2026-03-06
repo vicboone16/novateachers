@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
@@ -74,6 +74,13 @@ const ClassroomManager = () => {
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkSearch, setBulkSearch] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
+
+  // Guest code
+  const [guestCodeGroupId, setGuestCodeGroupId] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [guestExpiry, setGuestExpiry] = useState('1'); // days
+  const [generatedGuestLink, setGeneratedGuestLink] = useState('');
+  const [generatingGuest, setGeneratingGuest] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
@@ -366,6 +373,39 @@ const ClassroomManager = () => {
     } else {
       setBulkSelectedIds(new Set(available.map(c => c.id)));
     }
+  };
+
+  const handleGenerateGuestCode = async () => {
+    if (!guestCodeGroupId || !currentWorkspace || !user) return;
+    setGeneratingGuest(true);
+    try {
+      const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + parseInt(guestExpiry || '1'));
+
+      const { error } = await cloudSupabase.from('guest_access_codes').insert({
+        code,
+        group_id: guestCodeGroupId,
+        agency_id: currentWorkspace.agency_id,
+        created_by: user.id,
+        guest_name: guestName.trim() || null,
+        expires_at: expiresAt.toISOString(),
+      } as any);
+      if (error) throw error;
+
+      const link = `${window.location.origin}/guest/${code}`;
+      setGeneratedGuestLink(link);
+      toast({ title: '✓ Guest code created' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setGeneratingGuest(false);
+    }
+  };
+
+  const copyGuestLink = () => {
+    navigator.clipboard.writeText(generatedGuestLink);
+    toast({ title: 'Link copied!' });
   };
 
   // ── Guard ──
