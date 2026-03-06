@@ -246,6 +246,12 @@ const Settings = () => {
               Generate Invite Code
             </Button>
           )}
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="gap-1.5 w-full justify-start" onClick={() => navigate('/admin')}>
+              <Shield className="h-3.5 w-3.5" />
+              Admin Dashboard
+            </Button>
+          )}
         </CardContent>
       </Card>
 
