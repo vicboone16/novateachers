@@ -458,7 +458,12 @@ const ClassroomManager = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-base font-heading">{group.name}</CardTitle>
-                      {group.grade_band && <p className="text-xs text-muted-foreground mt-0.5">{group.grade_band}{group.school_name ? ` · ${group.school_name}` : ''}</p>}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {group.grade_band && <p className="text-xs text-muted-foreground">{group.grade_band}{group.school_name ? ` · ${group.school_name}` : ''}</p>}
+                        <Badge variant="outline" className="text-[9px] font-mono bg-muted/50 text-muted-foreground select-all cursor-pointer" title="Classroom Group ID">
+                          {group.group_id.slice(0, 8)}…
+                        </Badge>
+                      </div>
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
                       <Trash2 className="h-3.5 w-3.5" />
