@@ -108,7 +108,7 @@ const IEPReader = () => {
 
   const loadDocuments = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await cloudSupabase
       .from('iep_documents')
       .select('*')
       .eq('student_id', selectedClientId)
@@ -127,10 +127,10 @@ const IEPReader = () => {
 
   const loadExtractedData = useCallback(async (docId: string) => {
     const [g, p, s, a] = await Promise.all([
-      supabase.from('iep_extracted_goals').select('*').eq('document_id', docId),
-      supabase.from('iep_extracted_progress').select('*').eq('document_id', docId),
-      supabase.from('iep_extracted_services').select('*').eq('document_id', docId),
-      supabase.from('iep_extracted_accommodations').select('*').eq('document_id', docId),
+      cloudSupabase.from('iep_extracted_goals').select('*').eq('document_id', docId),
+      cloudSupabase.from('iep_extracted_progress').select('*').eq('document_id', docId),
+      cloudSupabase.from('iep_extracted_services').select('*').eq('document_id', docId),
+      cloudSupabase.from('iep_extracted_accommodations').select('*').eq('document_id', docId),
     ]);
     setGoals((g.data || []) as any[]);
     setProgressEntries((p.data || []) as any[]);
@@ -164,7 +164,7 @@ const IEPReader = () => {
 
       if (uploadErr) throw uploadErr;
 
-      const { data: doc, error: insertErr } = await supabase
+      const { data: doc, error: insertErr } = await cloudSupabase
         .from('iep_documents')
         .insert({
           agency_id: currentWorkspace.agency_id,
@@ -186,7 +186,7 @@ const IEPReader = () => {
       if (doc) {
         const text = await extractTextFromFile(file);
         if (text) {
-          await supabase.from('iep_documents').update({ ocr_raw_text: text }).eq('id', doc.id);
+          await cloudSupabase.from('iep_documents').update({ ocr_raw_text: text }).eq('id', doc.id);
           runPipeline(doc.id, text);
         }
       }
@@ -213,7 +213,7 @@ const IEPReader = () => {
     const token = session?.access_token;
 
     const updateStatus = async (status: string) => {
-      await supabase.from('iep_documents').update({ pipeline_status: status }).eq('id', docId);
+      await cloudSupabase.from('iep_documents').update({ pipeline_status: status }).eq('id', docId);
       setDocuments(prev => prev.map(d => d.id === docId ? { ...d, pipeline_status: status } : d));
       if (selectedDoc?.id === docId) setSelectedDoc(prev => prev ? { ...prev, pipeline_status: status } : prev);
     };
@@ -291,7 +291,7 @@ const IEPReader = () => {
       loadDocuments();
     } catch (err: any) {
       await updateStatus('error');
-      await supabase.from('iep_documents').update({ pipeline_error: err.message }).eq('id', docId);
+      await cloudSupabase.from('iep_documents').update({ pipeline_error: err.message }).eq('id', docId);
       toast({ title: 'Processing failed', description: err.message, variant: 'destructive' });
     } finally {
       setProcessing(false);
@@ -300,7 +300,7 @@ const IEPReader = () => {
 
   // ─── Approve extracted item ────────────────────────────────
   const approveGoal = async (goalId: string) => {
-    await supabase.from('iep_extracted_goals').update({
+    await cloudSupabase.from('iep_extracted_goals').update({
       is_approved: true, approved_by: user?.id, approved_at: new Date().toISOString(),
     }).eq('id', goalId);
     if (selectedDoc) loadExtractedData(selectedDoc.id);
@@ -328,7 +328,7 @@ const IEPReader = () => {
         { id: crypto.randomUUID(), type: 'goals' as const, title: `Goal: ${gd.domain || 'Imported'}`, content, order: 0 },
       ];
 
-      const { error } = await supabase.from('iep_drafts').insert({
+      const { error } = await cloudSupabase.from('iep_drafts' as any).insert({
         client_id: selectedClientId,
         created_by: user.id,
         agency_id: currentWorkspace.agency_id,
@@ -353,7 +353,7 @@ const IEPReader = () => {
     try {
       const gd = goal.goal_data || {};
       const updatedData = { ...gd, linked_target_id: targetId };
-      await supabase.from('iep_extracted_goals').update({ goal_data: updatedData }).eq('id', goal.id);
+      await cloudSupabase.from('iep_extracted_goals').update({ goal_data: updatedData }).eq('id', goal.id);
       if (selectedDoc) loadExtractedData(selectedDoc.id);
       toast({ title: 'Goal linked to data collection target' });
     } catch (err: any) {

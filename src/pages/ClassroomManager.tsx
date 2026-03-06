@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -98,7 +99,7 @@ const ClassroomManager = () => {
       if (import.meta.env.DEV) console.log('[Classroom] Loaded students:', clientsRes.data?.length ?? 0);
 
       const [groupsRes, membersRes] = await Promise.all([
-        supabase.from('classroom_groups').select('*').eq('agency_id', agencyId).order('name'),
+        cloudSupabase.from('classroom_groups').select('*').eq('agency_id', agencyId).order('name'),
         supabase.from('agency_memberships').select('user_id, role').eq('agency_id', agencyId),
       ]);
 
@@ -131,7 +132,7 @@ const ClassroomManager = () => {
       let studentRows: any[] = [];
 
       try {
-        const teachersRes = await supabase
+        const teachersRes = await cloudSupabase
           .from('classroom_group_teachers')
           .select('id, group_id, user_id')
           .in('group_id', groupIds);
@@ -145,14 +146,14 @@ const ClassroomManager = () => {
       }
 
       try {
-        const studentsRes = await supabase
+        const studentsRes = await cloudSupabase
           .from('classroom_group_students')
           .select('id, group_id, client_id')
           .in('group_id', groupIds);
         if (studentsRes.error) {
           if (import.meta.env.DEV) console.warn('[Classroom] Student query error, trying student_id fallback:', studentsRes.error.message);
           // Fallback for older schemas using student_id
-          const legacyRes = await supabase
+          const legacyRes = await cloudSupabase
             .from('classroom_group_students')
             .select('id, group_id, student_id')
             .in('group_id', groupIds);
@@ -226,7 +227,7 @@ const ClassroomManager = () => {
       };
       if (newGradeBand.trim()) insertData.grade_band = newGradeBand.trim();
       if (newSchoolName.trim()) insertData.school_name = newSchoolName.trim();
-      const { error } = await supabase.from('classroom_groups').insert(insertData);
+      const { error } = await cloudSupabase.from('classroom_groups').insert(insertData);
       if (error) throw error;
       toast({ title: 'Classroom created' });
       setShowCreate(false);
@@ -245,7 +246,7 @@ const ClassroomManager = () => {
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this classroom group? Students will not be deleted.')) return;
     try {
-      const { error } = await supabase.from('classroom_groups').delete().eq('group_id', groupId);
+      const { error } = await cloudSupabase.from('classroom_groups').delete().eq('group_id', groupId);
       if (error) throw error;
       toast({ title: 'Classroom deleted' });
       loadAll();
@@ -259,7 +260,7 @@ const ClassroomManager = () => {
     try {
       const row = { group_id: assignTeacherGroupId, user_id: selectedUserId };
       // Try insert first (simpler, avoids upsert conflict target issues)
-      const { error } = await supabase.from('classroom_group_teachers').insert(row);
+      const { error } = await cloudSupabase.from('classroom_group_teachers').insert(row);
       if (error) {
         const msg = String(error.message || '').toLowerCase();
         // Ignore duplicate — teacher already assigned
@@ -287,7 +288,7 @@ const ClassroomManager = () => {
 
   const handleRemoveTeacher = async (rowId: string) => {
     try {
-      const { error } = await supabase.from('classroom_group_teachers').delete().eq('id', rowId);
+      const { error } = await cloudSupabase.from('classroom_group_teachers').delete().eq('id', rowId);
       if (error) throw error;
       toast({ title: 'Teacher removed' });
       loadAll();
@@ -307,13 +308,13 @@ const ClassroomManager = () => {
 
       // Try inserting with agency_id to satisfy not-null constraint
       const rows = ids.map(client_id => ({ group_id: bulkAssignGroupId, client_id, agency_id: agencyId }));
-      const { error: insertErr } = await supabase.from('classroom_group_students').insert(rows);
+      const { error: insertErr } = await cloudSupabase.from('classroom_group_students').insert(rows);
       assignError = insertErr;
 
       // Legacy schema fallback (student_id column)
       if (assignError && String(assignError.message || '').toLowerCase().includes('client_id')) {
         const legacyRows = ids.map(client_id => ({ group_id: bulkAssignGroupId, student_id: client_id, agency_id: agencyId }));
-        const { error: legacyErr } = await supabase.from('classroom_group_students').insert(legacyRows as any);
+        const { error: legacyErr } = await cloudSupabase.from('classroom_group_students').insert(legacyRows as any);
         assignError = legacyErr;
         usedLegacy = true;
       }
@@ -340,7 +341,7 @@ const ClassroomManager = () => {
 
   const handleRemoveStudent = async (rowId: string) => {
     try {
-      const { error } = await supabase.from('classroom_group_students').delete().eq('id', rowId);
+      const { error } = await cloudSupabase.from('classroom_group_students').delete().eq('id', rowId);
       if (error) throw error;
       toast({ title: 'Student removed' });
       loadAll();
@@ -457,7 +458,12 @@ const ClassroomManager = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-base font-heading">{group.name}</CardTitle>
-                      {group.grade_band && <p className="text-xs text-muted-foreground mt-0.5">{group.grade_band}{group.school_name ? ` · ${group.school_name}` : ''}</p>}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {group.grade_band && <p className="text-xs text-muted-foreground">{group.grade_band}{group.school_name ? ` · ${group.school_name}` : ''}</p>}
+                        <Badge variant="outline" className="text-[9px] font-mono bg-muted/50 text-muted-foreground select-all cursor-pointer" title="Classroom Group ID">
+                          {group.group_id.slice(0, 8)}…
+                        </Badge>
+                      </div>
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
                       <Trash2 className="h-3.5 w-3.5" />

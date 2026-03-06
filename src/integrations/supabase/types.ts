@@ -131,6 +131,100 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_group_students: {
+        Row: {
+          agency_id: string | null
+          client_id: string
+          created_at: string
+          group_id: string
+          id: string
+        }
+        Insert: {
+          agency_id?: string | null
+          client_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+        }
+        Update: {
+          agency_id?: string | null
+          client_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_group_students_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      classroom_group_teachers: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_group_teachers_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      classroom_groups: {
+        Row: {
+          agency_id: string
+          created_at: string
+          created_by: string
+          grade_band: string | null
+          group_id: string
+          name: string
+          school_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          created_by: string
+          grade_band?: string | null
+          group_id?: string
+          name: string
+          school_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          created_by?: string
+          grade_band?: string | null
+          group_id?: string
+          name?: string
+          school_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       iep_documents: {
         Row: {
           agency_id: string
@@ -364,6 +458,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invite_codes: {
+        Row: {
+          agency_id: string
+          app_context: string
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          invite_scope: string
+          max_uses: number
+          revoked_at: string | null
+          role_slug: string
+          target_email: string | null
+          uses_count: number
+        }
+        Insert: {
+          agency_id: string
+          app_context: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_scope: string
+          max_uses?: number
+          revoked_at?: string | null
+          role_slug: string
+          target_email?: string | null
+          uses_count?: number
+        }
+        Update: {
+          agency_id?: string
+          app_context?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_scope?: string
+          max_uses?: number
+          revoked_at?: string | null
+          role_slug?: string
+          target_email?: string | null
+          uses_count?: number
+        }
+        Relationships: []
       }
       pending_student_changes: {
         Row: {
@@ -641,22 +783,66 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      create_invite_code: {
+      apply_invite_code_access: {
         Args: {
-          p_agency_id: string
-          p_app_context?: string
-          p_auto_assign_groups?: string[]
-          p_client_id?: string
-          p_created_by?: string
-          p_expires_at?: string
-          p_group_id?: string
-          p_invite_scope?: string
-          p_max_uses?: number
-          p_permissions?: Json
-          p_role_slug?: string
-          p_target_email?: string
+          p_code: string
+          p_expected_app_context: string
+          p_redeemer_id: string
         }
-        Returns: string
+        Returns: Json
+      }
+      create_invite_code:
+        | {
+            Args: {
+              p_agency_id: string
+              p_app_context: string
+              p_created_by: string
+              p_expires_at: string
+              p_invite_scope: string
+              p_max_uses: number
+              p_role_slug: string
+              p_target_email: string
+            }
+            Returns: {
+              expires_at: string
+              invite_code: string
+              invite_id: string
+              max_uses: number
+            }[]
+          }
+        | {
+            Args: {
+              p_agency_id: string
+              p_app_context?: string
+              p_auto_assign_groups?: string[]
+              p_client_id?: string
+              p_created_by?: string
+              p_expires_at?: string
+              p_group_id?: string
+              p_invite_scope?: string
+              p_max_uses?: number
+              p_permissions?: Json
+              p_role_slug?: string
+              p_target_email?: string
+            }
+            Returns: string
+          }
+      redeem_invite_code: {
+        Args: {
+          p_code: string
+          p_expected_app_context: string
+          p_redeemer_id: string
+        }
+        Returns: {
+          agency_id: string
+          app_context: string
+          client_id: string
+          invite_id: string
+          invite_scope: string
+          message: string
+          redeemed: boolean
+          role_slug: string
+        }[]
       }
     }
     Enums: {
