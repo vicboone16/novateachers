@@ -559,6 +559,8 @@ const ClassroomManager = () => {
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                  </div>
+                </CardHeader>
                 <CardContent className="space-y-4">
                   {/* ── Teachers ── */}
                   <div>
