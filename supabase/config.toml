@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.review-fba-bip]
 verify_jwt = false
+
+[functions.guest-collect-data]
+verify_jwt = false
+
+[functions.parse-behavior-narrative]
+verify_jwt = false
