@@ -25,6 +25,7 @@ import { WeeklyDataSummary } from "@/components/WeeklyDataSummary";
 import NotFound from "@/pages/NotFound";
 import InstallApp from "@/pages/InstallApp";
 import ResetPassword from "@/pages/ResetPassword";
+import GuestDataCollection from "@/pages/GuestDataCollection";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +104,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/guest/:code" element={<GuestDataCollection />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

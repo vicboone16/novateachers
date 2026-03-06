@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
@@ -74,6 +74,13 @@ const ClassroomManager = () => {
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
   const [bulkSearch, setBulkSearch] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
+
+  // Guest code
+  const [guestCodeGroupId, setGuestCodeGroupId] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [guestExpiry, setGuestExpiry] = useState('1'); // days
+  const [generatedGuestLink, setGeneratedGuestLink] = useState('');
+  const [generatingGuest, setGeneratingGuest] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
@@ -368,6 +375,39 @@ const ClassroomManager = () => {
     }
   };
 
+  const handleGenerateGuestCode = async () => {
+    if (!guestCodeGroupId || !currentWorkspace || !user) return;
+    setGeneratingGuest(true);
+    try {
+      const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + parseInt(guestExpiry || '1'));
+
+      const { error } = await cloudSupabase.from('guest_access_codes').insert({
+        code,
+        group_id: guestCodeGroupId,
+        agency_id: currentWorkspace.agency_id,
+        created_by: user.id,
+        guest_name: guestName.trim() || null,
+        expires_at: expiresAt.toISOString(),
+      } as any);
+      if (error) throw error;
+
+      const link = `${window.location.origin}/guest/${code}`;
+      setGeneratedGuestLink(link);
+      toast({ title: '✓ Guest code created' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setGeneratingGuest(false);
+    }
+  };
+
+  const copyGuestLink = () => {
+    navigator.clipboard.writeText(generatedGuestLink);
+    toast({ title: 'Link copied!' });
+  };
+
   // ── Guard ──
 
   if (!isAdmin) {
@@ -465,9 +505,60 @@ const ClassroomManager = () => {
                         </Badge>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Dialog
+                        open={guestCodeGroupId === group.group_id}
+                        onOpenChange={(o) => {
+                          if (!o) { setGuestCodeGroupId(null); setGeneratedGuestLink(''); setGuestName(''); }
+                        }}
+                      >
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setGuestCodeGroupId(group.group_id)} title="Generate guest code for substitute">
+                            <LinkIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Guest Access Code</DialogTitle></DialogHeader>
+                          <p className="text-xs text-muted-foreground">Generate a temporary link for a substitute teacher. No account needed.</p>
+                          {generatedGuestLink ? (
+                            <div className="space-y-3 pt-2">
+                              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                                <code className="flex-1 text-xs break-all text-foreground">{generatedGuestLink}</code>
+                                <Button size="icon" variant="ghost" className="shrink-0 h-8 w-8" onClick={copyGuestLink}>
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Share this link with the substitute. It expires in {guestExpiry} day(s).</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 pt-2">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Substitute Name (optional)</Label>
+                                <Input value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="e.g. Ms. Johnson" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Expires in (days)</Label>
+                                <Select value={guestExpiry} onValueChange={setGuestExpiry}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 day</SelectItem>
+                                    <SelectItem value="3">3 days</SelectItem>
+                                    <SelectItem value="7">1 week</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button onClick={handleGenerateGuestCode} disabled={generatingGuest} className="w-full gap-1.5">
+                                <LinkIcon className="h-3.5 w-3.5" />
+                                {generatingGuest ? 'Generating…' : 'Generate Guest Link'}
+                              </Button>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
