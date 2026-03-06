@@ -39,9 +39,20 @@ interface UserProfile {
   display_name: string;
 }
 
+interface GuestCode {
+  id: string;
+  code: string;
+  guest_name: string | null;
+  expires_at: string;
+  is_active: boolean;
+  created_at: string;
+  group_id: string;
+}
+
 interface GroupWithMembers extends ClassroomGroup {
   teachers: { id: string; user_id: string }[];
   students: { id: string; client_id: string; client?: Client }[];
+  guestCodes: GuestCode[];
 }
 
 // ── Component ──
