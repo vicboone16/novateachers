@@ -275,7 +275,7 @@ async function buildGroupedRosterFromView(
   let classrooms: ClassroomGroupWithStudents[] = [];
 
   try {
-    const { data: teacherGroups } = await supabase
+    const { data: teacherGroups } = await cloudSupabase
       .from('classroom_group_teachers')
       .select('group_id')
       .eq('user_id', userId);
@@ -283,16 +283,16 @@ async function buildGroupedRosterFromView(
     if (teacherGroups?.length) {
       const groupIds = teacherGroups.map((r: any) => r.group_id);
 
-      const { data: groups } = await supabase
+      const { data: groups } = await cloudSupabase
         .from('classroom_groups')
         .select('*')
-        .in('id', groupIds)
+        .in('group_id', groupIds)
         .eq('agency_id', agencyId)
         .order('name');
 
       if (groups?.length) {
-        const validGroupIds = groups.map((g: any) => g.id);
-        const { data: groupStudents } = await supabase
+        const validGroupIds = groups.map((g: any) => g.group_id);
+        const { data: groupStudents } = await cloudSupabase
           .from('classroom_group_students')
           .select('group_id, client_id')
           .in('group_id', validGroupIds);
@@ -311,7 +311,7 @@ async function buildGroupedRosterFromView(
 
         classrooms = groups.map((g: any) => ({
           group: g as ClassroomGroup,
-          clients: (studentsByGroup[g.id] || [])
+          clients: (studentsByGroup[g.group_id] || [])
             .map(id => clientMap.get(id))
             .filter(Boolean) as Client[],
         }));
@@ -340,7 +340,7 @@ async function buildGroupedRosterManually(
   const classroomClientIdSet = new Set<string>();
 
   try {
-    const { data: teacherGroups } = await supabase
+    const { data: teacherGroups } = await cloudSupabase
       .from('classroom_group_teachers')
       .select('group_id')
       .eq('user_id', userId);
@@ -348,16 +348,16 @@ async function buildGroupedRosterManually(
     if (teacherGroups?.length) {
       const groupIds = teacherGroups.map((r: any) => r.group_id);
 
-      const { data: groups } = await supabase
+      const { data: groups } = await cloudSupabase
         .from('classroom_groups')
         .select('*')
-        .in('id', groupIds)
+        .in('group_id', groupIds)
         .eq('agency_id', agencyId)
         .order('name');
 
       if (groups?.length) {
-        const validGroupIds = groups.map((g: any) => g.id);
-        const { data: groupStudents } = await supabase
+        const validGroupIds = groups.map((g: any) => g.group_id);
+        const { data: groupStudents } = await cloudSupabase
           .from('classroom_group_students')
           .select('group_id, client_id')
           .in('group_id', validGroupIds);
@@ -377,7 +377,7 @@ async function buildGroupedRosterManually(
 
         classrooms = groups.map((g: any) => ({
           group: g as ClassroomGroup,
-          clients: (studentsByGroup[g.id] || [])
+          clients: (studentsByGroup[g.group_id] || [])
             .map(id => clientMap.get(id))
             .filter(Boolean) as Client[],
         }));
