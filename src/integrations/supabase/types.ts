@@ -225,6 +225,101 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_access_codes: {
+        Row: {
+          agency_id: string
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string
+          group_id: string
+          guest_name: string | null
+          id: string
+          is_active: boolean
+          permissions: Json
+        }
+        Insert: {
+          agency_id: string
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at: string
+          group_id: string
+          guest_name?: string | null
+          id?: string
+          is_active?: boolean
+          permissions?: Json
+        }
+        Update: {
+          agency_id?: string
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          group_id?: string
+          guest_name?: string | null
+          id?: string
+          is_active?: boolean
+          permissions?: Json
+        }
+        Relationships: []
+      }
+      guest_data_entries: {
+        Row: {
+          agency_id: string
+          behavior_name: string | null
+          client_id: string
+          collected_at: string
+          created_at: string
+          created_by_teacher: string
+          entry_type: string
+          group_id: string
+          guest_code_id: string
+          guest_name: string | null
+          id: string
+          notes: string | null
+          value: number | null
+        }
+        Insert: {
+          agency_id: string
+          behavior_name?: string | null
+          client_id: string
+          collected_at?: string
+          created_at?: string
+          created_by_teacher: string
+          entry_type?: string
+          group_id: string
+          guest_code_id: string
+          guest_name?: string | null
+          id?: string
+          notes?: string | null
+          value?: number | null
+        }
+        Update: {
+          agency_id?: string
+          behavior_name?: string | null
+          client_id?: string
+          collected_at?: string
+          created_at?: string
+          created_by_teacher?: string
+          entry_type?: string
+          group_id?: string
+          guest_code_id?: string
+          guest_name?: string | null
+          id?: string
+          notes?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_data_entries_guest_code_id_fkey"
+            columns: ["guest_code_id"]
+            isOneToOne: false
+            referencedRelation: "guest_access_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       iep_documents: {
         Row: {
           agency_id: string
