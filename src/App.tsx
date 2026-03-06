@@ -26,6 +26,7 @@ import NotFound from "@/pages/NotFound";
 import InstallApp from "@/pages/InstallApp";
 import ResetPassword from "@/pages/ResetPassword";
 import GuestDataCollection from "@/pages/GuestDataCollection";
+import AdminDashboard from "@/pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ const WorkspaceRoutes = () => {
         <Route path="/invites" element={<GenerateInvite />} />
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/install" element={<InstallApp />} />
         <Route path="/" element={<Navigate to="/students" replace />} />
       </Route>
