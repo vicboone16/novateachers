@@ -190,6 +190,16 @@ const ClassroomManager = () => {
       }
       const clientMap = new Map(normalizeClients(clientsRes.data || []).map(c => [c.id, c]));
 
+      // Load guest codes for all groups
+      let guestCodeRows: GuestCode[] = [];
+      try {
+        const { data: codes } = await cloudSupabase
+          .from('guest_access_codes')
+          .select('*')
+          .in('group_id', groupIds) as any;
+        guestCodeRows = codes || [];
+      } catch { /* table may not exist */ }
+
       const enriched: GroupWithMembers[] = groupsList.map(g => ({
         ...g,
         teachers: teacherRows.filter(t => t.group_id === g.group_id).map(t => ({
@@ -201,6 +211,7 @@ const ClassroomManager = () => {
           client_id: s.client_id,
           client: clientMap.get(s.client_id),
         })),
+        guestCodes: guestCodeRows.filter((c: any) => c.group_id === g.group_id),
       }));
 
       setGroups(enriched);
