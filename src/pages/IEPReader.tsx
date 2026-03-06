@@ -328,7 +328,7 @@ const IEPReader = () => {
         { id: crypto.randomUUID(), type: 'goals' as const, title: `Goal: ${gd.domain || 'Imported'}`, content, order: 0 },
       ];
 
-      const { error } = await supabase.from('iep_drafts').insert({
+      const { error } = await cloudSupabase.from('iep_drafts' as any).insert({
         client_id: selectedClientId,
         created_by: user.id,
         agency_id: currentWorkspace.agency_id,
