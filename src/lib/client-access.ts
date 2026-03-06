@@ -151,7 +151,7 @@ export async function fetchAccessibleClients({
 
 async function fetchClassroomGroupClientIds(userId: string, agencyId: string): Promise<string[]> {
   try {
-    const { data: teacherGroups, error: tgErr } = await supabase
+    const { data: teacherGroups, error: tgErr } = await cloudSupabase
       .from('classroom_group_teachers')
       .select('group_id')
       .eq('user_id', userId);
@@ -160,17 +160,17 @@ async function fetchClassroomGroupClientIds(userId: string, agencyId: string): P
 
     const groupIds = teacherGroups.map((r: any) => r.group_id);
 
-    const { data: groups, error: gErr } = await supabase
+    const { data: groups, error: gErr } = await cloudSupabase
       .from('classroom_groups')
-      .select('id')
-      .in('id', groupIds)
+      .select('group_id')
+      .in('group_id', groupIds)
       .eq('agency_id', agencyId);
 
     if (gErr || !groups?.length) return [];
 
-    const validGroupIds = groups.map((g: any) => g.id);
+    const validGroupIds = groups.map((g: any) => g.group_id);
 
-    const { data: groupStudents, error: gsErr } = await supabase
+    const { data: groupStudents, error: gsErr } = await cloudSupabase
       .from('classroom_group_students')
       .select('client_id')
       .in('group_id', validGroupIds);
