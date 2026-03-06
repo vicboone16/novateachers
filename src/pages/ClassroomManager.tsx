@@ -756,6 +756,52 @@ const ClassroomManager = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* ── Guest Codes ── */}
+                  {group.guestCodes.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                        <LinkIcon className="h-3 w-3" /> Guest Codes
+                        <Badge variant="outline" className="text-[10px] ml-1">{group.guestCodes.length}</Badge>
+                      </p>
+                      <div className="space-y-1.5">
+                        {group.guestCodes.map(gc => {
+                          const expired = new Date(gc.expires_at) < new Date();
+                          const active = gc.is_active && !expired;
+                          return (
+                            <div key={gc.id} className={`flex items-center gap-2 rounded-md border border-border/40 px-2.5 py-1.5 ${!active ? 'opacity-50' : ''}`}>
+                              <code className="text-xs font-mono text-foreground">{gc.code}</code>
+                              {gc.guest_name && <span className="text-[10px] text-muted-foreground">{gc.guest_name}</span>}
+                              {!gc.is_active && <Badge variant="destructive" className="text-[8px] h-4">Revoked</Badge>}
+                              {expired && gc.is_active && <Badge variant="secondary" className="text-[8px] h-4">Expired</Badge>}
+                              {active && <Badge variant="outline" className="text-[8px] h-4 border-accent text-accent-foreground">Active</Badge>}
+                              <span className="flex-1" />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/guest/${gc.code}`); toast({ title: 'Link copied!' }); }}
+                                title="Copy guest link"
+                              >
+                                <Copy className="h-2.5 w-2.5" />
+                              </Button>
+                              {gc.is_active && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-destructive"
+                                  onClick={() => handleRevokeGuestCode(gc.id)}
+                                  title="Revoke"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
