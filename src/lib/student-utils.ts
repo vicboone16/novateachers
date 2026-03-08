@@ -20,6 +20,7 @@ export function normalizeClient(record: any): Client {
 
   return {
     ...record,
+    id: record.id || record.client_id || '',
     first_name: firstName,
     last_name: lastName,
   };
