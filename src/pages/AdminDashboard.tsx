@@ -198,8 +198,7 @@ const AdminDashboard = () => {
         first_name: newFirstName.trim(),
         last_name: newLastName.trim() || null,
         grade: newGrade.trim() || null,
-        notes: newStudentNotes.trim() || null,
-        status: 'active',
+        activation_status: 'active',
       };
       let { error } = await supabase.from('clients').insert(row);
       if (error && String(error.message).includes('relation')) {

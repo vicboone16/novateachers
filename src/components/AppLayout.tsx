@@ -34,42 +34,23 @@ export const AppLayout = () => {
   const loadUnread = useCallback(async () => {
     if (!user) return;
     try {
-      // Try with parent_id filter first (threaded inbox)
+      // Query without parent_id filter — Core may not have this column
       const { count, error } = await supabase
         .from('teacher_messages')
         .select('id', { count: 'exact', head: true })
         .eq('recipient_id', user.id)
-        .eq('is_read', false)
-        .is('parent_id', null);
-      if (!error && count !== null) {
-        setUnreadCount(count);
-        return;
-      }
-      // Fallback: parent_id column may not exist on Core yet
-      const { count: fallbackCount, error: fallbackErr } = await supabase
-        .from('teacher_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('recipient_id', user.id)
         .eq('is_read', false);
-      if (!fallbackErr && fallbackCount !== null) setUnreadCount(fallbackCount);
+      if (!error && count !== null) setUnreadCount(count);
     } catch {
       // Silently handle if table doesn't exist
     }
   }, [user]);
 
-  // ── Signal count (recent unacknowledged signals from this teacher) ──
+  // ── Signal count — disabled until supervisor_signals table exists on Core ──
   const loadSignals = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { count, error } = await (supabase.from as any)('supervisor_signals')
-        .select('id', { count: 'exact', head: true })
-        .eq('created_by', user.id)
-        .eq('acknowledged', false);
-      if (!error && count !== null) setSignalCount(count);
-    } catch {
-      // Table may not exist on Core yet – silent
-    }
-  }, [user]);
+    // supervisor_signals table does not exist on Core yet; skip to avoid 404
+    setSignalCount(0);
+  }, []);
 
   useEffect(() => { loadUnread(); loadSignals(); }, [loadUnread, loadSignals]);
 
