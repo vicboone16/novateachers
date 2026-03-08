@@ -66,17 +66,7 @@ export const AppLayout = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user, loadUnread]);
 
-  // Realtime signal updates
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel('signal-badge')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'supervisor_signals' }, () => {
-        loadSignals();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, loadSignals]);
+  // Realtime signal updates — disabled until supervisor_signals table exists on Core
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
