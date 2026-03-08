@@ -258,6 +258,27 @@ const ClassroomManager = () => {
       if (newSchoolName.trim()) insertData.school_name = newSchoolName.trim();
       const { error } = await cloudSupabase.from('classroom_groups').insert(insertData);
       if (error) throw error;
+
+      // Sync to Nova Core classrooms table
+      const { data: newGroup } = await cloudSupabase
+        .from('classroom_groups')
+        .select('group_id, name, grade_band, school_name')
+        .eq('agency_id', currentWorkspace.agency_id)
+        .eq('name', newName.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (newGroup) {
+        await supabase.from('classrooms').upsert({
+          id: newGroup.group_id,
+          name: newGroup.name,
+          grade_band: newGroup.grade_band,
+          school_name: newGroup.school_name,
+          agency_id: currentWorkspace.agency_id,
+        }, { onConflict: 'id' });
+      }
+
       toast({ title: 'Classroom created' });
       setShowCreate(false);
       setNewName('');
@@ -275,6 +296,7 @@ const ClassroomManager = () => {
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this classroom group? Students will not be deleted.')) return;
     try {
+      await supabase.from('classrooms').delete().eq('id', groupId);
       const { error } = await cloudSupabase.from('classroom_groups').delete().eq('group_id', groupId);
       if (error) throw error;
       toast({ title: 'Classroom deleted' });
