@@ -300,6 +300,33 @@ const ClassroomManager = () => {
     }
   };
 
+  const handleUpdateGroup = async () => {
+    if (!editGroupId || !editName.trim() || !currentWorkspace) return;
+    setEditSaving(true);
+    try {
+      const updates: any = { name: editName.trim(), grade_band: editGradeBand.trim() || null, school_name: editSchoolName.trim() || null };
+      const { error } = await cloudSupabase.from('classroom_groups').update(updates).eq('group_id', editGroupId);
+      if (error) throw error;
+
+      // Sync to Nova Core
+      await supabase.from('classrooms').upsert({
+        id: editGroupId,
+        name: updates.name,
+        grade_band: updates.grade_band,
+        school_name: updates.school_name,
+        agency_id: currentWorkspace.agency_id,
+      }, { onConflict: 'id' });
+
+      toast({ title: 'Classroom updated' });
+      setEditGroupId(null);
+      loadAll();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this classroom group? Students will not be deleted.')) return;
     try {
