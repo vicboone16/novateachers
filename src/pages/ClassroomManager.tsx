@@ -647,6 +647,14 @@ const ClassroomManager = () => {
                           )}
                         </DialogContent>
                       </Dialog>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                        setEditGroupId(group.group_id);
+                        setEditName(group.name);
+                        setEditGradeBand(group.grade_band || '');
+                        setEditSchoolName(group.school_name || '');
+                      }} title="Edit classroom">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
