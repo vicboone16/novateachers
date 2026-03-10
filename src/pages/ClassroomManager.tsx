@@ -93,6 +93,13 @@ const ClassroomManager = () => {
   const [generatedGuestLink, setGeneratedGuestLink] = useState('');
   const [generatingGuest, setGeneratingGuest] = useState(false);
 
+  // Edit group dialog
+  const [editGroupId, setEditGroupId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editGradeBand, setEditGradeBand] = useState('');
+  const [editSchoolName, setEditSchoolName] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
   }, [currentWorkspace, isAdmin]);
