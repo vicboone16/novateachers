@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
@@ -92,6 +92,13 @@ const ClassroomManager = () => {
   const [guestExpiry, setGuestExpiry] = useState('1'); // days
   const [generatedGuestLink, setGeneratedGuestLink] = useState('');
   const [generatingGuest, setGeneratingGuest] = useState(false);
+
+  // Edit group dialog
+  const [editGroupId, setEditGroupId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editGradeBand, setEditGradeBand] = useState('');
+  const [editSchoolName, setEditSchoolName] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
@@ -290,6 +297,33 @@ const ClassroomManager = () => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleUpdateGroup = async () => {
+    if (!editGroupId || !editName.trim() || !currentWorkspace) return;
+    setEditSaving(true);
+    try {
+      const updates: any = { name: editName.trim(), grade_band: editGradeBand.trim() || null, school_name: editSchoolName.trim() || null };
+      const { error } = await cloudSupabase.from('classroom_groups').update(updates).eq('group_id', editGroupId);
+      if (error) throw error;
+
+      // Sync to Nova Core
+      await supabase.from('classrooms').upsert({
+        id: editGroupId,
+        name: updates.name,
+        grade_band: updates.grade_band,
+        school_name: updates.school_name,
+        agency_id: currentWorkspace.agency_id,
+      }, { onConflict: 'id' });
+
+      toast({ title: 'Classroom updated' });
+      setEditGroupId(null);
+      loadAll();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -613,6 +647,14 @@ const ClassroomManager = () => {
                           )}
                         </DialogContent>
                       </Dialog>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                        setEditGroupId(group.group_id);
+                        setEditName(group.name);
+                        setEditGradeBand(group.grade_band || '');
+                        setEditSchoolName(group.school_name || '');
+                      }} title="Edit classroom">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteGroup(group.group_id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -830,6 +872,30 @@ const ClassroomManager = () => {
           })}
         </div>
       )}
+
+      {/* Edit Group Dialog */}
+      <Dialog open={!!editGroupId} onOpenChange={(o) => { if (!o) setEditGroupId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Classroom</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Classroom Name</Label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Room 204" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Grade Band (optional)</Label>
+              <Input value={editGradeBand} onChange={e => setEditGradeBand(e.target.value)} placeholder="e.g. K-2" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">School Name (optional)</Label>
+              <Input value={editSchoolName} onChange={e => setEditSchoolName(e.target.value)} placeholder="e.g. Lincoln Elementary" />
+            </div>
+            <Button onClick={handleUpdateGroup} disabled={editSaving || !editName.trim()} className="w-full">
+              {editSaving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
