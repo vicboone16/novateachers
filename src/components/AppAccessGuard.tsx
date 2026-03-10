@@ -1,5 +1,6 @@
 import { useAppAccess } from '@/contexts/AppAccessContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 interface AppAccessGuardProps {
   children: React.ReactNode;
@@ -7,7 +8,7 @@ interface AppAccessGuardProps {
 
 export const AppAccessGuard: React.FC<AppAccessGuardProps> = ({ children }) => {
   const { user } = useAuth();
-  const { hasAccess, loading } = useAppAccess();
+  const { hasAccess, loading, resolvedUser, refetch, clearCache } = useAppAccess();
 
   // Don't gate if user isn't logged in yet (Login page handles that)
   if (!user) return <>{children}</>;
@@ -36,9 +37,15 @@ export const AppAccessGuard: React.FC<AppAccessGuardProps> = ({ children }) => {
           <p className="text-sm text-muted-foreground mb-4">
             Your account does not have access to NovaTeachers. Please contact your administrator to get access configured.
           </p>
-          <p className="text-xs text-muted-foreground/60">
+          <p className="text-xs text-muted-foreground/60 mb-1">
             App: novateachers
           </p>
+          <p className="text-xs text-muted-foreground/60 mb-4">
+            Email: {user.email} · Agencies: {resolvedUser?.agencies?.length ?? 'none'}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => { clearCache(); }}>
+            Retry
+          </Button>
         </div>
       </div>
     );
