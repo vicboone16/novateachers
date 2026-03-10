@@ -49,16 +49,20 @@ export function useResolvedUser(): ResolvedUserState {
     setLoading(true);
     setError(null);
 
+    console.log('[useResolvedUser] Fetching for', user.email);
     const { data, error: err } = await resolveUser(
       user.email,
       session.access_token,
     );
+
+    console.log('[useResolvedUser] Result:', { data, error: err?.message });
 
     if (err) {
       setError(err.message);
       setResolved(null);
       sessionStorage.removeItem(CACHE_KEY);
     } else if (data) {
+      console.log('[useResolvedUser] agencies:', data.agencies?.length, data.agencies);
       setResolved(data);
       setCache(data);
     }
