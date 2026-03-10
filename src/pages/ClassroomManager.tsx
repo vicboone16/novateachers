@@ -872,6 +872,30 @@ const ClassroomManager = () => {
           })}
         </div>
       )}
+
+      {/* Edit Group Dialog */}
+      <Dialog open={!!editGroupId} onOpenChange={(o) => { if (!o) setEditGroupId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Classroom</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Classroom Name</Label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Room 204" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Grade Band (optional)</Label>
+              <Input value={editGradeBand} onChange={e => setEditGradeBand(e.target.value)} placeholder="e.g. K-2" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">School Name (optional)</Label>
+              <Input value={editSchoolName} onChange={e => setEditSchoolName(e.target.value)} placeholder="e.g. Lincoln Elementary" />
+            </div>
+            <Button onClick={handleUpdateGroup} disabled={editSaving || !editName.trim()} className="w-full">
+              {editSaving ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
