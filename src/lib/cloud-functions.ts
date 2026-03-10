@@ -75,7 +75,11 @@ export async function resolveUser(
   try {
     const res = await fetch(`${CORE_URL}/functions/v1/check-user-access`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': CORE_ANON_KEY,
+        'Authorization': `Bearer ${CORE_ANON_KEY}`,
+      },
       body: JSON.stringify({ email, app_slug: appSlug }),
     });
 
