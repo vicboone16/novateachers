@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
