@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { clearResolvedUserCache } from '@/hooks/useResolvedUser';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   session: Session | null;
