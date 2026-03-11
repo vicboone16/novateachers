@@ -32,27 +32,19 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     if (!resendApiKey) {
       throw new Error("Email service not configured");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: { user }, error: userError } =
-      await supabase.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const senderEmail = user.email as string;
+    // Extract sender email from the request body (since auth is via Nova Core, not this project)
+    // The caller passes sender info in the body
 
     // Parse & validate body
     let body: unknown;
@@ -72,7 +64,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { clientId, clientName, summaryTitle } = body as Record<string, unknown>;
+    const { clientId, clientName, summaryTitle, senderEmail: senderEmailBody } = body as Record<string, unknown>;
+    const senderEmail = (typeof senderEmailBody === "string" && senderEmailBody) ? senderEmailBody : "Unknown";
 
     // Validate clientId as UUID
     if (!clientId || typeof clientId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) {
