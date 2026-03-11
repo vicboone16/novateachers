@@ -17,22 +17,31 @@ export interface CreateSignalParams {
 }
 
 export async function createSignal(params: CreateSignalParams) {
-  const { data, error } = await (novaCore.rpc as any)('create_supervisor_signal', {
-    p_client_id: params.clientId,
-    p_signal_type: params.signalType,
-    p_title: params.title,
-    p_message: params.message,
-    p_severity: params.severity,
-    p_agency_id: params.agencyId,
-    p_classroom_id: params.classroomId ?? null,
-    p_drivers: params.drivers ?? {},
-    p_source: params.source ?? { app: 'beacon' },
-  });
-  if (error) {
-    console.error('[Beacon] createSignal failed:', error);
-    throw error;
+  try {
+    const { data, error } = await (novaCore.rpc as any)('create_supervisor_signal', {
+      p_client_id: params.clientId,
+      p_signal_type: params.signalType,
+      p_title: params.title,
+      p_message: params.message,
+      p_severity: params.severity,
+      p_agency_id: params.agencyId,
+      p_classroom_id: params.classroomId ?? null,
+      p_drivers: params.drivers ?? {},
+      p_source: params.source ?? { app: 'beacon' },
+    });
+    if (error) {
+      // Suppress "function not found" errors — RPC may not be deployed on Core yet
+      if (error.message?.includes('Could not find') || error.code === '404') {
+        console.warn('[Beacon] createSignal: create_supervisor_signal RPC not available on Core, skipping');
+        return null;
+      }
+      console.error('[Beacon] createSignal failed:', error);
+    }
+    return data;
+  } catch (err) {
+    console.warn('[Beacon] createSignal error (suppressed):', err);
+    return null;
   }
-  return data;
 }
 
 // ── Event Stream ──
