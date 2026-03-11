@@ -779,6 +779,7 @@ ${JSON.stringify(goals_json).slice(0, 30000)}`,
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+    }
 
     return new Response(JSON.stringify({ result }), {
       status: 200,
