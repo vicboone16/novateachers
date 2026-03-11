@@ -93,11 +93,12 @@ Deno.serve(async (req) => {
       </tr>`;
     }).join("");
 
-    // Find assigned BCBAs via user_client_access on Core
-    const serviceClient = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Find assigned BCBAs via user_client_access on Nova Core
+    const CORE_URL = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
+    const CORE_SERVICE_KEY = Deno.env.get("CORE_SERVICE_ROLE_KEY")!;
+    const serviceClient = createClient(CORE_URL, CORE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     const { data: accessRows, error: accessError } = await serviceClient
       .from("user_client_access")
