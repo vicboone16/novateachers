@@ -1,0 +1,1 @@
+ALTER FUNCTION public.create_invite_code(uuid, text, uuid, timestamptz, text, integer, text, text) SET search_path = public;
