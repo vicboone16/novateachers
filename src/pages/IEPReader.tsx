@@ -207,6 +207,29 @@ const IEPReader = () => {
     }
   };
 
+  // ─── Retry helper ───────────────────────────────────────────
+  const invokeWithRetry = async <T = any>(
+    fnName: string,
+    body: Record<string, any>,
+    token?: string,
+    maxRetries = 3,
+  ): Promise<{ data: T | null; error: Error | null }> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const { data, error } = await invokeCloudFunction<T>(fnName, body, token);
+      if (!error) return { data, error: null };
+
+      const msg = error.message || '';
+      const isRetryable = /404|429|500|502|503|504|fetch|network|timeout/i.test(msg);
+      if (!isRetryable || attempt === maxRetries) return { data: null, error };
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.warn(`[IEP Pipeline] Step "${body.step}" attempt ${attempt} failed (${msg}). Retrying in ${delay}ms…`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+    return { data: null, error: new Error('Max retries exceeded') };
+  };
+
   // ─── Pipeline Runner ───────────────────────────────────────
   const runPipeline = async (docId: string, rawText: string) => {
     setProcessing(true);
@@ -221,7 +244,7 @@ const IEPReader = () => {
     try {
       // Step 1: OCR Clean
       await updateStatus('cleaning');
-      const { data: cleanResult, error: cleanErr } = await invokeCloudFunction('process-iep', {
+      const { data: cleanResult, error: cleanErr } = await invokeWithRetry('process-iep', {
         step: 'ocr_clean', document_id: docId, raw_text: rawText,
       }, token);
       if (cleanErr) throw cleanErr;
@@ -230,35 +253,35 @@ const IEPReader = () => {
       await updateStatus('cleaned');
 
       // Step 2: Section Detection
-      const { data: sectionsResult, error: sectErr } = await invokeCloudFunction('process-iep', {
+      const { data: sectionsResult, error: sectErr } = await invokeWithRetry('process-iep', {
         step: 'detect_sections', document_id: docId, raw_text: cleanedText,
       }, token);
       if (sectErr) throw sectErr;
       await updateStatus('sections_detected');
 
       // Step 3: Goal Extraction
-      const { data: goalsResult, error: goalErr } = await invokeCloudFunction('process-iep', {
+      const { data: goalsResult, error: goalErr } = await invokeWithRetry('process-iep', {
         step: 'extract_goals', document_id: docId, raw_text: cleanedText,
       }, token);
       if (goalErr) throw goalErr;
       await updateStatus('goals_extracted');
 
       // Step 4: Progress Extraction
-      const { data: progressResult, error: progErr } = await invokeCloudFunction('process-iep', {
+      const { data: progressResult, error: progErr } = await invokeWithRetry('process-iep', {
         step: 'extract_progress', document_id: docId, raw_text: cleanedText,
       }, token);
       if (progErr) throw progErr;
       await updateStatus('progress_extracted');
 
       // Step 5: Services
-      const { data: servicesResult, error: svcErr } = await invokeCloudFunction('process-iep', {
+      const { data: servicesResult, error: svcErr } = await invokeWithRetry('process-iep', {
         step: 'extract_services', document_id: docId, raw_text: cleanedText,
       }, token);
       if (svcErr) throw svcErr;
       await updateStatus('services_extracted');
 
       // Step 6: Accommodations
-      const { data: accomResult, error: accomErr } = await invokeCloudFunction('process-iep', {
+      const { data: accomResult, error: accomErr } = await invokeWithRetry('process-iep', {
         step: 'extract_accommodations', document_id: docId, raw_text: cleanedText,
       }, token);
       if (accomErr) throw accomErr;
@@ -266,7 +289,7 @@ const IEPReader = () => {
 
       // Step 7: Link Progress to Goals
       if (goalsResult?.result?.goals?.length && progressResult?.result?.progress_entries?.length) {
-        await invokeCloudFunction('process-iep', {
+        await invokeWithRetry('process-iep', {
           step: 'link_progress',
           document_id: docId,
           goals_json: goalsResult.result.goals,
@@ -277,7 +300,7 @@ const IEPReader = () => {
       // Step 8: Goal Quality Validation
       if (goalsResult?.result?.goals?.length) {
         await updateStatus('validating');
-        await invokeCloudFunction('process-iep', {
+        await invokeWithRetry('process-iep', {
           step: 'validate_goals',
           document_id: docId,
           goals_json: goalsResult.result.goals,
