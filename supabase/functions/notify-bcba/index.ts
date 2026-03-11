@@ -64,7 +64,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { clientId, clientName, summaryTitle } = body as Record<string, unknown>;
+    const { clientId, clientName, summaryTitle, senderEmail: senderEmailBody } = body as Record<string, unknown>;
+    const senderEmail = (typeof senderEmailBody === "string" && senderEmailBody) ? senderEmailBody : "Unknown";
 
     // Validate clientId as UUID
     if (!clientId || typeof clientId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) {
