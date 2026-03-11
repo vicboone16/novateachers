@@ -51,25 +51,34 @@ export interface LogEventParams {
 }
 
 export async function logEvent(params: LogEventParams) {
-  const { data, error } = await (novaCore.rpc as any)('insert_event', {
-    p_client_id: params.clientId,
-    p_event_type: params.eventType,
-    p_event_name: params.eventName,
-    p_agency_id: params.agencyId,
-    p_classroom_id: params.classroomId ?? null,
-    p_value: params.value ?? null,
-    p_intensity: params.intensity ?? null,
-    p_phase: params.phase ?? null,
-    p_prompt_code: params.promptCode ?? null,
-    p_correctness: params.correctness ?? null,
-    p_metadata: params.metadata ?? {},
-    p_source_app: 'beacon',
-  });
-  if (error) {
-    console.error('[Beacon] logEvent failed:', error);
-    throw error;
+  try {
+    const { data, error } = await (novaCore.rpc as any)('insert_event', {
+      p_client_id: params.clientId,
+      p_event_type: params.eventType,
+      p_event_name: params.eventName,
+      p_agency_id: params.agencyId,
+      p_classroom_id: params.classroomId ?? null,
+      p_value: params.value ?? null,
+      p_intensity: params.intensity ?? null,
+      p_phase: params.phase ?? null,
+      p_prompt_code: params.promptCode ?? null,
+      p_correctness: params.correctness ?? null,
+      p_metadata: params.metadata ?? {},
+      p_source_app: 'beacon',
+    });
+    if (error) {
+      // Suppress "function not found" errors — RPC may not be deployed on Core yet
+      if (error.message?.includes('Could not find') || error.code === '404') {
+        console.warn('[Beacon] logEvent: insert_event RPC not available on Core, skipping');
+        return null;
+      }
+      console.error('[Beacon] logEvent failed:', error);
+    }
+    return data;
+  } catch (err) {
+    console.warn('[Beacon] logEvent error (suppressed):', err);
+    return null;
   }
-  return data;
 }
 
 // ── CRITICAL behaviors that always warrant signals ──
