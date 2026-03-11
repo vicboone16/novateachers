@@ -46,7 +46,11 @@ const StudentDetail = () => {
 
   const loadClient = async () => {
     setLoading(true);
-    let result = await supabase.from('clients').select('*').eq('id', id).single();
+    // Nova Core uses client_id as PK, fallback to id for compatibility
+    let result = await supabase.from('clients').select('*').eq('client_id', id).single();
+    if (result.error) {
+      result = await supabase.from('clients').select('*').eq('id', id).single();
+    }
     if (result.error) {
       result = await supabase.from('students').select('*').eq('id', id).single();
     }
