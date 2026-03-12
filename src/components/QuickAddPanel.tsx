@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { logEvent, trackBehaviorForEscalation, createSignal } from '@/lib/supervisorSignals';
+import { writeUnifiedEvent } from '@/lib/unified-events';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -161,6 +162,19 @@ export const QuickAddPanel = () => {
         } catch (e) { console.warn('[Beacon] escalation signal failed:', e); }
       }
 
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior_event',
+          eventSubtype: 'frequency',
+          eventValue: { behavior: selectedBehavior, count: freqCount },
+          sourceModule: 'quick_add',
+        });
+      }
+
       toast({ title: `✓ ${freqCount}× ${selectedBehavior} saved` });
       setFreqCount(0);
     } catch (err: any) {
@@ -212,6 +226,20 @@ export const QuickAddPanel = () => {
         logged_date: new Date().toISOString().slice(0, 10),
       });
       if (error) throw error;
+
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior_event',
+          eventSubtype: 'duration',
+          eventValue: { behavior: selectedBehavior, duration_seconds: durationElapsed },
+          sourceModule: 'quick_add',
+        });
+      }
+
       const mins = Math.floor(durationElapsed / 60);
       const secs = durationElapsed % 60;
       toast({ title: `✓ ${mins}m ${secs}s saved for ${selectedBehavior}` });
@@ -245,6 +273,20 @@ export const QuickAddPanel = () => {
         note: noteText.trim(),
       });
       if (error) throw error;
+
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'quick_add_note',
+          eventSubtype: selectedBehavior || 'general',
+          eventValue: { note: noteText.trim(), behavior: selectedBehavior || null },
+          sourceModule: 'quick_add',
+        });
+      }
+
       toast({ title: '✓ Note saved' });
       setNoteText('');
     } catch (err: any) {
@@ -283,6 +325,19 @@ export const QuickAddPanel = () => {
           metadata: { antecedent: abcAntecedent, consequence: abcConsequence, source: 'quick_add_abc' },
         });
       } catch (e) { console.warn('[Beacon] logEvent abc failed:', e); }
+
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'abc_event',
+          eventSubtype: abcBehavior,
+          eventValue: { antecedent: abcAntecedent, behavior: abcBehavior, consequence: abcConsequence },
+          sourceModule: 'quick_add',
+        });
+      }
 
       toast({ title: '✓ ABC logged' });
       setAbcAntecedent('');

@@ -15,6 +15,8 @@ import { TargetManager } from '@/components/TargetManager';
 import { IEPTab } from '@/components/IEPTab';
 import { BCBASummary } from '@/components/BCBASummary';
 import { TeacherSummaries } from '@/components/TeacherSummaries';
+import { EngagementSampler } from '@/components/EngagementSampler';
+import { SkillProbe } from '@/components/SkillProbe';
 import StudentInfoEditor from '@/components/StudentInfoEditor';
 import FBABIPPanel from '@/components/FBABIPPanel';
 import { useToast } from '@/hooks/use-toast';
@@ -247,6 +249,22 @@ const StudentDetail = () => {
                 onRefresh={loadDataTab}
                 readOnly={!isSoloMode && !permissions.can_collect_data}
               />
+
+              {/* Engagement Sampling */}
+              {(isSoloMode || permissions.can_collect_data) && (
+                <EngagementSampler
+                  studentId={client.id}
+                  studentName={displayName(client)}
+                />
+              )}
+
+              {/* Skill Probe */}
+              {(isSoloMode || permissions.can_collect_data) && (
+                <SkillProbe
+                  studentId={client.id}
+                  studentName={displayName(client)}
+                />
+              )}
 
               {/* Data Collection Session */}
               {(isSoloMode || permissions.can_collect_data) && (

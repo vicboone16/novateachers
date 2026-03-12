@@ -19,6 +19,7 @@ import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
 import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold, trackLowRatings, trackBehaviorForReinforcementGap, trackReinforcementEvent } from '@/lib/supervisorSignals';
+import { writeUnifiedEvent } from '@/lib/unified-events';
 import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
 import { BehaviorCaptureModal } from '@/components/BehaviorCaptureModal';
 import type { Client, ABCLog, BehaviorCategory } from '@/lib/types';
@@ -388,6 +389,23 @@ const TriggerTracker = () => {
       const consNorm = consequence.toLowerCase();
       if (consNorm.includes('reinforc') || consNorm.includes('reward') || consNorm.includes('token') || consNorm.includes('praise') || consNorm.includes('preferred')) {
         trackReinforcementEvent(selectedClientId);
+      }
+
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'trigger_event',
+          eventSubtype: behavior,
+          eventValue: {
+            antecedent, behavior, consequence, intensity,
+            duration_seconds: duration ? parseInt(duration) * 60 : null,
+            notes: notesParts.filter(Boolean).join(' • ') || null,
+          },
+          sourceModule: 'trigger_tracker',
+        });
       }
 
       toast({ title: '✓ Logged', description: `${behavior} recorded` });
