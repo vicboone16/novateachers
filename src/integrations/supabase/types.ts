@@ -775,39 +775,54 @@ export type Database = {
           active: boolean | null
           agency_id: string | null
           allow_snooze: boolean | null
+          applies_during_blocks: Json | null
+          classroom_group_id: string | null
           classroom_id: string | null
+          created_at: string | null
           interval_minutes: number | null
           is_paused: boolean | null
           pause_until: string | null
+          prompts_enabled: boolean | null
           setting_id: string
           snooze_minutes: number | null
           student_id: string | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
           active?: boolean | null
           agency_id?: string | null
           allow_snooze?: boolean | null
+          applies_during_blocks?: Json | null
+          classroom_group_id?: string | null
           classroom_id?: string | null
+          created_at?: string | null
           interval_minutes?: number | null
           is_paused?: boolean | null
           pause_until?: string | null
+          prompts_enabled?: boolean | null
           setting_id?: string
           snooze_minutes?: number | null
           student_id?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           active?: boolean | null
           agency_id?: string | null
           allow_snooze?: boolean | null
+          applies_during_blocks?: Json | null
+          classroom_group_id?: string | null
           classroom_id?: string | null
+          created_at?: string | null
           interval_minutes?: number | null
           is_paused?: boolean | null
           pause_until?: string | null
+          prompts_enabled?: boolean | null
           setting_id?: string
           snooze_minutes?: number | null
           student_id?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -954,6 +969,69 @@ export type Database = {
           note?: string
           target_id?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      teacher_weekly_summaries: {
+        Row: {
+          abc_summary: Json | null
+          agency_id: string
+          behavior_summary: Json | null
+          duration_summary: Json | null
+          engagement_summary: Json | null
+          generated_at: string | null
+          probe_summary: Json | null
+          reliability_summary: Json | null
+          reviewed_at: string | null
+          sent_at: string | null
+          sent_to: string[] | null
+          staff_id: string
+          status: string
+          student_id: string
+          summary_id: string
+          trigger_summary: Json | null
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          abc_summary?: Json | null
+          agency_id: string
+          behavior_summary?: Json | null
+          duration_summary?: Json | null
+          engagement_summary?: Json | null
+          generated_at?: string | null
+          probe_summary?: Json | null
+          reliability_summary?: Json | null
+          reviewed_at?: string | null
+          sent_at?: string | null
+          sent_to?: string[] | null
+          staff_id: string
+          status?: string
+          student_id: string
+          summary_id?: string
+          trigger_summary?: Json | null
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          abc_summary?: Json | null
+          agency_id?: string
+          behavior_summary?: Json | null
+          duration_summary?: Json | null
+          engagement_summary?: Json | null
+          generated_at?: string | null
+          probe_summary?: Json | null
+          reliability_summary?: Json | null
+          reviewed_at?: string | null
+          sent_at?: string | null
+          sent_to?: string[] | null
+          staff_id?: string
+          status?: string
+          student_id?: string
+          summary_id?: string
+          trigger_summary?: Json | null
+          week_end?: string
+          week_start?: string
         }
         Relationships: []
       }
