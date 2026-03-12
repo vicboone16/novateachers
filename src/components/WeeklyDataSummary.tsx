@@ -80,8 +80,39 @@ export const WeeklyDataSummary = () => {
     if (selectedClientId) {
       loadWeekData();
       loadAssignedStaff();
+      loadDraft();
     }
   }, [selectedClientId, weekOffset]);
+
+  const loadDraft = async () => {
+    if (!selectedClientId || !user) return;
+    setLoadingDraft(true);
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+
+    const { data } = await supabase
+      .from('teacher_weekly_summaries')
+      .select('*')
+      .eq('student_id', selectedClientId)
+      .eq('staff_id', user.id)
+      .eq('week_start', weekStartStr)
+      .maybeSingle();
+
+    setDraft(data as WeeklySummaryDraft | null);
+    setLoadingDraft(false);
+  };
+
+  const regenerateDraft = async () => {
+    setRegenerating(true);
+    try {
+      await invokeCloudFunction('generate-weekly-summary', { time: new Date().toISOString() });
+      await loadDraft();
+      toast({ title: '✓ Summary regenerated' });
+    } catch (err: any) {
+      toast({ title: 'Error regenerating', description: err.message, variant: 'destructive' });
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
