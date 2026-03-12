@@ -78,9 +78,14 @@ export const QuickAddPanel = () => {
   // Sync status
   const [syncStatus, setSyncStatus] = useState<SyncState>('idle');
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [abcBehavior, setAbcBehavior] = useState('');
-  const [abcConsequence, setAbcConsequence] = useState('');
-  const [abcSaving, setAbcSaving] = useState(false);
+
+  const markSync = (status: SyncState) => {
+    setSyncStatus(status);
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    if (status === 'success') {
+      syncTimerRef.current = setTimeout(() => setSyncStatus('idle'), 4000);
+    }
+  };
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
