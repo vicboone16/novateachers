@@ -136,8 +136,9 @@ export const QuickAddPanel = () => {
       return;
     }
     setFreqSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('teacher_frequency_entries').insert({
+      const result = await writeWithRetry('teacher_frequency_entries', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
         user_id: user?.id,
@@ -145,7 +146,12 @@ export const QuickAddPanel = () => {
         count: freqCount,
         logged_date: new Date().toISOString().slice(0, 10),
       });
-      if (error) throw error;
+      if (!result.ok) {
+        markSync('queued');
+        toast({ title: 'Offline — queued for sync', description: 'Will retry when connection resumes' });
+      } else {
+        markSync('success');
+      }
       // Event stream wiring
       try {
         await logEvent({
