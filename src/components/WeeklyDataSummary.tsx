@@ -397,6 +397,19 @@ export const WeeklyDataSummary = () => {
       const { error } = await supabase.from('teacher_messages').insert(inserts);
       if (error) throw error;
 
+      // Mark draft as sent if it exists
+      if (draft) {
+        await supabase
+          .from('teacher_weekly_summaries')
+          .update({
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            sent_to: recipients,
+          } as any)
+          .eq('summary_id', draft.summary_id);
+        await loadDraft();
+      }
+
       const recipientNames = recipients
         .map(id => assignedStaff.find(s => s.id === id)?.name || 'your Inbox')
         .join(', ');
