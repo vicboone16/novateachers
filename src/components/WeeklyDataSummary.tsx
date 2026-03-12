@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users } from 'lucide-react';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import type { Client } from '@/lib/types';
 
@@ -21,6 +21,7 @@ interface FreqEntry { behavior_name: string; count: number; logged_date: string;
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
 interface QuickNote { behavior_name: string | null; note: string; logged_at: string; }
 interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; }
+interface UnifiedEvent { event_type: string; event_subtype: string | null; event_value: any; recorded_at: string; }
 
 export const WeeklyDataSummary = () => {
   const { user } = useAuth();
@@ -30,11 +31,12 @@ export const WeeklyDataSummary = () => {
 
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = current, 1 = last week, etc.
+  const [weekOffset, setWeekOffset] = useState(0);
   const [freqEntries, setFreqEntries] = useState<FreqEntry[]>([]);
   const [durEntries, setDurEntries] = useState<DurEntry[]>([]);
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [abcLogs, setAbcLogs] = useState<ABCEntry[]>([]);
+  const [unifiedEvents, setUnifiedEvents] = useState<UnifiedEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
@@ -75,7 +77,6 @@ export const WeeklyDataSummary = () => {
     setSelectedRecipients([]);
 
     try {
-      // Try user_student_access first, fallback to user_client_access
       let staffIds: string[] = [];
 
       const { data: accessRows, error: accessErr } = await supabase
@@ -100,7 +101,6 @@ export const WeeklyDataSummary = () => {
         return;
       }
 
-      // Resolve display names
       const nameMap = await resolveDisplayNames(staffIds);
       const staff = staffIds.map(id => ({
         id,
@@ -108,7 +108,6 @@ export const WeeklyDataSummary = () => {
       }));
 
       setAssignedStaff(staff);
-      // Auto-select all by default
       setSelectedRecipients(staffIds);
     } catch {
       /* silent */
@@ -124,7 +123,7 @@ export const WeeklyDataSummary = () => {
     const startTs = weekStart.toISOString();
     const endTs = weekEnd.toISOString();
 
-    const [freqRes, durRes, notesRes, abcRes] = await Promise.all([
+    const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
         .eq('client_id', selectedClientId).eq('user_id', user?.id)
         .gte('logged_date', startStr).lte('logged_date', endStr),
@@ -137,16 +136,21 @@ export const WeeklyDataSummary = () => {
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
         .eq('client_id', selectedClientId).eq('user_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
+      supabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
+        .eq('student_id', selectedClientId).eq('staff_id', user?.id)
+        .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);
 
     setFreqEntries((freqRes.data || []) as FreqEntry[]);
     setDurEntries((durRes.data || []) as DurEntry[]);
     setNotes((notesRes.data || []) as QuickNote[]);
     setAbcLogs((abcRes.data || []) as ABCEntry[]);
+    setUnifiedEvents((unifiedRes.data || []) as UnifiedEvent[]);
     setLoading(false);
   };
 
-  // Aggregate frequency by behavior
+  // ── Aggregations ──
+
   const freqByBehavior = useMemo(() => {
     const map: Record<string, Record<string, number>> = {};
     for (const e of freqEntries) {
@@ -156,7 +160,6 @@ export const WeeklyDataSummary = () => {
     return map;
   }, [freqEntries]);
 
-  // Aggregate duration by behavior
   const durByBehavior = useMemo(() => {
     const map: Record<string, number> = {};
     for (const e of durEntries) {
@@ -165,7 +168,6 @@ export const WeeklyDataSummary = () => {
     return map;
   }, [durEntries]);
 
-  // ABC patterns
   const abcPatterns = useMemo(() => {
     const map: Record<string, number> = {};
     for (const e of abcLogs) {
@@ -175,12 +177,87 @@ export const WeeklyDataSummary = () => {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [abcLogs]);
 
-  const hasData = freqEntries.length > 0 || durEntries.length > 0 || notes.length > 0 || abcLogs.length > 0;
+  // Engagement stats from unified events
+  const engagementStats = useMemo(() => {
+    const samples = unifiedEvents.filter(e => e.event_type === 'engagement_sample');
+    const engaged = samples.filter(e => e.event_subtype === 'engaged').length;
+    const total = samples.length;
+    return { total, engaged, percentage: total > 0 ? Math.round((engaged / total) * 100) : null };
+  }, [unifiedEvents]);
+
+  // Skill probe stats from unified events
+  const skillProbeStats = useMemo(() => {
+    const summaries = unifiedEvents.filter(
+      e => e.event_type === 'skill_probe' && e.event_subtype === 'session_summary'
+    );
+    const bySkill: Record<string, { trials: number; correct: number; sessions: number }> = {};
+    for (const s of summaries) {
+      const v = s.event_value || {};
+      const name = v.skill_name || 'Unknown';
+      if (!bySkill[name]) bySkill[name] = { trials: 0, correct: 0, sessions: 0 };
+      bySkill[name].trials += v.trials || 0;
+      bySkill[name].correct += v.correct || 0;
+      bySkill[name].sessions += 1;
+    }
+    return bySkill;
+  }, [unifiedEvents]);
+
+  // Behavior event hourly rates from unified events
+  const behaviorHourlyRates = useMemo(() => {
+    const behaviorEvents = unifiedEvents.filter(e => e.event_type === 'behavior_event' || e.event_type === 'trigger_event');
+    if (behaviorEvents.length === 0) return null;
+
+    // Group by day, count events, estimate observation hours (8am-3pm = 7hrs)
+    const byDay: Record<string, number> = {};
+    for (const e of behaviorEvents) {
+      const day = format(new Date(e.recorded_at), 'yyyy-MM-dd');
+      byDay[day] = (byDay[day] || 0) + 1;
+    }
+    const totalDays = Object.keys(byDay).length;
+    const totalEvents = Object.values(byDay).reduce((a, b) => a + b, 0);
+    const estimatedHours = totalDays * 7; // ~7 instructional hours per day
+    return {
+      totalEvents,
+      totalDays,
+      hourlyRate: estimatedHours > 0 ? (totalEvents / estimatedHours).toFixed(1) : '—',
+    };
+  }, [unifiedEvents]);
+
+  // Data reliability score (based on collection consistency)
+  const reliabilityScore = useMemo(() => {
+    // Simple heuristic: % of school days with at least one data point
+    const allDates = new Set<string>();
+    freqEntries.forEach(e => allDates.add(e.logged_date));
+    durEntries.forEach(e => allDates.add(e.logged_date));
+    abcLogs.forEach(e => allDates.add(format(new Date(e.logged_at), 'yyyy-MM-dd')));
+    unifiedEvents.forEach(e => allDates.add(format(new Date(e.recorded_at), 'yyyy-MM-dd')));
+
+    const daysWithData = allDates.size;
+    const schoolDays = 5; // Mon–Fri
+    const pct = Math.min(100, Math.round((daysWithData / schoolDays) * 100));
+    return { daysWithData, schoolDays, percentage: pct };
+  }, [freqEntries, durEntries, abcLogs, unifiedEvents]);
+
+  const hasData = freqEntries.length > 0 || durEntries.length > 0 || notes.length > 0 || abcLogs.length > 0 || unifiedEvents.length > 0;
 
   const buildSummaryBody = () => {
     const student = clients.find(c => c.id === selectedClientId);
     const name = student ? displayName(student) : 'Student';
     const lines: string[] = [`📊 Weekly Data Summary for ${name}`, `📅 ${weekLabel}`, ''];
+
+    // Data reliability
+    lines.push(`── Data Reliability Score ──`);
+    lines.push(`• ${reliabilityScore.percentage}% — Data collected on ${reliabilityScore.daysWithData}/${reliabilityScore.schoolDays} school days`);
+    lines.push('');
+
+    // Behavior totals & hourly rates
+    if (behaviorHourlyRates) {
+      lines.push('── Behavior Event Summary ──');
+      lines.push(`• Total events: ${behaviorHourlyRates.totalEvents}`);
+      lines.push(`• Days with data: ${behaviorHourlyRates.totalDays}`);
+      lines.push(`• Estimated hourly rate: ${behaviorHourlyRates.hourlyRate}/hr`);
+      lines.push('');
+    }
 
     if (Object.keys(freqByBehavior).length > 0) {
       lines.push('── Frequency Counts ──');
@@ -204,8 +281,27 @@ export const WeeklyDataSummary = () => {
       lines.push('');
     }
 
+    // Engagement
+    if (engagementStats.total > 0) {
+      lines.push('── Engagement Sampling ──');
+      lines.push(`• ${engagementStats.percentage}% engaged (${engagementStats.engaged}/${engagementStats.total} samples)`);
+      lines.push('');
+    }
+
+    // Skill probes
+    const skillEntries = Object.entries(skillProbeStats);
+    if (skillEntries.length > 0) {
+      lines.push('── Skill Probe Results ──');
+      for (const [skill, stats] of skillEntries) {
+        const pct = stats.trials > 0 ? Math.round((stats.correct / stats.trials) * 100) : 0;
+        lines.push(`• ${skill}: ${pct}% (${stats.correct}/${stats.trials} trials across ${stats.sessions} sessions)`);
+      }
+      lines.push('');
+    }
+
+    // Trigger tracker / ABC patterns
     if (abcPatterns.length > 0) {
-      lines.push('── ABC Patterns ──');
+      lines.push('── ABC Pattern Summaries ──');
       for (const [pattern, count] of abcPatterns) {
         lines.push(`• ${pattern} (×${count})`);
       }
@@ -226,9 +322,7 @@ export const WeeklyDataSummary = () => {
   const sendSummaryToBCBA = async () => {
     if (!hasData) return;
 
-    // If no assigned staff, send to self as a saved copy
     const recipients = selectedRecipients.length > 0 ? selectedRecipients : [user?.id!];
-
     const body = buildSummaryBody();
     const student = clients.find(c => c.id === selectedClientId);
     const studentName = student ? displayName(student) : 'Student';
@@ -237,7 +331,6 @@ export const WeeklyDataSummary = () => {
 
     setSending(true);
     try {
-      // Send to each selected recipient
       const inserts = recipients.map(recipientId => ({
         agency_id: agencyId || currentWorkspace?.agency_id,
         sender_id: user?.id,
@@ -302,9 +395,83 @@ export const WeeklyDataSummary = () => {
       ) : !selectedClientId ? (
         <p className="text-sm text-muted-foreground">Select a student to view weekly data.</p>
       ) : !hasData ? (
-        <p className="text-sm text-muted-foreground">No Quick Add data for this week.</p>
+        <p className="text-sm text-muted-foreground">No data for this week.</p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
+          {/* Data Reliability Score */}
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Data Reliability Score
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <span className={`text-3xl font-bold ${reliabilityScore.percentage >= 80 ? 'text-accent' : reliabilityScore.percentage >= 60 ? 'text-primary' : 'text-destructive'}`}>
+                  {reliabilityScore.percentage}%
+                </span>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Data collected on {reliabilityScore.daysWithData} of {reliabilityScore.schoolDays} school days
+                  </p>
+                  {behaviorHourlyRates && (
+                    <p className="text-xs text-muted-foreground">
+                      {behaviorHourlyRates.totalEvents} behavior events · ~{behaviorHourlyRates.hourlyRate}/hr
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Engagement Sampling */}
+          {engagementStats.total > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <Bell className="h-4 w-4 text-primary" /> Engagement Sampling
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <span className={`text-3xl font-bold ${(engagementStats.percentage || 0) >= 70 ? 'text-accent' : 'text-primary'}`}>
+                    {engagementStats.percentage}%
+                  </span>
+                  <p className="text-sm text-muted-foreground">
+                    {engagementStats.engaged}/{engagementStats.total} samples engaged
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Skill Probes */}
+          {Object.keys(skillProbeStats).length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <Target className="h-4 w-4 text-primary" /> Skill Probe Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {Object.entries(skillProbeStats).map(([skill, stats]) => {
+                  const pct = stats.trials > 0 ? Math.round((stats.correct / stats.trials) * 100) : 0;
+                  return (
+                    <div key={skill}>
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium">{skill}</span>
+                        <Badge variant={pct >= 80 ? 'default' : 'outline'}>{pct}%</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.correct}/{stats.trials} trials · {stats.sessions} session{stats.sessions !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Frequency */}
           {Object.keys(freqByBehavior).length > 0 && (
             <Card>
