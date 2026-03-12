@@ -8,6 +8,8 @@ import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { logEvent, trackBehaviorForEscalation, createSignal } from '@/lib/supervisorSignals';
 import { writeUnifiedEvent } from '@/lib/unified-events';
+import { writeWithRetry } from '@/lib/sync-queue';
+import { SyncStatusIndicator, type SyncState } from '@/components/SyncStatusIndicator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -73,6 +75,18 @@ export const QuickAddPanel = () => {
   const [abcConsequence, setAbcConsequence] = useState('');
   const [abcSaving, setAbcSaving] = useState(false);
 
+  // Sync status
+  const [syncStatus, setSyncStatus] = useState<SyncState>('idle');
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const markSync = (status: SyncState) => {
+    setSyncStatus(status);
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    if (status === 'success') {
+      syncTimerRef.current = setTimeout(() => setSyncStatus('idle'), 4000);
+    }
+  };
+
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
@@ -122,8 +136,9 @@ export const QuickAddPanel = () => {
       return;
     }
     setFreqSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('teacher_frequency_entries').insert({
+      const result = await writeWithRetry('teacher_frequency_entries', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
         user_id: user?.id,
@@ -131,7 +146,12 @@ export const QuickAddPanel = () => {
         count: freqCount,
         logged_date: new Date().toISOString().slice(0, 10),
       });
-      if (error) throw error;
+      if (!result.ok) {
+        markSync('queued');
+        toast({ title: 'Offline — queued for sync', description: 'Will retry when connection resumes' });
+      } else {
+        markSync('success');
+      }
       // Event stream wiring
       try {
         await logEvent({
@@ -216,8 +236,9 @@ export const QuickAddPanel = () => {
     }
 
     setDurationSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('teacher_duration_entries').insert({
+      const result = await writeWithRetry('teacher_duration_entries', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
         user_id: user?.id,
@@ -225,7 +246,11 @@ export const QuickAddPanel = () => {
         duration_seconds: durationElapsed,
         logged_date: new Date().toISOString().slice(0, 10),
       });
-      if (error) throw error;
+      if (!result.ok) {
+        markSync('queued');
+      } else {
+        markSync('success');
+      }
 
       // Unified event stream
       if (user) {
@@ -264,15 +289,17 @@ export const QuickAddPanel = () => {
       return;
     }
     setNoteSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('teacher_quick_notes').insert({
+      const result = await writeWithRetry('teacher_quick_notes', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
         user_id: user?.id,
         behavior_name: selectedBehavior || null,
         note: noteText.trim(),
       });
-      if (error) throw error;
+      if (!result.ok) markSync('queued');
+      else markSync('success');
 
       // Unified event stream
       if (user) {
@@ -303,8 +330,9 @@ export const QuickAddPanel = () => {
       return;
     }
     setAbcSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('abc_logs').insert({
+      const result = await writeWithRetry('abc_logs', {
         client_id: selectedClientId,
         user_id: user?.id,
         antecedent: abcAntecedent,
@@ -313,7 +341,8 @@ export const QuickAddPanel = () => {
         intensity: 3,
         logged_at: new Date().toISOString(),
       });
-      if (error) throw error;
+      if (!result.ok) markSync('queued');
+      else markSync('success');
       // Event stream wiring
       try {
         await logEvent({
@@ -381,8 +410,9 @@ export const QuickAddPanel = () => {
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-50">
-      {/* Toggle button */}
-      <div className="mx-auto max-w-3xl px-4 flex justify-center">
+      {/* Toggle button + sync indicator */}
+      <div className="mx-auto max-w-3xl px-4 flex items-end justify-center gap-2">
+        <SyncStatusIndicator lastStatus={syncStatus} className="mb-1" />
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-2 rounded-t-lg bg-primary px-6 py-3 text-primary-foreground text-base font-semibold shadow-lg hover:bg-primary/90 transition-colors"
