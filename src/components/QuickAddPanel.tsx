@@ -226,6 +226,20 @@ export const QuickAddPanel = () => {
         logged_date: new Date().toISOString().slice(0, 10),
       });
       if (error) throw error;
+
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior_event',
+          eventSubtype: 'duration',
+          eventValue: { behavior: selectedBehavior, duration_seconds: durationElapsed },
+          sourceModule: 'quick_add',
+        });
+      }
+
       const mins = Math.floor(durationElapsed / 60);
       const secs = durationElapsed % 60;
       toast({ title: `✓ ${mins}m ${secs}s saved for ${selectedBehavior}` });
