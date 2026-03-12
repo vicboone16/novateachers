@@ -289,15 +289,17 @@ export const QuickAddPanel = () => {
       return;
     }
     setNoteSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('teacher_quick_notes').insert({
+      const result = await writeWithRetry('teacher_quick_notes', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
         user_id: user?.id,
         behavior_name: selectedBehavior || null,
         note: noteText.trim(),
       });
-      if (error) throw error;
+      if (!result.ok) markSync('queued');
+      else markSync('success');
 
       // Unified event stream
       if (user) {
