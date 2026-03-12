@@ -646,30 +646,39 @@ export type Database = {
       }
       teacher_data_events: {
         Row: {
+          agency_id: string | null
+          classroom_id: string | null
           event_id: string
           event_subtype: string | null
           event_type: string
           event_value: Json | null
+          metadata: Json | null
           recorded_at: string | null
           source_module: string | null
           staff_id: string | null
           student_id: string
         }
         Insert: {
+          agency_id?: string | null
+          classroom_id?: string | null
           event_id?: string
           event_subtype?: string | null
           event_type: string
           event_value?: Json | null
+          metadata?: Json | null
           recorded_at?: string | null
           source_module?: string | null
           staff_id?: string | null
           student_id: string
         }
         Update: {
+          agency_id?: string | null
+          classroom_id?: string | null
           event_id?: string
           event_subtype?: string | null
           event_type?: string
           event_value?: Json | null
+          metadata?: Json | null
           recorded_at?: string | null
           source_module?: string | null
           staff_id?: string | null
@@ -764,30 +773,42 @@ export type Database = {
       teacher_interval_settings: {
         Row: {
           active: boolean | null
+          agency_id: string | null
           allow_snooze: boolean | null
           classroom_id: string | null
           interval_minutes: number | null
+          is_paused: boolean | null
+          pause_until: string | null
           setting_id: string
           snooze_minutes: number | null
           student_id: string | null
+          user_id: string | null
         }
         Insert: {
           active?: boolean | null
+          agency_id?: string | null
           allow_snooze?: boolean | null
           classroom_id?: string | null
           interval_minutes?: number | null
+          is_paused?: boolean | null
+          pause_until?: string | null
           setting_id?: string
           snooze_minutes?: number | null
           student_id?: string | null
+          user_id?: string | null
         }
         Update: {
           active?: boolean | null
+          agency_id?: string | null
           allow_snooze?: boolean | null
           classroom_id?: string | null
           interval_minutes?: number | null
+          is_paused?: boolean | null
+          pause_until?: string | null
           setting_id?: string
           snooze_minutes?: number | null
           student_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
