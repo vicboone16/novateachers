@@ -8,6 +8,8 @@ import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { logEvent, trackBehaviorForEscalation, createSignal } from '@/lib/supervisorSignals';
 import { writeUnifiedEvent } from '@/lib/unified-events';
+import { writeWithRetry } from '@/lib/sync-queue';
+import { SyncStatusIndicator, type SyncState } from '@/components/SyncStatusIndicator';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
