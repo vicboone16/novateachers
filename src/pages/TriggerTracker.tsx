@@ -391,6 +391,23 @@ const TriggerTracker = () => {
         trackReinforcementEvent(selectedClientId);
       }
 
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'trigger_event',
+          eventSubtype: behavior,
+          eventValue: {
+            antecedent, behavior, consequence, intensity,
+            duration_seconds: duration ? parseInt(duration) * 60 : null,
+            notes: notesParts.filter(Boolean).join(' • ') || null,
+          },
+          sourceModule: 'trigger_tracker',
+        });
+      }
+
       toast({ title: '✓ Logged', description: `${behavior} recorded` });
       setAntecedent('');
       setBehavior('');
