@@ -236,8 +236,9 @@ export const QuickAddPanel = () => {
     }
 
     setDurationSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('teacher_duration_entries').insert({
+      const result = await writeWithRetry('teacher_duration_entries', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
         user_id: user?.id,
@@ -245,7 +246,11 @@ export const QuickAddPanel = () => {
         duration_seconds: durationElapsed,
         logged_date: new Date().toISOString().slice(0, 10),
       });
-      if (error) throw error;
+      if (!result.ok) {
+        markSync('queued');
+      } else {
+        markSync('success');
+      }
 
       // Unified event stream
       if (user) {
