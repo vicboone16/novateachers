@@ -13,9 +13,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck } from 'lucide-react';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
+
+interface WeeklySummaryDraft {
+  summary_id: string;
+  student_id: string;
+  week_start: string;
+  week_end: string;
+  behavior_summary: any;
+  engagement_summary: any;
+  abc_summary: any;
+  trigger_summary: any;
+  probe_summary: any;
+  duration_summary: any;
+  reliability_summary: any;
+  status: string;
+  generated_at: string;
+  sent_at: string | null;
+}
 
 interface FreqEntry { behavior_name: string; count: number; logged_date: string; }
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
