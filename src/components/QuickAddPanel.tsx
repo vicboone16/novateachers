@@ -326,6 +326,19 @@ export const QuickAddPanel = () => {
         });
       } catch (e) { console.warn('[Beacon] logEvent abc failed:', e); }
 
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'abc_event',
+          eventSubtype: abcBehavior,
+          eventValue: { antecedent: abcAntecedent, behavior: abcBehavior, consequence: abcConsequence },
+          sourceModule: 'quick_add',
+        });
+      }
+
       toast({ title: '✓ ABC logged' });
       setAbcAntecedent('');
       setAbcBehavior('');
