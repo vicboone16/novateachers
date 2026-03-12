@@ -273,6 +273,20 @@ export const QuickAddPanel = () => {
         note: noteText.trim(),
       });
       if (error) throw error;
+
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'quick_add_note',
+          eventSubtype: selectedBehavior || 'general',
+          eventValue: { note: noteText.trim(), behavior: selectedBehavior || null },
+          sourceModule: 'quick_add',
+        });
+      }
+
       toast({ title: '✓ Note saved' });
       setNoteText('');
     } catch (err: any) {
