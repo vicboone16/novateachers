@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { logEvent, trackBehaviorForEscalation, createSignal } from '@/lib/supervisorSignals';
+import { writeUnifiedEvent } from '@/lib/unified-events';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
