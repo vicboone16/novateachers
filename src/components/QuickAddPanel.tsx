@@ -162,6 +162,19 @@ export const QuickAddPanel = () => {
         } catch (e) { console.warn('[Beacon] escalation signal failed:', e); }
       }
 
+      // Unified event stream
+      if (user) {
+        writeUnifiedEvent({
+          studentId: selectedClientId,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior_event',
+          eventSubtype: 'frequency',
+          eventValue: { behavior: selectedBehavior, count: freqCount },
+          sourceModule: 'quick_add',
+        });
+      }
+
       toast({ title: `✓ ${freqCount}× ${selectedBehavior} saved` });
       setFreqCount(0);
     } catch (err: any) {
