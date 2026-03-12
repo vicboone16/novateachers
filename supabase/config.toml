@@ -30,3 +30,6 @@ verify_jwt = false
 
 [functions.parse-behavior-narrative]
 verify_jwt = false
+
+[functions.generate-weekly-summary]
+verify_jwt = false
