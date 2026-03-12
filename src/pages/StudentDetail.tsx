@@ -15,6 +15,8 @@ import { TargetManager } from '@/components/TargetManager';
 import { IEPTab } from '@/components/IEPTab';
 import { BCBASummary } from '@/components/BCBASummary';
 import { TeacherSummaries } from '@/components/TeacherSummaries';
+import { EngagementSampler } from '@/components/EngagementSampler';
+import { SkillProbe } from '@/components/SkillProbe';
 import StudentInfoEditor from '@/components/StudentInfoEditor';
 import FBABIPPanel from '@/components/FBABIPPanel';
 import { useToast } from '@/hooks/use-toast';
