@@ -410,8 +410,9 @@ export const QuickAddPanel = () => {
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-50">
-      {/* Toggle button */}
-      <div className="mx-auto max-w-3xl px-4 flex justify-center">
+      {/* Toggle button + sync indicator */}
+      <div className="mx-auto max-w-3xl px-4 flex items-end justify-center gap-2">
+        <SyncStatusIndicator lastStatus={syncStatus} className="mb-1" />
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-2 rounded-t-lg bg-primary px-6 py-3 text-primary-foreground text-base font-semibold shadow-lg hover:bg-primary/90 transition-colors"
