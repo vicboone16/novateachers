@@ -101,6 +101,24 @@ export const EngagementSampler = ({ studentId, studentName }: Props) => {
 
   const handleSnooze = (minutes: number) => {
     setShowPrompt(false);
+
+    // Record snooze event in unified events
+    if (user) {
+      writeUnifiedEvent({
+        studentId,
+        staffId: user.id,
+        agencyId: effectiveAgencyId,
+        eventType: 'snooze_event' as any,
+        eventSubtype: 'engagement_prompt',
+        eventValue: {
+          snooze_minutes: minutes,
+          prompt_time: promptTimeRef.current?.toISOString(),
+          snooze_time: new Date().toISOString(),
+        },
+        sourceModule: 'engagement_sampler',
+      });
+    }
+
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       setShowPrompt(true);

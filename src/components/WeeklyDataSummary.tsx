@@ -13,9 +13,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck } from 'lucide-react';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
+
+interface WeeklySummaryDraft {
+  summary_id: string;
+  student_id: string;
+  week_start: string;
+  week_end: string;
+  behavior_summary: any;
+  engagement_summary: any;
+  abc_summary: any;
+  trigger_summary: any;
+  probe_summary: any;
+  duration_summary: any;
+  reliability_summary: any;
+  status: string;
+  generated_at: string;
+  sent_at: string | null;
+}
 
 interface FreqEntry { behavior_name: string; count: number; logged_date: string; }
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
@@ -42,6 +60,9 @@ export const WeeklyDataSummary = () => {
   const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
+  const [draft, setDraft] = useState<WeeklySummaryDraft | null>(null);
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const weekStart = useMemo(() => {
     const ref = subWeeks(new Date(), weekOffset);
@@ -59,8 +80,39 @@ export const WeeklyDataSummary = () => {
     if (selectedClientId) {
       loadWeekData();
       loadAssignedStaff();
+      loadDraft();
     }
   }, [selectedClientId, weekOffset]);
+
+  const loadDraft = async () => {
+    if (!selectedClientId || !user) return;
+    setLoadingDraft(true);
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+
+    const { data } = await supabase
+      .from('teacher_weekly_summaries')
+      .select('*')
+      .eq('student_id', selectedClientId)
+      .eq('staff_id', user.id)
+      .eq('week_start', weekStartStr)
+      .maybeSingle();
+
+    setDraft(data as WeeklySummaryDraft | null);
+    setLoadingDraft(false);
+  };
+
+  const regenerateDraft = async () => {
+    setRegenerating(true);
+    try {
+      await invokeCloudFunction('generate-weekly-summary', { time: new Date().toISOString() });
+      await loadDraft();
+      toast({ title: '✓ Summary regenerated' });
+    } catch (err: any) {
+      toast({ title: 'Error regenerating', description: err.message, variant: 'destructive' });
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -345,6 +397,19 @@ export const WeeklyDataSummary = () => {
       const { error } = await supabase.from('teacher_messages').insert(inserts);
       if (error) throw error;
 
+      // Mark draft as sent if it exists
+      if (draft) {
+        await supabase
+          .from('teacher_weekly_summaries')
+          .update({
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            sent_to: recipients,
+          } as any)
+          .eq('summary_id', draft.summary_id);
+        await loadDraft();
+      }
+
       const recipientNames = recipients
         .map(id => assignedStaff.find(s => s.id === id)?.name || 'your Inbox')
         .join(', ');
@@ -390,11 +455,111 @@ export const WeeklyDataSummary = () => {
         </div>
       </div>
 
+      {/* Auto-Draft Review Card */}
+      {selectedClientId && draft && (
+        <Card className={`border-2 ${draft.status === 'sent' ? 'border-accent/30 bg-accent/5' : 'border-primary/30 bg-primary/5'}`}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                {draft.status === 'sent' ? 'Weekly Summary — Sent' : 'Auto-Draft Ready for Review'}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                {draft.status === 'sent' ? (
+                  <Badge variant="default" className="gap-1 text-xs">
+                    <CheckCircle2 className="h-3 w-3" /> Sent {draft.sent_at ? format(new Date(draft.sent_at), 'MMM d h:mm a') : ''}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="gap-1 text-xs">
+                    <FileText className="h-3 w-3" /> Draft
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs h-7"
+                  onClick={regenerateDraft}
+                  disabled={regenerating}
+                >
+                  <RefreshCw className={`h-3 w-3 ${regenerating ? 'animate-spin' : ''}`} />
+                  {regenerating ? 'Regenerating…' : 'Refresh'}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Generated {format(new Date(draft.generated_at), 'EEE MMM d, h:mm a')} · Week of {draft.week_start} – {draft.week_end}
+            </p>
+
+            <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
+              {/* Behavior totals */}
+              {draft.behavior_summary?.total_events != null && (
+                <div className="rounded-lg border border-border/50 p-2.5 bg-card">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Behaviors</p>
+                  <p className="text-lg font-bold text-foreground">{draft.behavior_summary.total_events}</p>
+                  <p className="text-[10px] text-muted-foreground">{draft.behavior_summary.days_with_data || 0} days</p>
+                </div>
+              )}
+
+              {/* Engagement */}
+              {draft.engagement_summary?.engagement_percent != null && (
+                <div className="rounded-lg border border-border/50 p-2.5 bg-card">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Engagement</p>
+                  <p className="text-lg font-bold text-foreground">{draft.engagement_summary.engagement_percent}%</p>
+                  <p className="text-[10px] text-muted-foreground">{draft.engagement_summary.samples_total} samples</p>
+                </div>
+              )}
+
+              {/* Reliability */}
+              {draft.reliability_summary?.reliability_percent != null && (
+                <div className="rounded-lg border border-border/50 p-2.5 bg-card">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Reliability</p>
+                  <p className="text-lg font-bold text-foreground">{draft.reliability_summary.reliability_percent}%</p>
+                  <p className="text-[10px] text-muted-foreground">{draft.reliability_summary.snoozed_prompts || 0} snoozed</p>
+                </div>
+              )}
+
+              {/* ABC */}
+              {draft.abc_summary?.total_abc_events > 0 && (
+                <div className="rounded-lg border border-border/50 p-2.5 bg-card">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">ABC Events</p>
+                  <p className="text-lg font-bold text-foreground">{draft.abc_summary.total_abc_events}</p>
+                  {draft.abc_summary.top_antecedents?.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground truncate">Top: {draft.abc_summary.top_antecedents[0]}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Probes */}
+              {Object.keys(draft.probe_summary || {}).length > 0 && (
+                <div className="rounded-lg border border-border/50 p-2.5 bg-card">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Skill Probes</p>
+                  {Object.entries(draft.probe_summary).slice(0, 2).map(([skill, pct]) => (
+                    <p key={skill} className="text-xs text-foreground">
+                      {skill.replace('_success', '')}: <span className="font-semibold">{String(pct)}%</span>
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {/* Trigger */}
+              {draft.trigger_summary?.total_trigger_events > 0 && (
+                <div className="rounded-lg border border-border/50 p-2.5 bg-card">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Triggers</p>
+                  <p className="text-lg font-bold text-foreground">{draft.trigger_summary.total_trigger_events}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : !selectedClientId ? (
         <p className="text-sm text-muted-foreground">Select a student to view weekly data.</p>
-      ) : !hasData ? (
+      ) : !hasData && !draft ? (
         <p className="text-sm text-muted-foreground">No data for this week.</p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -527,7 +692,7 @@ export const WeeklyDataSummary = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
-                  <BarChart3 className="h-4 w-4 text-orange-500" /> ABC Patterns
+                  <BarChart3 className="h-4 w-4 text-destructive" /> ABC Patterns
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
