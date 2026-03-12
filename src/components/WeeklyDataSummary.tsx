@@ -731,6 +731,11 @@ export const WeeklyDataSummary = () => {
         </div>
       )}
 
+      {/* Multi-Week Trend Charts */}
+      {selectedClientId && (
+        <WeeklyTrendCharts studentId={selectedClientId} />
+      )}
+
       {hasData && (
         <Card>
           <CardHeader className="pb-3">
