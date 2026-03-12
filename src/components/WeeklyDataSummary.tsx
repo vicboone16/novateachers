@@ -17,6 +17,7 @@ import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, 
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
+import { WeeklyTrendCharts } from '@/components/WeeklyTrendCharts';
 
 interface WeeklySummaryDraft {
   summary_id: string;
@@ -728,6 +729,11 @@ export const WeeklyDataSummary = () => {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Multi-Week Trend Charts */}
+      {selectedClientId && (
+        <WeeklyTrendCharts studentId={selectedClientId} />
       )}
 
       {hasData && (
