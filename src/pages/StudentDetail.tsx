@@ -250,6 +250,22 @@ const StudentDetail = () => {
                 readOnly={!isSoloMode && !permissions.can_collect_data}
               />
 
+              {/* Engagement Sampling */}
+              {(isSoloMode || permissions.can_collect_data) && (
+                <EngagementSampler
+                  studentId={client.id}
+                  studentName={displayName(client)}
+                />
+              )}
+
+              {/* Skill Probe */}
+              {(isSoloMode || permissions.can_collect_data) && (
+                <SkillProbe
+                  studentId={client.id}
+                  studentName={displayName(client)}
+                />
+              )}
+
               {/* Data Collection Session */}
               {(isSoloMode || permissions.can_collect_data) && (
                 <DataCollectionSession
