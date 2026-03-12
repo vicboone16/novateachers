@@ -60,6 +60,9 @@ export const WeeklyDataSummary = () => {
   const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
+  const [draft, setDraft] = useState<WeeklySummaryDraft | null>(null);
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const weekStart = useMemo(() => {
     const ref = subWeeks(new Date(), weekOffset);
