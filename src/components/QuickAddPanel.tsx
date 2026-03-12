@@ -330,8 +330,9 @@ export const QuickAddPanel = () => {
       return;
     }
     setAbcSaving(true);
+    markSync('syncing');
     try {
-      const { error } = await supabase.from('abc_logs').insert({
+      const result = await writeWithRetry('abc_logs', {
         client_id: selectedClientId,
         user_id: user?.id,
         antecedent: abcAntecedent,
@@ -340,7 +341,8 @@ export const QuickAddPanel = () => {
         intensity: 3,
         logged_at: new Date().toISOString(),
       });
-      if (error) throw error;
+      if (!result.ok) markSync('queued');
+      else markSync('success');
       // Event stream wiring
       try {
         await logEvent({
