@@ -692,7 +692,7 @@ export const WeeklyDataSummary = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
-                  <BarChart3 className="h-4 w-4 text-orange-500" /> ABC Patterns
+                  <BarChart3 className="h-4 w-4 text-destructive" /> ABC Patterns
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
