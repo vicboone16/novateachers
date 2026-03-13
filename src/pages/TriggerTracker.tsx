@@ -120,10 +120,14 @@ const TriggerTracker = () => {
   };
 
   const saveStudentBehaviors = async (updated: StudentBehavior[]) => {
-    const { error } = await supabase
-      .from('students')
-      .update({ behaviors: updated as any })
-      .eq('id', selectedClientId);
+    // Try clients first, then students fallback
+    let error: any = null;
+    const res1 = await supabase.from('clients').update({ behaviors: updated as any }).eq('id', selectedClientId);
+    error = res1.error;
+    if (error) {
+      const res2 = await supabase.from('students').update({ behaviors: updated as any }).eq('id', selectedClientId);
+      error = res2.error;
+    }
     if (error) {
       toast({ title: 'Error saving behaviors', description: error.message, variant: 'destructive' });
     } else {
