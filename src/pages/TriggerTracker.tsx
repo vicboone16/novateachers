@@ -101,11 +101,15 @@ const TriggerTracker = () => {
   }, [selectedClientId]);
 
   const loadStudentBehaviors = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('behaviors, custom_antecedents, custom_consequences')
-      .eq('id', selectedClientId)
-      .single();
+    // Try clients table first (Core canonical)
+    let data: any = null;
+    const res1 = await supabase.from('clients').select('behaviors, custom_antecedents, custom_consequences').eq('id', selectedClientId).single();
+    if (!res1.error) {
+      data = res1.data;
+    } else {
+      const res2 = await supabase.from('students').select('behaviors, custom_antecedents, custom_consequences').eq('id', selectedClientId).single();
+      if (!res2.error) data = res2.data;
+    }
     if (data?.behaviors) {
       setStudentBehaviors(data.behaviors as StudentBehavior[]);
     } else {
@@ -116,10 +120,14 @@ const TriggerTracker = () => {
   };
 
   const saveStudentBehaviors = async (updated: StudentBehavior[]) => {
-    const { error } = await supabase
-      .from('students')
-      .update({ behaviors: updated as any })
-      .eq('id', selectedClientId);
+    // Try clients first, then students fallback
+    let error: any = null;
+    const res1 = await supabase.from('clients').update({ behaviors: updated as any }).eq('id', selectedClientId);
+    error = res1.error;
+    if (error) {
+      const res2 = await supabase.from('students').update({ behaviors: updated as any }).eq('id', selectedClientId);
+      error = res2.error;
+    }
     if (error) {
       toast({ title: 'Error saving behaviors', description: error.message, variant: 'destructive' });
     } else {
@@ -165,14 +173,19 @@ const TriggerTracker = () => {
     toast({ title: 'Behavior renamed' });
   };
 
+  const updateClientField = async (field: string, value: any) => {
+    let res = await supabase.from('clients').update({ [field]: value } as any).eq('id', selectedClientId);
+    if (res.error) {
+      res = await supabase.from('students').update({ [field]: value } as any).eq('id', selectedClientId);
+    }
+    return res.error;
+  };
+
   const addPersistedAntecedent = async (value: string) => {
     const trimmed = value.trim();
     if (!trimmed || persistedAntecedents.includes(trimmed)) return;
     const updated = [...persistedAntecedents, trimmed];
-    const { error } = await supabase
-      .from('students')
-      .update({ custom_antecedents: updated } as any)
-      .eq('id', selectedClientId);
+    const error = await updateClientField('custom_antecedents', updated);
     if (!error) {
       setPersistedAntecedents(updated);
       setNewAntecedentInput('');
@@ -182,7 +195,7 @@ const TriggerTracker = () => {
 
   const removePersistedAntecedent = async (tag: string) => {
     const updated = persistedAntecedents.filter((t) => t !== tag);
-    await supabase.from('students').update({ custom_antecedents: updated } as any).eq('id', selectedClientId);
+    await updateClientField('custom_antecedents', updated);
     setPersistedAntecedents(updated);
   };
 
@@ -190,10 +203,7 @@ const TriggerTracker = () => {
     const trimmed = value.trim();
     if (!trimmed || persistedConsequences.includes(trimmed)) return;
     const updated = [...persistedConsequences, trimmed];
-    const { error } = await supabase
-      .from('students')
-      .update({ custom_consequences: updated } as any)
-      .eq('id', selectedClientId);
+    const error = await updateClientField('custom_consequences', updated);
     if (!error) {
       setPersistedConsequences(updated);
       setNewConsequenceInput('');
@@ -203,7 +213,7 @@ const TriggerTracker = () => {
 
   const removePersistedConsequence = async (tag: string) => {
     const updated = persistedConsequences.filter((t) => t !== tag);
-    await supabase.from('students').update({ custom_consequences: updated } as any).eq('id', selectedClientId);
+    await updateClientField('custom_consequences', updated);
     setPersistedConsequences(updated);
   };
 

@@ -27,6 +27,8 @@ import InstallApp from "@/pages/InstallApp";
 import ResetPassword from "@/pages/ResetPassword";
 import GuestDataCollection from "@/pages/GuestDataCollection";
 import AdminDashboard from "@/pages/AdminDashboard";
+import DataCollection from "@/pages/DataCollection";
+import TeacherGuide from "@/pages/TeacherGuide";
 
 const queryClient = new QueryClient();
 
@@ -80,9 +82,11 @@ const WorkspaceRoutes = () => {
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
+        <Route path="/collect" element={<DataCollection />} />
+        <Route path="/data-summary" element={<WeeklyDataSummary />} />
+        <Route path="/guide" element={<TeacherGuide />} />
         <Route path="/iep" element={<IEPWriter />} />
         <Route path="/iep-reader" element={<IEPReader />} />
-        <Route path="/data-summary" element={<WeeklyDataSummary />} />
         <Route path="/classrooms" element={<ClassroomManager />} />
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />

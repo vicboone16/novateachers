@@ -17,10 +17,10 @@ import { QuickAddPanel } from '@/components/QuickAddPanel';
 
 const navItems = [
   { to: '/students', label: 'Students', icon: Users },
-  { to: '/tracker', label: 'Trigger Tracker', icon: Activity },
-  { to: '/data-summary', label: 'Data Summary', icon: BarChart3 },
-  { to: '/iep', label: 'IEP Writer', icon: FileText },
-  { to: '/iep-reader', label: 'IEP Reader', icon: BookOpen },
+  { to: '/collect', label: 'Collect', icon: ClipboardList },
+  { to: '/tracker', label: 'Tracker', icon: Activity },
+  { to: '/data-summary', label: 'Summary', icon: BarChart3 },
+  { to: '/guide', label: 'Guide', icon: BookOpen },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
 ];
 

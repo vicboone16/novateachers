@@ -48,13 +48,26 @@ const StudentDetail = () => {
 
   const loadClient = async () => {
     setLoading(true);
-    // Nova Core uses client_id as PK, fallback to id for compatibility
-    let result = await supabase.from('clients').select('*').eq('client_id', id).single();
+    // Try clients table with id first (canonical Core table)
+    let result = await supabase.from('clients').select('*').eq('id', id).single();
     if (result.error) {
-      result = await supabase.from('clients').select('*').eq('id', id).single();
+      // Fallback: try client_id column if Core uses that as PK
+      result = await supabase.from('clients').select('*').eq('client_id', id!).single();
     }
     if (result.error) {
-      result = await supabase.from('students').select('*').eq('id', id).single();
+      // Last resort: re-check via v_teacher_roster to verify access
+      try {
+        const { data: rosterRow } = await supabase
+          .from('v_teacher_roster')
+          .select('client_id')
+          .eq('client_id', id!)
+          .eq('user_id', user?.id || '')
+          .limit(1)
+          .maybeSingle();
+        if (rosterRow?.client_id) {
+          result = await supabase.from('clients').select('*').eq('id', rosterRow.client_id).single();
+        }
+      } catch { /* view may not exist */ }
     }
     if (!result.error && result.data) setClient(normalizeClient(result.data));
     setLoading(false);
@@ -118,9 +131,13 @@ const StudentDetail = () => {
 
   if (!client) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">Student not found</p>
-        <Button variant="link" onClick={() => navigate('/students')}>Back to students</Button>
+      <div className="py-12 text-center space-y-3">
+        <p className="text-muted-foreground">Student not found or access not granted.</p>
+        <p className="text-xs text-muted-foreground">This student may not be on your roster. Check your classroom assignments or shared access.</p>
+        <div className="flex gap-2 justify-center">
+          <Button variant="link" onClick={() => navigate('/students')}>Back to students</Button>
+          <Button variant="outline" size="sm" onClick={loadClient}>Retry</Button>
+        </div>
       </div>
     );
   }
