@@ -13,6 +13,7 @@ import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
+import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
