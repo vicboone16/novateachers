@@ -27,6 +27,8 @@ import InstallApp from "@/pages/InstallApp";
 import ResetPassword from "@/pages/ResetPassword";
 import GuestDataCollection from "@/pages/GuestDataCollection";
 import AdminDashboard from "@/pages/AdminDashboard";
+import DataCollection from "@/pages/DataCollection";
+import TeacherGuide from "@/pages/TeacherGuide";
 
 const queryClient = new QueryClient();
 
