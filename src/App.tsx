@@ -29,6 +29,7 @@ import GuestDataCollection from "@/pages/GuestDataCollection";
 import AdminDashboard from "@/pages/AdminDashboard";
 import DataCollection from "@/pages/DataCollection";
 import TeacherGuide from "@/pages/TeacherGuide";
+import ClassroomView from "@/pages/ClassroomView";
 
 const queryClient = new QueryClient();
 
