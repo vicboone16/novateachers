@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/lib/supabase';
@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 
@@ -179,6 +179,9 @@ export const AppLayout = () => {
               )}
             </NavLink>
           ))}
+
+          {/* IEP dropdown */}
+          <IEPNavDropdown />
         </div>
       </nav>
 
@@ -192,3 +195,39 @@ export const AppLayout = () => {
     </div>
   );
 };
+
+/* ── IEP Nav Dropdown ── */
+function IEPNavDropdown() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isActive = pathname === '/iep' || pathname === '/iep-reader';
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={cn(
+            'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
+            isActive
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <FileText className="h-4 w-4" />
+          IEP
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={() => navigate('/iep')} className="gap-2">
+          <FileEdit className="h-3.5 w-3.5" />
+          IEP Writer
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/iep-reader')} className="gap-2">
+          <FileSearch className="h-3.5 w-3.5" />
+          IEP Reader
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
