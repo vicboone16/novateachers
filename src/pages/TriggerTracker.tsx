@@ -101,11 +101,15 @@ const TriggerTracker = () => {
   }, [selectedClientId]);
 
   const loadStudentBehaviors = async () => {
-    const { data } = await supabase
-      .from('students')
-      .select('behaviors, custom_antecedents, custom_consequences')
-      .eq('id', selectedClientId)
-      .single();
+    // Try clients table first (Core canonical)
+    let data: any = null;
+    const res1 = await supabase.from('clients').select('behaviors, custom_antecedents, custom_consequences').eq('id', selectedClientId).single();
+    if (!res1.error) {
+      data = res1.data;
+    } else {
+      const res2 = await supabase.from('students').select('behaviors, custom_antecedents, custom_consequences').eq('id', selectedClientId).single();
+      if (!res2.error) data = res2.data;
+    }
     if (data?.behaviors) {
       setStudentBehaviors(data.behaviors as StudentBehavior[]);
     } else {
