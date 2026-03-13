@@ -13,6 +13,7 @@ import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
+import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -127,7 +128,8 @@ const ClassroomView = () => {
     // Optimistic update
     setTodayCounts(prev => ({ ...prev, [clientId]: (prev[clientId] || 0) + 1 }));
     setTotalToday(prev => prev + 1);
-    setLastEvents(prev => ({ ...prev, [clientId]: new Date().toISOString() }));
+    const now = new Date().toISOString();
+    setLastEvents(prev => ({ ...prev, [clientId]: now }));
 
     try {
       const result = await writeWithRetry('teacher_frequency_entries', {
@@ -139,6 +141,7 @@ const ClassroomView = () => {
         logged_date: today,
       });
 
+      // Unified event stream (teacher_data_events)
       writeUnifiedEvent({
         studentId: clientId,
         staffId: user.id,
@@ -148,6 +151,39 @@ const ClassroomView = () => {
         eventValue: { behavior: behaviorName, count: 1 },
         sourceModule: 'classroom_view',
       });
+
+      // Core event stream RPC (real-time feed for supervisors)
+      try {
+        await logEvent({
+          clientId,
+          agencyId: effectiveAgencyId,
+          eventType: 'behavior',
+          eventName: behaviorName,
+          value: 1,
+          metadata: { source: 'classroom_view' },
+        });
+      } catch (e) { console.warn('[ClassroomView] logEvent failed (non-blocking):', e); }
+
+      // Escalation detection
+      const esc = trackBehaviorForEscalation(behaviorName);
+      if (esc?.escalated) {
+        try {
+          await createSignal({
+            clientId,
+            agencyId: effectiveAgencyId,
+            signalType: 'escalation',
+            severity: 'action',
+            title: 'Escalation detected',
+            message: `${esc.count} ${esc.behavior} events within 10 minutes`,
+            drivers: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
+            source: { app: 'beacon', trigger: 'escalation_rule' },
+          });
+          toast({ title: '🚨 Escalation alert sent' });
+        } catch (e) { console.warn('[ClassroomView] escalation signal failed:', e); }
+      }
+
+      // Reinforcement gap tracking
+      trackBehaviorForReinforcementGap(clientId);
 
       if (!result.ok) {
         toast({ title: `${behaviorName} queued (offline)`, variant: 'default' });
@@ -166,6 +202,7 @@ const ClassroomView = () => {
 
     toast({ title: `${engaged ? '✓ Engaged' : '✗ Not engaged'}` });
 
+    // Unified event stream (teacher_data_events — immediate Core write)
     writeUnifiedEvent({
       studentId: clientId,
       staffId: user.id,
@@ -175,6 +212,18 @@ const ClassroomView = () => {
       eventValue: { engaged, response_time: new Date().toISOString() },
       sourceModule: 'classroom_view',
     });
+
+    // Core event stream RPC for supervisor live feed
+    try {
+      await logEvent({
+        clientId,
+        agencyId: effectiveAgencyId,
+        eventType: 'context',
+        eventName: 'engagement_check',
+        value: engaged ? 1 : 0,
+        metadata: { engaged, source: 'classroom_view' },
+      });
+    } catch (e) { console.warn('[ClassroomView] logEvent engagement failed:', e); }
   };
 
   const formatTime = (iso: string) => {

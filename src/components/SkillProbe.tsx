@@ -1,15 +1,17 @@
 /**
  * Skill Probe Session Component
  * Simple start/stop workflow with trial-by-trial +/- recording.
- * Writes results to unified event stream.
+ * Writes results to unified event stream AND Core session tables.
  */
 import { useState, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { writeUnifiedEvent } from '@/lib/unified-events';
+import { logEvent } from '@/lib/supervisorSignals';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
@@ -29,43 +31,107 @@ export const SkillProbe = ({ studentId, studentName }: Props) => {
   const [running, setRunning] = useState(false);
   const [trials, setTrials] = useState<boolean[]>([]);
   const startTimeRef = useRef<Date | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
-  const startProbe = () => {
+  const startProbe = async () => {
     if (!skillName.trim()) return;
     setRunning(true);
     setTrials([]);
     startTimeRef.current = new Date();
-  };
 
-  const recordTrial = (correct: boolean) => {
-    setTrials(prev => [...prev, correct]);
-
-    // Write each trial as an event
+    // Create a session row on Core
     if (user) {
-      writeUnifiedEvent({
-        studentId,
-        staffId: user.id,
-        agencyId: effectiveAgencyId,
-        eventType: 'skill_probe',
-        eventSubtype: correct ? 'correct' : 'incorrect',
-        eventValue: {
-          skill_name: skillName,
-          trial_number: trials.length + 1,
-          correct,
-        },
-        sourceModule: 'skill_probe',
-      });
+      const sessionId = crypto.randomUUID();
+      sessionIdRef.current = sessionId;
+      try {
+        await (supabase.from('teacher_data_sessions') as any).insert({
+          id: sessionId,
+          agency_id: effectiveAgencyId,
+          client_id: studentId,
+          user_id: user.id,
+          mode: 'tally',
+          started_at: startTimeRef.current.toISOString(),
+          notes: `Skill probe: ${skillName}`,
+        });
+      } catch (e) { console.warn('[SkillProbe] session create failed (non-blocking):', e); }
     }
   };
 
-  const endProbe = () => {
-    const correct = trials.filter(t => t).length;
-    const total = trials.length;
-    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const recordTrial = async (correct: boolean) => {
+    const trialIndex = trials.length;
+    setTrials(prev => [...prev, correct]);
 
-    // Write summary event
+    if (!user) return;
+
+    // Write trial as a data point on Core
+    if (sessionIdRef.current) {
+      try {
+        await (supabase.from('teacher_data_points') as any).insert({
+          session_id: sessionIdRef.current,
+          value: correct ? 1 : 0,
+          interval_index: trialIndex,
+          occurred_at: new Date().toISOString(),
+          label: correct ? '+' : '-',
+        });
+      } catch (e) { console.warn('[SkillProbe] data point insert failed (non-blocking):', e); }
+    }
+
+    // Unified event stream
+    writeUnifiedEvent({
+      studentId,
+      staffId: user.id,
+      agencyId: effectiveAgencyId,
+      eventType: 'skill_probe',
+      eventSubtype: correct ? 'correct' : 'incorrect',
+      eventValue: {
+        skill_name: skillName,
+        trial_number: trialIndex + 1,
+        correct,
+      },
+      sourceModule: 'skill_probe',
+    });
+
+    // Core event stream RPC
+    try {
+      await logEvent({
+        clientId: studentId,
+        agencyId: effectiveAgencyId,
+        eventType: 'skill_trial',
+        eventName: skillName,
+        value: correct ? 1 : 0,
+        correctness: correct ? '+' : '-',
+        metadata: { trial_number: trialIndex + 1, session_id: sessionIdRef.current },
+      });
+    } catch (e) { console.warn('[SkillProbe] logEvent trial failed:', e); }
+  };
+
+  const endProbe = async () => {
+    const correctCount = trials.filter(t => t).length;
+    const total = trials.length;
+    const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const endedAt = new Date();
+
+    // Close session on Core
+    if (sessionIdRef.current) {
+      try {
+        await (supabase.from('teacher_data_sessions') as any)
+          .update({
+            ended_at: endedAt.toISOString(),
+            summary_json: {
+              skill_name: skillName,
+              trials: total,
+              correct: correctCount,
+              incorrect: total - correctCount,
+              percentage: pct,
+            },
+          })
+          .eq('id', sessionIdRef.current);
+      } catch (e) { console.warn('[SkillProbe] session close failed (non-blocking):', e); }
+    }
+
+    // Write summary to unified events
     if (user) {
       writeUnifiedEvent({
         studentId,
@@ -76,17 +142,19 @@ export const SkillProbe = ({ studentId, studentName }: Props) => {
         eventValue: {
           skill_name: skillName,
           trials: total,
-          correct,
-          incorrect: total - correct,
+          correct: correctCount,
+          incorrect: total - correctCount,
           percentage: pct,
           started_at: startTimeRef.current?.toISOString(),
-          ended_at: new Date().toISOString(),
+          ended_at: endedAt.toISOString(),
+          session_id: sessionIdRef.current,
         },
         sourceModule: 'skill_probe',
       });
     }
 
     setRunning(false);
+    sessionIdRef.current = null;
   };
 
   const resetProbe = () => {
@@ -94,11 +162,12 @@ export const SkillProbe = ({ studentId, studentName }: Props) => {
     setTrials([]);
     setSkillName('');
     startTimeRef.current = null;
+    sessionIdRef.current = null;
   };
 
-  const correct = trials.filter(t => t).length;
+  const correctCount = trials.filter(t => t).length;
   const total = trials.length;
-  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const pct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
   return (
     <Card className="border-border/50">
@@ -169,7 +238,7 @@ export const SkillProbe = ({ studentId, studentName }: Props) => {
               <div className="text-center space-y-2">
                 <p className="text-3xl font-bold text-primary">{pct}%</p>
                 <p className="text-xs text-muted-foreground">
-                  {correct}/{total} correct
+                  {correctCount}/{total} correct
                 </p>
                 <div className="flex flex-wrap gap-1 justify-center">
                   {trials.map((t, i) => (
