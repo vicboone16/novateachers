@@ -80,6 +80,7 @@ const WorkspaceRoutes = () => {
 
       {/* Main app routes */}
       <Route element={<AppLayout />}>
+        <Route path="/classroom" element={<ClassroomView />} />
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
@@ -95,7 +96,7 @@ const WorkspaceRoutes = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/install" element={<InstallApp />} />
-        <Route path="/" element={<Navigate to="/students" replace />} />
+        <Route path="/" element={<Navigate to="/classroom" replace />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
