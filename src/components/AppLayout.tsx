@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/lib/supabase';
@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 
