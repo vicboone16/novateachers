@@ -131,9 +131,13 @@ const StudentDetail = () => {
 
   if (!client) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">Student not found</p>
-        <Button variant="link" onClick={() => navigate('/students')}>Back to students</Button>
+      <div className="py-12 text-center space-y-3">
+        <p className="text-muted-foreground">Student not found or access not granted.</p>
+        <p className="text-xs text-muted-foreground">This student may not be on your roster. Check your classroom assignments or shared access.</p>
+        <div className="flex gap-2 justify-center">
+          <Button variant="link" onClick={() => navigate('/students')}>Back to students</Button>
+          <Button variant="outline" size="sm" onClick={loadClient}>Retry</Button>
+        </div>
       </div>
     );
   }
