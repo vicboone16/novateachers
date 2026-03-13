@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 
 const navItems = [
-  { to: '/classroom', label: 'Classroom', icon: Users },
+  { to: '/classroom', label: 'Classroom', icon: LayoutGrid },
   { to: '/students', label: 'Students', icon: Users },
   { to: '/collect', label: 'Collect', icon: ClipboardList },
   { to: '/tracker', label: 'Tracker', icon: Activity },
