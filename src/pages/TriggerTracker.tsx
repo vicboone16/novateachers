@@ -173,14 +173,19 @@ const TriggerTracker = () => {
     toast({ title: 'Behavior renamed' });
   };
 
+  const updateClientField = async (field: string, value: any) => {
+    let res = await supabase.from('clients').update({ [field]: value } as any).eq('id', selectedClientId);
+    if (res.error) {
+      res = await supabase.from('students').update({ [field]: value } as any).eq('id', selectedClientId);
+    }
+    return res.error;
+  };
+
   const addPersistedAntecedent = async (value: string) => {
     const trimmed = value.trim();
     if (!trimmed || persistedAntecedents.includes(trimmed)) return;
     const updated = [...persistedAntecedents, trimmed];
-    const { error } = await supabase
-      .from('students')
-      .update({ custom_antecedents: updated } as any)
-      .eq('id', selectedClientId);
+    const error = await updateClientField('custom_antecedents', updated);
     if (!error) {
       setPersistedAntecedents(updated);
       setNewAntecedentInput('');
@@ -190,7 +195,7 @@ const TriggerTracker = () => {
 
   const removePersistedAntecedent = async (tag: string) => {
     const updated = persistedAntecedents.filter((t) => t !== tag);
-    await supabase.from('students').update({ custom_antecedents: updated } as any).eq('id', selectedClientId);
+    await updateClientField('custom_antecedents', updated);
     setPersistedAntecedents(updated);
   };
 
@@ -198,10 +203,7 @@ const TriggerTracker = () => {
     const trimmed = value.trim();
     if (!trimmed || persistedConsequences.includes(trimmed)) return;
     const updated = [...persistedConsequences, trimmed];
-    const { error } = await supabase
-      .from('students')
-      .update({ custom_consequences: updated } as any)
-      .eq('id', selectedClientId);
+    const error = await updateClientField('custom_consequences', updated);
     if (!error) {
       setPersistedConsequences(updated);
       setNewConsequenceInput('');
@@ -211,7 +213,7 @@ const TriggerTracker = () => {
 
   const removePersistedConsequence = async (tag: string) => {
     const updated = persistedConsequences.filter((t) => t !== tag);
-    await supabase.from('students').update({ custom_consequences: updated } as any).eq('id', selectedClientId);
+    await updateClientField('custom_consequences', updated);
     setPersistedConsequences(updated);
   };
 
