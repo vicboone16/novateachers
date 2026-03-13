@@ -80,9 +80,11 @@ const WorkspaceRoutes = () => {
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
+        <Route path="/collect" element={<DataCollection />} />
+        <Route path="/data-summary" element={<WeeklyDataSummary />} />
+        <Route path="/guide" element={<TeacherGuide />} />
         <Route path="/iep" element={<IEPWriter />} />
         <Route path="/iep-reader" element={<IEPReader />} />
-        <Route path="/data-summary" element={<WeeklyDataSummary />} />
         <Route path="/classrooms" element={<ClassroomManager />} />
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />
