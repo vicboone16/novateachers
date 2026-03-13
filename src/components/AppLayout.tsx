@@ -179,6 +179,9 @@ export const AppLayout = () => {
               )}
             </NavLink>
           ))}
+
+          {/* IEP dropdown */}
+          <IEPNavDropdown />
         </div>
       </nav>
 
