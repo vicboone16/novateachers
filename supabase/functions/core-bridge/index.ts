@@ -487,6 +487,19 @@ Deno.serve(async (req) => {
       return json({ id: result.data?.id });
     }
 
+    // ─── reload_schema: trigger PostgREST schema cache reload on Core ─
+    if (action === "reload_schema") {
+      const { error } = await core.rpc("pg_notify" as any, { channel: "pgrst", payload: "reload schema" }).maybeSingle();
+      // If RPC doesn't exist, try raw SQL via a custom function — just report status
+      if (error) {
+        return json({ 
+          warning: "pg_notify RPC not available. Run SELECT pg_notify('pgrst', 'reload schema'); manually on Core.",
+          error: error.message 
+        });
+      }
+      return json({ ok: true, message: "PostgREST schema cache reload triggered on Core" });
+    }
+
     return json({ error: `Unknown action: ${action}` }, 400);
   } catch (err) {
     return json({ error: String(err) }, 500);
