@@ -11,20 +11,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    // Nova Core is the authoritative source for clinical data
+    const coreUrl = Deno.env.get('VITE_CORE_SUPABASE_URL')!;
+    const coreServiceKey = Deno.env.get('CORE_SERVICE_ROLE_KEY')!;
+    const core = createClient(coreUrl, coreServiceKey);
+
+    // Lovable Cloud for writing summaries
+    const cloudUrl = Deno.env.get('SUPABASE_URL')!;
+    const cloudKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const cloud = createClient(cloudUrl, cloudKey);
 
     // Calculate current week boundaries (Mon–Fri)
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
+    const dayOfWeek = now.getDay();
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() + mondayOffset);
     weekStart.setHours(0, 0, 0, 0);
 
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 4); // Friday
+    weekEnd.setDate(weekStart.getDate() + 4);
     weekEnd.setHours(23, 59, 59, 999);
 
     const weekStartStr = weekStart.toISOString().slice(0, 10);
@@ -32,16 +38,14 @@ Deno.serve(async (req) => {
     const weekStartTs = weekStart.toISOString();
     const weekEndTs = weekEnd.toISOString();
 
-    // Get all unique staff+student combos that have data this week
-    // from teacher_data_events
-    const { data: eventPairs } = await supabase
+    // Read clinical data from Nova Core
+    const { data: eventPairs } = await core
       .from('teacher_data_events')
       .select('student_id, staff_id, agency_id')
       .gte('recorded_at', weekStartTs)
       .lte('recorded_at', weekEndTs);
 
-    // from teacher_frequency_entries
-    const { data: freqPairs } = await supabase
+    const { data: freqPairs } = await core
       .from('teacher_frequency_entries')
       .select('client_id, user_id, agency_id')
       .gte('logged_date', weekStartStr)
@@ -73,8 +77,8 @@ Deno.serve(async (req) => {
     let draftsSkipped = 0;
 
     for (const combo of combos) {
-      // Check if draft already exists for this week
-      const { data: existing } = await supabase
+      // Check if draft already exists (summaries live on Cloud)
+      const { data: existing } = await cloud
         .from('teacher_weekly_summaries')
         .select('summary_id')
         .eq('student_id', combo.student_id)
@@ -87,8 +91,8 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Aggregate frequency data
-      const { data: freqData } = await supabase
+      // Aggregate frequency data from Core
+      const { data: freqData } = await core
         .from('teacher_frequency_entries')
         .select('behavior_name, count')
         .eq('client_id', combo.student_id)
@@ -101,8 +105,8 @@ Deno.serve(async (req) => {
         behaviorTotals[f.behavior_name] = (behaviorTotals[f.behavior_name] || 0) + f.count;
       }
 
-      // Aggregate duration data
-      const { data: durData } = await supabase
+      // Aggregate duration data from Core
+      const { data: durData } = await core
         .from('teacher_duration_entries')
         .select('behavior_name, duration_seconds')
         .eq('client_id', combo.student_id)
@@ -115,8 +119,8 @@ Deno.serve(async (req) => {
         durationTotals[d.behavior_name] = (durationTotals[d.behavior_name] || 0) + d.duration_seconds;
       }
 
-      // Aggregate unified events
-      const { data: events } = await supabase
+      // Aggregate unified events from Core
+      const { data: events } = await core
         .from('teacher_data_events')
         .select('event_type, event_subtype, event_value')
         .eq('student_id', combo.student_id)
@@ -175,8 +179,8 @@ Deno.serve(async (req) => {
       const schoolDays = 5;
       const daysWithData = allDates.size;
 
-      // Interval settings for expected prompts
-      const { data: intervalSettings } = await supabase
+      // Interval settings from Core
+      const { data: intervalSettings } = await core
         .from('teacher_interval_settings')
         .select('interval_minutes')
         .eq('student_id', combo.student_id)
@@ -184,13 +188,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       const intervalMins = intervalSettings?.interval_minutes || 10;
-      const hoursPerDay = 6; // approximate instructional hours
+      const hoursPerDay = 6;
       const expectedPromptsPerDay = Math.floor((hoursPerDay * 60) / intervalMins);
       const expectedPrompts = expectedPromptsPerDay * daysWithData;
       const completedPrompts = engagementTotal;
       const snoozedPrompts = snoozeEvents.length;
 
-      // Build summary JSONBs
       const behaviorSummary = {
         ...behaviorTotals,
         total_events: Object.values(behaviorTotals).reduce((a, b) => a + b, 0),
@@ -228,8 +231,8 @@ Deno.serve(async (req) => {
         school_days: schoolDays,
       };
 
-      // Insert draft
-      const { error: insertErr } = await supabase
+      // Write summary to Lovable Cloud
+      const { error: insertErr } = await cloud
         .from('teacher_weekly_summaries')
         .insert({
           student_id: combo.student_id,
