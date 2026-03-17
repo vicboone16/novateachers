@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { listMessages, listThread, markMessagesRead, updateMessageStatus, sendMessageViaBridge } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -84,24 +85,11 @@ const Inbox = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Try with parent_id filter (threaded), fallback without it if column missing on Core
-      let data: any[] | null = null;
-      let error: any = null;
-      const baseQuery = () => supabase
-        .from('teacher_messages')
-        .select('*')
-        .or(tab === 'inbox' ? `recipient_id.eq.${user.id}` : `sender_id.eq.${user.id}`);
-
-      ({ data, error } = await baseQuery().is('parent_id', null).order('created_at', { ascending: false }));
-      if (error?.message?.includes('parent_id')) {
-        // parent_id column doesn't exist on Core yet – fall back
-        ({ data, error } = await baseQuery().order('created_at', { ascending: false }));
-      }
+      const { data, error } = await listMessages(user.id, tab);
       if (error) throw error;
-      const msgs = (data || []) as TeacherMessage[];
+      const msgs = (data?.messages || []) as TeacherMessage[];
       setMessages(msgs);
 
-      // Resolve all user names via edge function (profiles + auth metadata fallback)
       const userIds = new Set<string>();
       msgs.forEach(m => { userIds.add(m.sender_id); userIds.add(m.recipient_id); });
       if (userIds.size > 0) {
@@ -117,7 +105,7 @@ const Inbox = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, tab]);
+  }, [user, tab, session?.access_token, toast]);
 
   useEffect(() => {
     loadMessages();
@@ -143,17 +131,12 @@ const Inbox = () => {
 
   const loadThread = async (threadId: string) => {
     setSelectedThread(threadId);
-    const { data, error } = await supabase
-      .from('teacher_messages')
-      .select('*')
-      .eq('thread_id', threadId)
-      .order('created_at', { ascending: true });
+    const { data, error } = await listThread(threadId);
 
-    if (!error && data) {
-      const threadMsgs = data as TeacherMessage[];
+    if (!error && data?.messages) {
+      const threadMsgs = data.messages as TeacherMessage[];
       setThreadMessages(threadMsgs);
 
-      // Resolve names for thread participants via edge function
       const threadUserIds = new Set<string>();
       threadMsgs.forEach(m => { threadUserIds.add(m.sender_id); threadUserIds.add(m.recipient_id); });
       const unknownIds = Array.from(threadUserIds).filter(id => !userNames.has(id));
@@ -166,13 +149,9 @@ const Inbox = () => {
         });
       }
 
-      // Mark unread messages as read
       const unread = threadMsgs.filter(m => !m.is_read && m.recipient_id === user?.id);
       if (unread.length > 0) {
-        await supabase
-          .from('teacher_messages')
-          .update({ is_read: true, read_at: new Date().toISOString(), status: 'read' })
-          .in('id', unread.map(m => m.id));
+        await markMessagesRead(unread.map(m => m.id));
         loadMessages();
       }
     }
@@ -184,30 +163,20 @@ const Inbox = () => {
     try {
       const rootMsg = threadMessages[0];
       const recipientId = rootMsg.sender_id === user.id ? rootMsg.recipient_id : rootMsg.sender_id;
-      const replyPayload: Record<string, any> = {
-        agency_id: currentWorkspace.agency_id,
-        thread_id: selectedThread,
-        sender_id: user.id,
-        recipient_id: recipientId,
-        message_type: 'note',
+      const { data: inserted, error } = await sendMessageViaBridge({
+        agencyId: currentWorkspace.agency_id,
+        threadId: selectedThread,
+        parentId: threadMessages[threadMessages.length - 1]?.id,
+        senderId: user.id,
+        recipientId,
+        messageType: 'note',
         subject: rootMsg.subject ? `Re: ${rootMsg.subject}` : null,
         body: replyText.trim(),
         metadata: { app_source: 'teacher_hub' },
-      };
-      // Try with parent_id first; omit if column doesn't exist on Core
-      let inserted: any = null;
-      let error: any = null;
-      ({ data: inserted, error } = await supabase.from('teacher_messages').insert({
-        ...replyPayload,
-        parent_id: threadMessages[threadMessages.length - 1].id,
-      }).select('id').single());
-      if (error?.message?.includes('parent_id')) {
-        ({ data: inserted, error } = await supabase.from('teacher_messages').insert(replyPayload).select('id').single());
-      }
+      });
       if (error) throw error;
 
-      // Upload attachments if any
-      if (replyFiles.length > 0 && inserted) {
+      if (replyFiles.length > 0 && inserted?.id) {
         await uploadAttachments(inserted.id, user.id, replyFiles);
       }
 
@@ -223,11 +192,8 @@ const Inbox = () => {
 
   const handleMarkReviewed = async (msgId: string) => {
     try {
-      await supabase.from('teacher_messages').update({
-        status: 'reviewed',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: user?.id,
-      }).eq('id', msgId);
+      const { error } = await updateMessageStatus({ messageId: msgId, status: 'reviewed', reviewedBy: user?.id });
+      if (error) throw error;
       toast({ title: 'Marked as reviewed' });
       if (selectedThread) loadThread(selectedThread);
       loadMessages();
@@ -238,7 +204,8 @@ const Inbox = () => {
 
   const handleMarkCompleted = async (msgId: string) => {
     try {
-      await supabase.from('teacher_messages').update({ status: 'completed' }).eq('id', msgId);
+      const { error } = await updateMessageStatus({ messageId: msgId, status: 'completed' });
+      if (error) throw error;
       toast({ title: 'Marked as completed' });
       if (selectedThread) loadThread(selectedThread);
       loadMessages();

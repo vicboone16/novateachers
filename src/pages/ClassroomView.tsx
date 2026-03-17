@@ -2,7 +2,7 @@
  * "Today in My Classroom" — default teacher landing page.
  * Grid of student cards with inline data collection.
  */
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,13 +14,14 @@ import { normalizeClients, displayName, displayInitials } from '@/lib/student-ut
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
+import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Check, X, Play, ExternalLink, Clock, Bell,
-  BarChart3, AlertTriangle, Users,
+  BarChart3, AlertTriangle, Users, Radio,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
@@ -53,6 +54,8 @@ const ClassroomView = () => {
   const [todayCounts, setTodayCounts] = useState<TodayCounts>({});
   const [lastEvents, setLastEvents] = useState<LastEvent>({});
   const [totalToday, setTotalToday] = useState(0);
+  const [liveEvents, setLiveEvents] = useState<CoreBridgeEvent[]>([]);
+  const [seeding, setSeeding] = useState(false);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
@@ -73,7 +76,7 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
-  // Load today's counts
+  // Load today's counts + recent live events
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
@@ -83,38 +86,41 @@ const ClassroomView = () => {
     if (!user) return;
     try {
       const clientIds = clients.map(c => c.id);
-      const { data: freq } = await supabase
-        .from('teacher_frequency_entries')
-        .select('client_id, count')
-        .eq('user_id', user.id)
-        .eq('logged_date', today)
-        .in('client_id', clientIds);
+      const [freqRes, eventsRes] = await Promise.all([
+        supabase
+          .from('teacher_frequency_entries')
+          .select('client_id, count')
+          .eq('user_id', user.id)
+          .eq('logged_date', today)
+          .in('client_id', clientIds),
+        listRecentClassroomEvents({
+          userId: user.id,
+          agencyId: effectiveAgencyId || undefined,
+          studentIds: clientIds,
+          limit: 12,
+        }),
+      ]);
 
       const counts: TodayCounts = {};
       let total = 0;
-      for (const row of (freq || []) as any[]) {
+      for (const row of (freqRes.data || []) as any[]) {
         counts[row.client_id] = (counts[row.client_id] || 0) + (row.count || 1);
         total += row.count || 1;
       }
       setTodayCounts(counts);
       setTotalToday(total);
 
-      // Last events from teacher_data_events
-      const startOfDay = today + 'T00:00:00Z';
-      const { data: events } = await supabase
-        .from('teacher_data_events')
-        .select('student_id, recorded_at')
-        .eq('staff_id', user.id)
-        .gte('recorded_at', startOfDay)
-        .in('student_id', clientIds)
-        .order('recorded_at', { ascending: false });
+      const recent = eventsRes.data?.events || [];
+      setLiveEvents(recent);
 
       const last: LastEvent = {};
-      for (const e of (events || []) as any[]) {
+      for (const e of recent) {
         if (!last[e.student_id]) last[e.student_id] = e.recorded_at;
       }
       setLastEvents(last);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
   const logBehavior = async (clientId: string, behaviorName: string) => {
@@ -202,7 +208,6 @@ const ClassroomView = () => {
 
     toast({ title: `${engaged ? '✓ Engaged' : '✗ Not engaged'}` });
 
-    // Unified event stream (teacher_data_events — immediate Core write)
     writeUnifiedEvent({
       studentId: clientId,
       staffId: user.id,
@@ -213,7 +218,6 @@ const ClassroomView = () => {
       sourceModule: 'classroom_view',
     });
 
-    // Core event stream RPC for supervisor live feed
     try {
       await logEvent({
         clientId,
@@ -223,7 +227,29 @@ const ClassroomView = () => {
         value: engaged ? 1 : 0,
         metadata: { engaged, source: 'classroom_view' },
       });
+      loadTodayCounts();
     } catch (e) { console.warn('[ClassroomView] logEvent engagement failed:', e); }
+  };
+
+  const handleSeedTestData = async () => {
+    if (!user || !effectiveAgencyId || clients.length === 0) return;
+    setSeeding(true);
+    try {
+      const targetStudent = clients[0];
+      const { error } = await seedTeacherEvents({
+        studentId: targetStudent.id,
+        userId: user.id,
+        agencyId: effectiveAgencyId,
+        behavior: 'Aggression',
+      });
+      if (error) throw error;
+      toast({ title: 'Test events seeded' });
+      await loadTodayCounts();
+    } catch (err: any) {
+      toast({ title: 'Seed failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setSeeding(false);
+    }
   };
 
   const formatTime = (iso: string) => {
@@ -242,7 +268,7 @@ const ClassroomView = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -252,6 +278,12 @@ const ClassroomView = () => {
             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
+        {user && effectiveAgencyId && clients.length > 0 && (
+          <Button size="sm" variant="outline" onClick={handleSeedTestData} disabled={seeding} className="gap-1.5">
+            <Radio className="h-3.5 w-3.5" />
+            {seeding ? 'Seeding…' : 'Seed Test Data'}
+          </Button>
+        )}
       </div>
 
       {/* Daily stats bar */}
@@ -268,6 +300,38 @@ const ClassroomView = () => {
         />
         <StatCard label="Active Students" value={Object.keys(todayCounts).length} icon={AlertTriangle} />
       </div>
+
+      {liveEvents.length > 0 && (
+        <Card className="border-border/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-heading">Classroom Today Live Stream</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {liveEvents.map((event) => (
+              <div key={event.event_id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={event.event_type === 'abc_event' ? 'destructive' : 'secondary'}>
+                      {event.event_type === 'abc_event' ? 'ABC' : 'Behavior'}
+                    </Badge>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {event.event_type === 'abc_event'
+                        ? String(event.event_value?.behavior || event.event_subtype || 'ABC event')
+                        : String(event.event_value?.behavior || event.event_subtype || 'Behavior event')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {event.event_type === 'abc_event'
+                      ? `${event.event_value?.antecedent || 'Antecedent'} → ${event.event_value?.consequence || 'Consequence'}`
+                      : `${event.source_module || 'classroom_view'} · count ${event.event_value?.count || 1}`}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatTime(event.recorded_at)}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Student grid */}
       {clients.length === 0 ? (

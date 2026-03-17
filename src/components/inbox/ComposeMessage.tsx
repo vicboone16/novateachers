@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { listRecipients, sendMessageViaBridge } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,30 +64,25 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
   }, [open, currentWorkspace]);
 
   const loadRecipients = async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace || !user) return;
     setLoadingRecipients(true);
     try {
-      // Fetch agency members from Core
-      const { data } = await supabase
-        .from('user_agency_access')
-        .select('user_id')
-        .eq('agency_id', currentWorkspace.agency_id);
-
-      if (data && data.length > 0) {
-        const userIds = data.map((d: any) => d.user_id).filter((id: string) => id !== user?.id);
-        if (userIds.length > 0) {
-          // Resolve names via edge function (profiles + auth metadata fallback)
-          const resolved = await resolveDisplayNames(userIds, session?.access_token);
-          setRecipients(
-            userIds.map(id => ({
-              id,
-              name: resolved.get(id) || id.slice(0, 8),
-            }))
-          );
-        }
+      const { data, error } = await listRecipients({ agencyId: currentWorkspace.agency_id, excludeUserId: user.id });
+      if (error) throw error;
+      const userIds = data?.user_ids || [];
+      if (userIds.length > 0) {
+        const resolved = await resolveDisplayNames(userIds, session?.access_token);
+        setRecipients(
+          userIds.map(id => ({
+            id,
+            name: resolved.get(id) || id.slice(0, 8),
+          }))
+        );
+      } else {
+        setRecipients([]);
       }
     } catch {
-      // Fallback: empty recipients
+      setRecipients([]);
     } finally {
       setLoadingRecipients(false);
     }
@@ -105,23 +100,19 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
     if (!recipientId || !body.trim() || !user || !currentWorkspace) return;
     setSending(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from('teacher_messages')
-        .insert({
-          agency_id: currentWorkspace.agency_id,
-          sender_id: user.id,
-          recipient_id: recipientId,
-          message_type: messageType,
-          subject: subject.trim() || null,
-          body: body.trim(),
-          metadata: { app_source: 'teacher_hub' },
-        })
-        .select('id')
-        .single();
+      const { data: inserted, error } = await sendMessageViaBridge({
+        agencyId: currentWorkspace.agency_id,
+        senderId: user.id,
+        recipientId,
+        messageType: messageType,
+        subject: subject.trim() || null,
+        body: body.trim(),
+        metadata: { app_source: 'teacher_hub' },
+      });
 
       if (error) throw error;
 
-      if (files.length > 0 && inserted) {
+      if (files.length > 0 && inserted?.id) {
         const ok = await uploadAttachments(inserted.id, user.id, files);
         if (!ok) {
           toast({ title: 'Message sent but some attachments failed', variant: 'destructive' });

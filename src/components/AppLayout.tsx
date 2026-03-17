@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/lib/supabase';
+import { countUnreadMessages } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -35,15 +36,10 @@ export const AppLayout = () => {
   const loadUnread = useCallback(async () => {
     if (!user) return;
     try {
-      // Query without parent_id filter — Core may not have this column
-      const { count, error } = await supabase
-        .from('teacher_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('recipient_id', user.id)
-        .eq('is_read', false);
-      if (!error && count !== null) setUnreadCount(count);
+      const { data, error } = await countUnreadMessages(user.id);
+      if (!error) setUnreadCount(data?.count || 0);
     } catch {
-      // Silently handle if table doesn't exist
+      // Silently handle transient errors
     }
   }, [user]);
 
