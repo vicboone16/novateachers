@@ -85,24 +85,11 @@ const Inbox = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Try with parent_id filter (threaded), fallback without it if column missing on Core
-      let data: any[] | null = null;
-      let error: any = null;
-      const baseQuery = () => supabase
-        .from('teacher_messages')
-        .select('*')
-        .or(tab === 'inbox' ? `recipient_id.eq.${user.id}` : `sender_id.eq.${user.id}`);
-
-      ({ data, error } = await baseQuery().is('parent_id', null).order('created_at', { ascending: false }));
-      if (error?.message?.includes('parent_id')) {
-        // parent_id column doesn't exist on Core yet – fall back
-        ({ data, error } = await baseQuery().order('created_at', { ascending: false }));
-      }
+      const { data, error } = await listMessages(user.id, tab);
       if (error) throw error;
-      const msgs = (data || []) as TeacherMessage[];
+      const msgs = (data?.messages || []) as TeacherMessage[];
       setMessages(msgs);
 
-      // Resolve all user names via edge function (profiles + auth metadata fallback)
       const userIds = new Set<string>();
       msgs.forEach(m => { userIds.add(m.sender_id); userIds.add(m.recipient_id); });
       if (userIds.size > 0) {
@@ -118,7 +105,7 @@ const Inbox = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, tab]);
+  }, [user, tab, session?.access_token, toast]);
 
   useEffect(() => {
     loadMessages();
