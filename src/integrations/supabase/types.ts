@@ -692,52 +692,52 @@ export type Database = {
       notification_preferences: {
         Row: {
           admin_alerts: boolean
+          caregiver_messages: boolean
           created_at: string
+          data_log_reminders: boolean
           escalation_alerts: boolean
           id: string
           local_reminders_enabled: boolean
-          note_completion_reminders: boolean
-          parent_messages: boolean
           push_enabled: boolean
           quiet_hours_enabled: boolean
           quiet_hours_end: string | null
           quiet_hours_start: string | null
+          session_note_reminders: boolean
           supervision_reminders: boolean
-          teacher_log_reminders: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
           admin_alerts?: boolean
+          caregiver_messages?: boolean
           created_at?: string
+          data_log_reminders?: boolean
           escalation_alerts?: boolean
           id?: string
           local_reminders_enabled?: boolean
-          note_completion_reminders?: boolean
-          parent_messages?: boolean
           push_enabled?: boolean
           quiet_hours_enabled?: boolean
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          session_note_reminders?: boolean
           supervision_reminders?: boolean
-          teacher_log_reminders?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
           admin_alerts?: boolean
+          caregiver_messages?: boolean
           created_at?: string
+          data_log_reminders?: boolean
           escalation_alerts?: boolean
           id?: string
           local_reminders_enabled?: boolean
-          note_completion_reminders?: boolean
-          parent_messages?: boolean
           push_enabled?: boolean
           quiet_hours_enabled?: boolean
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          session_note_reminders?: boolean
           supervision_reminders?: boolean
-          teacher_log_reminders?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -1533,6 +1533,8 @@ export type Database = {
           admin_alerts: boolean | null
           allow_user_override: boolean | null
           app_environment: string | null
+          caregiver_messages: boolean | null
+          data_log_reminders: boolean | null
           default_name: string | null
           default_schedule_id: string | null
           effective_days_of_week: number[] | null
@@ -1549,20 +1551,18 @@ export type Database = {
           local_reminders_enabled: boolean | null
           message_body: string | null
           message_title: string | null
-          note_completion_reminders: boolean | null
           notifications_enabled: boolean | null
           override_enabled: boolean | null
           override_id: string | null
-          parent_messages: boolean | null
           push_enabled: boolean | null
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
           reminder_key: string | null
           reminder_type: string | null
+          session_note_reminders: boolean | null
           source_scope_type: string | null
           supervision_reminders: boolean | null
-          teacher_log_reminders: boolean | null
           user_id: string | null
         }
         Relationships: []
