@@ -25,6 +25,7 @@ const BRIDGE_ACTION_MAP: Record<string, string> = {
   teacher_duration_entries: 'write_duration',
   abc_logs: 'write_abc',
   teacher_data_events: 'write_event',
+  teacher_quick_notes: 'write_quick_note',
 };
 
 function getQueue(): QueuedWrite[] {

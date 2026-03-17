@@ -246,6 +246,27 @@ Deno.serve(async (req) => {
       return json({ ok: true, event_id: data?.event_id });
     }
 
+    // ─── write_quick_note (bridged, schema-adaptive) ────────────────
+    if (action === "write_quick_note") {
+      const uid = String(body.user_id || "");
+      const cid = String(body.client_id || "");
+      const aid = String(body.agency_id || "");
+      const note = String(body.note || "");
+      const bn = body.behavior_name ? String(body.behavior_name) : null;
+      const ex: Record<string, unknown> = {};
+      if (body.target_id) ex.target_id = String(body.target_id);
+
+      const variants = [
+        { agency_id: aid, client_id: cid, user_id: uid, note, behavior_name: bn, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, note, behavior_name: bn, ...ex },
+        { agency_id: aid, student_id: cid, staff_id: uid, note, behavior_name: bn, ...ex },
+      ];
+
+      const { data, error } = await adaptiveInsert("teacher_quick_notes", variants);
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
     // ─── list_recent_classroom_events ──────────────────────────────
     if (action === "list_recent_classroom_events") {
       const userId = String(body.user_id || "");
