@@ -53,15 +53,17 @@ const JoinInvite = () => {
     setRedeeming(true);
 
     try {
-      // Try canonical slug first, fall back to legacy for old codes
+      // Try canonical slug first
       let { data, error: rpcError } = await supabase.rpc('redeem_invite_code', {
         p_code: parsed.data,
         p_expected_app_context: 'novateachers',
         p_redeemer_id: user.id,
       });
 
-      // Backward compat: retry with legacy slug if code wasn't found
-      if (data && Array.isArray(data) && data.length > 0 && !data[0].redeemed) {
+      const firstResult = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
+      // Backward compat: if app_context mismatch (not redeemed), retry with legacy slug
+      if (firstResult && !firstResult.redeemed && String(firstResult.message || '').toLowerCase().includes('app context')) {
         const retryResult = await supabase.rpc('redeem_invite_code', {
           p_code: parsed.data,
           p_expected_app_context: 'novatrack_teacher',
