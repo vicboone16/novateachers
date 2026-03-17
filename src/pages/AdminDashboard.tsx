@@ -199,6 +199,10 @@ const AdminDashboard = () => {
       .select('*')
       .eq('user_id', user.id);
     setDebugOverrides(ov || []);
+
+    // Effective reminders summary
+    const summary = await getReminderSummary();
+    setDebugEffective(summary);
   };
 
   useEffect(() => {
