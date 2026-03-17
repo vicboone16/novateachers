@@ -317,7 +317,7 @@ const Inbox = () => {
                 ref={el => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
               >
                 <Card className={cn(
-                  msg.sender_id === user?.id ? 'ml-8' : 'mr-8',
+                  msg.sender_id === user?.id ? 'ml-2 sm:ml-8' : 'mr-2 sm:mr-8',
                   'transition-all duration-300',
                   highlightedMsgId === msg.id && 'ring-2 ring-primary/50 bg-primary/5'
                 )}>
