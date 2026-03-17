@@ -56,7 +56,7 @@ const GenerateInvite = () => {
   // Form state
   const [scope, setScope] = useState<string>('agency');
   const [roleSlug, setRoleSlug] = useState('teacher');
-  const [appContext, setAppContext] = useState('novatrack_teacher');
+  const [appContext, setAppContext] = useState('novateachers');
   const [maxUses, setMaxUses] = useState(10);
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [groupId, setGroupId] = useState('');

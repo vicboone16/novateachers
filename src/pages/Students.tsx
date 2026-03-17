@@ -225,7 +225,7 @@ const Students = () => {
           diagnoses: diagnosesIdx !== -1 && cols[diagnosesIdx] ? cols[diagnosesIdx].split(';').map(d => d.trim()).filter(Boolean) : null,
           agency_id: currentWorkspace.agency_id,
           student_origin: 'solo_teacher',
-          created_in_app: 'novatrack_teacher',
+          created_in_app: 'novateachers',
           funding_mode: 'education',
         });
       }
