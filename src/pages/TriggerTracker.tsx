@@ -616,24 +616,26 @@ const TriggerTracker = () => {
           </div>
 
           <Tabs defaultValue="log" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="log" className="gap-1.5">
-                <Zap className="h-3.5 w-3.5" />
-                Quick Log
-              </TabsTrigger>
-              <TabsTrigger value="behaviors" className="gap-1.5">
-                <ListChecks className="h-3.5 w-3.5" />
-                Behaviors
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                History
-              </TabsTrigger>
-              <TabsTrigger value="charts" className="gap-1.5">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Charts
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scroll-x-mobile -mx-3 px-3 sm:mx-0 sm:px-0">
+              <TabsList className="w-max sm:w-auto">
+                <TabsTrigger value="log" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <Zap className="h-3.5 w-3.5" />
+                  Log
+                </TabsTrigger>
+                <TabsTrigger value="behaviors" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Behaviors
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <Clock className="h-3.5 w-3.5" />
+                  History
+                </TabsTrigger>
+                <TabsTrigger value="charts" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Charts
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* QUICK LOG TAB */}
             <TabsContent value="log">

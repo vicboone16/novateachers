@@ -170,22 +170,24 @@ const StudentDetail = () => {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <TabsList className="bg-muted/60 p-1">
-          <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
-            <User className="h-3.5 w-3.5" /> Overview
-          </TabsTrigger>
-          {(isSoloMode || permissions.can_collect_data) && (
-            <TabsTrigger value="data" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
-              <Activity className="h-3.5 w-3.5" /> Data
+        <div className="overflow-x-auto scroll-x-mobile -mx-3 px-3 sm:mx-0 sm:px-0">
+          <TabsList className="bg-muted/60 p-1 w-max sm:w-auto">
+            <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+              <User className="h-3.5 w-3.5" /> Overview
             </TabsTrigger>
-          )}
-          <TabsTrigger value="iep" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
-            <FileText className="h-3.5 w-3.5" /> IEP
-          </TabsTrigger>
-          <TabsTrigger value="fba-bip" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all">
-            <Brain className="h-3.5 w-3.5" /> FBA/BIP
-          </TabsTrigger>
-        </TabsList>
+            {(isSoloMode || permissions.can_collect_data) && (
+              <TabsTrigger value="data" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+                <Activity className="h-3.5 w-3.5" /> Data
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="iep" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+              <FileText className="h-3.5 w-3.5" /> IEP
+            </TabsTrigger>
+            <TabsTrigger value="fba-bip" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+              <Brain className="h-3.5 w-3.5" /> FBA/BIP
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ── OVERVIEW ── */}
         <TabsContent value="overview" className="animate-in fade-in-50 duration-300">

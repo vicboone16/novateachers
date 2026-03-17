@@ -431,8 +431,8 @@ export const QuickAddPanel = () => {
         <div className="border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.15)] max-h-[70vh] overflow-y-auto">
           <div className="mx-auto max-w-3xl px-3 sm:px-6 py-4 sm:py-5 space-y-4">
             {/* Student + Behavior selectors */}
-            <div className="flex flex-wrap gap-3">
-              <div className="min-w-[180px] flex-1 max-w-xs">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
+              <div className="w-full sm:min-w-[180px] sm:flex-1 sm:max-w-xs">
                 <Select value={selectedClientId} onValueChange={setSelectedClientId}>
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Select student…" />
@@ -445,7 +445,7 @@ export const QuickAddPanel = () => {
                 </Select>
               </div>
               {selectedClientId && behaviorNames.length > 0 && (
-                <div className="min-w-[180px] flex-1 max-w-xs">
+                <div className="w-full sm:min-w-[180px] sm:flex-1 sm:max-w-xs">
                   <Select value={selectedBehavior} onValueChange={setSelectedBehavior}>
                     <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Select behavior…" />

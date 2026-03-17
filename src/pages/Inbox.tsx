@@ -396,11 +396,11 @@ const Inbox = () => {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">Inbox</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Inbox</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Messages from your supervisors and team
           </p>
         </div>
@@ -408,7 +408,7 @@ const Inbox = () => {
           {unreadCount > 0 && (
             <Badge variant="destructive" className="text-xs">{unreadCount} unread</Badge>
           )}
-          <Button onClick={() => setComposeOpen(true)} className="gap-1.5">
+          <Button onClick={() => setComposeOpen(true)} className="gap-1.5" size="sm">
             <Send className="h-3.5 w-3.5" />
             Compose
           </Button>

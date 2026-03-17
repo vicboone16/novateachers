@@ -456,33 +456,35 @@ const Students = () => {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative max-w-xs flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search students…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
-        <Select value={gradeFilter} onValueChange={setGradeFilter}>
-          <SelectTrigger className="w-28"><SelectValue placeholder="Grade" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Grades</SelectItem>
-            {availableGrades.map(g => <SelectItem key={g} value={g!}>Grade {g}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <div className="flex gap-1.5">
-          <Button variant={chipFilter === 'all' ? 'default' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setChipFilter('all')}>All</Button>
-          <Button variant={chipFilter === 'iep_due' ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1" onClick={() => setChipFilter('iep_due')}>
-            <CalendarClock className="h-3 w-3" />IEP Due Soon
-          </Button>
-          <Button variant={chipFilter === 'new' ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1" onClick={() => setChipFilter('new')}>
-            <Sparkles className="h-3 w-3" />New
-          </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={gradeFilter} onValueChange={setGradeFilter}>
+            <SelectTrigger className="w-28"><SelectValue placeholder="Grade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Grades</SelectItem>
+              {availableGrades.map(g => <SelectItem key={g} value={g!}>Grade {g}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex gap-1.5 overflow-x-auto scroll-x-mobile">
+            <Button variant={chipFilter === 'all' ? 'default' : 'outline'} size="sm" className="h-8 text-xs shrink-0" onClick={() => setChipFilter('all')}>All</Button>
+            <Button variant={chipFilter === 'iep_due' ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => setChipFilter('iep_due')}>
+              <CalendarClock className="h-3 w-3" />IEP Due
+            </Button>
+            <Button variant={chipFilter === 'new' ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1 shrink-0" onClick={() => setChipFilter('new')}>
+              <Sparkles className="h-3 w-3" />New
+            </Button>
+          </div>
+          {!isSoloMode && isAdmin && (
+            <Button variant={viewAll ? 'default' : 'outline'} size="sm" className="gap-1.5 whitespace-nowrap h-8 text-xs" onClick={() => setViewAll(v => !v)}>
+              {viewAll ? <Eye className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {viewAll ? 'Agency' : 'View All'}
+            </Button>
+          )}
         </div>
-        {!isSoloMode && isAdmin && (
-          <Button variant={viewAll ? 'default' : 'outline'} size="sm" className="gap-1.5 whitespace-nowrap h-8 text-xs" onClick={() => setViewAll(v => !v)}>
-            {viewAll ? <Eye className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            {viewAll ? 'Current Agency' : 'View All'}
-          </Button>
-        )}
       </div>
 
       {/* Classroom headers when on classrooms tab */}
