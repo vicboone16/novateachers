@@ -173,7 +173,7 @@ const Students = () => {
         next_iep_review_date: form.next_iep_review_date || null,
         diagnoses: diagnosesArr.length > 0 ? diagnosesArr : null,
         funding_mode: form.funding_mode || 'education',
-        agency_id: currentWorkspace.agency_id, student_origin: 'solo_teacher', created_in_app: 'novatrack_teacher',
+        agency_id: currentWorkspace.agency_id, student_origin: 'solo_teacher', created_in_app: 'novateachers',
       });
       if (error) throw error;
       toast({ title: 'Student added' });
