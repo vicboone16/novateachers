@@ -16,14 +16,20 @@ import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
-  Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2,
+  Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
 } from 'lucide-react';
+import { NOTIFICATION_LABELS } from '@/lib/notifications';
 
 // ── Types ──
 interface InviteCode {
@@ -320,6 +326,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="invites" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Key className="h-3.5 w-3.5" /> Invites</TabsTrigger>
               <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
               <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
+              <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
             </TabsList>
           </div>
 
@@ -602,6 +609,88 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             ))}
+          </TabsContent>
+
+          {/* ═══════════════ DEBUG ═══════════════ */}
+          <TabsContent value="debug" className="space-y-4 mt-4">
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Bug className="h-4 w-4 text-primary" /> System State</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <IdRow label="User ID" value={user?.id || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Email" value={user?.email || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Display Name" value={user?.user_metadata?.full_name || 'Not set'} onCopy={copyToClipboard} />
+                <IdRow label="Agency ID" value={currentWorkspace?.agency_id || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Workspace" value={currentWorkspace?.name || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Mode" value={currentWorkspace?.mode || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Role" value={isAdmin ? 'Admin' : 'Member'} onCopy={copyToClipboard} />
+                <IdRow label="Students" value={String(students.length)} onCopy={copyToClipboard} />
+                <IdRow label="Staff" value={String(staff.length)} onCopy={copyToClipboard} />
+                <IdRow label="Classrooms" value={String(classrooms.length)} onCopy={copyToClipboard} />
+                <IdRow label="Invite Codes" value={String(inviteCodes.length)} onCopy={copyToClipboard} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Notification Keys</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {Object.entries(NOTIFICATION_LABELS).map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-2 py-1 border-b border-border/30 last:border-0">
+                    <code className="text-xs font-mono text-muted-foreground flex-1">{key}</code>
+                    <span className="text-xs text-foreground">{label}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-destructive/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2 text-destructive"><LogOut className="h-4 w-4" /> Danger Zone</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="gap-1.5">
+                      <LogOut className="h-3.5 w-3.5" />
+                      Clear Auth & Sign Out
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear authentication?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will clear all local auth state and sign you out. You will need to log in again.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          try {
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            await supabase.auth.signOut();
+                            await cloudSupabase.auth.signOut();
+                            window.location.href = '/';
+                          } catch {
+                            window.location.href = '/';
+                          }
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Clear & Sign Out
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Clears localStorage, sessionStorage, and both Core + Cloud auth sessions.
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}

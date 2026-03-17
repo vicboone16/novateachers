@@ -602,6 +602,96 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_defaults: {
+        Row: {
+          category: string
+          created_at: string
+          default_enabled: boolean
+          default_schedule_days: string[] | null
+          default_schedule_time: string | null
+          description: string | null
+          id: string
+          label: string
+          notification_key: string
+          sort_order: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          default_enabled?: boolean
+          default_schedule_days?: string[] | null
+          default_schedule_time?: string | null
+          description?: string | null
+          id?: string
+          label: string
+          notification_key: string
+          sort_order?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          default_enabled?: boolean
+          default_schedule_days?: string[] | null
+          default_schedule_time?: string | null
+          description?: string | null
+          id?: string
+          label?: string
+          notification_key?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          agency_id: string | null
+          created_at: string
+          email_enabled: boolean
+          enabled: boolean
+          id: string
+          in_app_enabled: boolean
+          notification_key: string
+          push_enabled: boolean
+          quiet_end: string | null
+          quiet_start: string | null
+          schedule_days: string[] | null
+          schedule_time: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string
+          email_enabled?: boolean
+          enabled?: boolean
+          id?: string
+          in_app_enabled?: boolean
+          notification_key: string
+          push_enabled?: boolean
+          quiet_end?: string | null
+          quiet_start?: string | null
+          schedule_days?: string[] | null
+          schedule_time?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string
+          email_enabled?: boolean
+          enabled?: boolean
+          id?: string
+          in_app_enabled?: boolean
+          notification_key?: string
+          push_enabled?: boolean
+          quiet_end?: string | null
+          quiet_start?: string | null
+          schedule_days?: string[] | null
+          schedule_time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pending_student_changes: {
         Row: {
           agency_id: string
@@ -641,6 +731,36 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      push_tokens: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          platform?: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

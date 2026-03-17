@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, LogOut, ArrowRight, Pencil, Check, X, Link2, KeyRound, Users, Shield, Trash2 } from 'lucide-react';
+import { Building2, LogOut, ArrowRight, Pencil, Check, X, Link2, KeyRound, Users, Shield, Trash2, Bell } from 'lucide-react';
 
 interface TeamMember {
   membership_id: string;
@@ -227,6 +227,19 @@ const Settings = () => {
               Switch Workspace
             </Button>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Notifications */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">Notifications</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" size="sm" className="gap-1.5 w-full justify-start" onClick={() => navigate('/notifications')}>
+            <Bell className="h-3.5 w-3.5" />
+            Notification Settings
+          </Button>
         </CardContent>
       </Card>
 
