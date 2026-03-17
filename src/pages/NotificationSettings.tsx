@@ -20,10 +20,10 @@ const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 interface NotifPrefs {
   push_enabled: boolean;
   local_reminders_enabled: boolean;
-  teacher_log_reminders: boolean;
+  data_log_reminders: boolean;
   escalation_alerts: boolean;
-  note_completion_reminders: boolean;
-  parent_messages: boolean;
+  session_note_reminders: boolean;
+  caregiver_messages: boolean;
   supervision_reminders: boolean;
   admin_alerts: boolean;
   quiet_hours_enabled: boolean;
