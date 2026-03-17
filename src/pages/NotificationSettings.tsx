@@ -487,6 +487,7 @@ const NotificationSettings = () => {
                           {sched.local_enabled && <Badge variant="secondary" className="text-[9px]">Local</Badge>}
                           {sched.remote_enabled && <Badge variant="secondary" className="text-[9px]">Remote</Badge>}
                           {!canOverride && <Badge variant="destructive" className="text-[9px]">Locked</Badge>}
+                          {sched.scope_type === 'user' && <Badge className="text-[9px] bg-accent text-accent-foreground">My Schedule</Badge>}
                           {summaryItem && (
                             <Badge variant="outline" className="text-[8px] text-muted-foreground">
                               src: {summaryItem.source}
