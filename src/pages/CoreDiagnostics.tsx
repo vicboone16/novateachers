@@ -63,6 +63,19 @@ const CoreDiagnosticsPage = () => {
 
       {data && (
         <>
+          {/* PostgREST hint */}
+          {data.note && (
+            <Card className="border-amber-500/40 bg-amber-500/5">
+              <CardContent className="py-3 px-4">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">⚠️ PostgREST Schema Cache Note</p>
+                <p className="text-xs text-muted-foreground mt-1">{data.note}</p>
+                <code className="block mt-2 text-[11px] bg-muted/50 rounded px-2 py-1 font-mono">
+                  SELECT pg_notify('pgrst', 'reload schema');
+                </code>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Summary bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <SummaryCard label="Tables Found" value={existingTables.length} total={tableEntries.length} />
