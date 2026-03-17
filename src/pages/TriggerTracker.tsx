@@ -541,11 +541,11 @@ const TriggerTracker = () => {
   );
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">Trigger Tracker</h2>
-          <p className="text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Trigger Tracker</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Fast ABC logging and behavior analysis</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -566,12 +566,12 @@ const TriggerTracker = () => {
             disabled={!selectedClientId}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Notify Supervisor</span>
+            <span className="hidden sm:inline">Notify</span>
           </Button>
         </div>
       </div>
 
-      <div className="max-w-sm">
+      <div className="w-full sm:max-w-sm">
         <Label className="mb-2 block text-xs text-muted-foreground">Select Student</Label>
         <Select value={selectedClientId} onValueChange={setSelectedClientId}>
           <SelectTrigger>
@@ -616,24 +616,26 @@ const TriggerTracker = () => {
           </div>
 
           <Tabs defaultValue="log" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="log" className="gap-1.5">
-                <Zap className="h-3.5 w-3.5" />
-                Quick Log
-              </TabsTrigger>
-              <TabsTrigger value="behaviors" className="gap-1.5">
-                <ListChecks className="h-3.5 w-3.5" />
-                Behaviors
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                History
-              </TabsTrigger>
-              <TabsTrigger value="charts" className="gap-1.5">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Charts
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scroll-x-mobile -mx-3 px-3 sm:mx-0 sm:px-0">
+              <TabsList className="w-max sm:w-auto">
+                <TabsTrigger value="log" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <Zap className="h-3.5 w-3.5" />
+                  Log
+                </TabsTrigger>
+                <TabsTrigger value="behaviors" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Behaviors
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <Clock className="h-3.5 w-3.5" />
+                  History
+                </TabsTrigger>
+                <TabsTrigger value="charts" className="gap-1 sm:gap-1.5 text-xs sm:text-sm">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Charts
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* QUICK LOG TAB */}
             <TabsContent value="log">

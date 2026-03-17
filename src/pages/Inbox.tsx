@@ -269,31 +269,35 @@ const Inbox = () => {
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => { setSelectedThread(null); setThreadMessages([]); }}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <Badge className={cn('text-xs', typeConfig?.color)}>{typeConfig?.label}</Badge>
-              <h3 className="font-semibold">{rootMsg?.subject || 'No subject'}</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => { setSelectedThread(null); setThreadMessages([]); }} className="shrink-0">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={cn('text-xs shrink-0', typeConfig?.color)}>{typeConfig?.label}</Badge>
+                <h3 className="font-semibold truncate">{rootMsg?.subject || 'No subject'}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {userNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {userNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
-            </p>
           </div>
-          {rootMsg && rootMsg.recipient_id === user?.id && rootMsg.status !== 'reviewed' && rootMsg.status !== 'completed' && (
-            <Button size="sm" variant="outline" onClick={() => handleMarkReviewed(rootMsg.id)} className="gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Mark Reviewed
-            </Button>
-          )}
-          {rootMsg && rootMsg.message_type === 'action_item' && rootMsg.status !== 'completed' && (
-            <Button size="sm" onClick={() => handleMarkCompleted(rootMsg.id)} className="gap-1.5">
-              <ClipboardCheck className="h-3.5 w-3.5" />
-              Complete
-            </Button>
-          )}
+          <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
+            {rootMsg && rootMsg.recipient_id === user?.id && rootMsg.status !== 'reviewed' && rootMsg.status !== 'completed' && (
+              <Button size="sm" variant="outline" onClick={() => handleMarkReviewed(rootMsg.id)} className="gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Mark</span> Reviewed
+              </Button>
+            )}
+            {rootMsg && rootMsg.message_type === 'action_item' && rootMsg.status !== 'completed' && (
+              <Button size="sm" onClick={() => handleMarkCompleted(rootMsg.id)} className="gap-1.5">
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Complete
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Messages in thread */}
@@ -317,7 +321,7 @@ const Inbox = () => {
                 ref={el => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
               >
                 <Card className={cn(
-                  msg.sender_id === user?.id ? 'ml-8' : 'mr-8',
+                  msg.sender_id === user?.id ? 'ml-2 sm:ml-8' : 'mr-2 sm:mr-8',
                   'transition-all duration-300',
                   highlightedMsgId === msg.id && 'ring-2 ring-primary/50 bg-primary/5'
                 )}>
@@ -372,7 +376,7 @@ const Inbox = () => {
 
         {/* Reply box */}
         <div className="space-y-2">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Textarea
               value={replyText}
               onChange={e => setReplyText(e.target.value)}
@@ -380,7 +384,7 @@ const Inbox = () => {
               rows={2}
               className="flex-1"
             />
-            <Button onClick={handleReply} disabled={sending || !replyText.trim()} className="self-end gap-1.5">
+            <Button onClick={handleReply} disabled={sending || !replyText.trim()} className="self-end sm:self-end gap-1.5 w-full sm:w-auto">
               <Send className="h-3.5 w-3.5" />
               {sending ? 'Sending…' : 'Reply'}
             </Button>
@@ -392,11 +396,11 @@ const Inbox = () => {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">Inbox</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Inbox</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Messages from your supervisors and team
           </p>
         </div>
@@ -404,7 +408,7 @@ const Inbox = () => {
           {unreadCount > 0 && (
             <Badge variant="destructive" className="text-xs">{unreadCount} unread</Badge>
           )}
-          <Button onClick={() => setComposeOpen(true)} className="gap-1.5">
+          <Button onClick={() => setComposeOpen(true)} className="gap-1.5" size="sm">
             <Send className="h-3.5 w-3.5" />
             Compose
           </Button>

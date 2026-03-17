@@ -283,16 +283,16 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} className="shrink-0">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} className="shrink-0 self-start">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex-1">
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">Admin Dashboard</h2>
-          <p className="text-sm text-muted-foreground">Manage all entities, IDs, and overrides</p>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Admin Dashboard</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage all entities, IDs, and overrides</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={loadAll}>
+        <Button variant="outline" size="sm" className="gap-1.5 self-start sm:self-auto" onClick={loadAll}>
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
         </Button>
       </div>
@@ -314,12 +314,14 @@ const AdminDashboard = () => {
         </div>
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="ids" className="gap-1.5"><Hash className="h-3.5 w-3.5" /> All IDs</TabsTrigger>
-            <TabsTrigger value="invites" className="gap-1.5"><Key className="h-3.5 w-3.5" /> Invite Codes</TabsTrigger>
-            <TabsTrigger value="students" className="gap-1.5"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
-            <TabsTrigger value="staff" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scroll-x-mobile -mx-3 px-3 sm:mx-0 sm:px-0">
+            <TabsList className="w-max sm:w-full sm:justify-start">
+              <TabsTrigger value="ids" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Hash className="h-3.5 w-3.5" /> IDs</TabsTrigger>
+              <TabsTrigger value="invites" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Key className="h-3.5 w-3.5" /> Invites</TabsTrigger>
+              <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
+              <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ═══════════════ ALL IDs ═══════════════ */}
           <TabsContent value="ids" className="space-y-4 mt-4">

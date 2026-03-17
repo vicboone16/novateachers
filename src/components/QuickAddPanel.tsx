@@ -412,27 +412,27 @@ export const QuickAddPanel = () => {
   if (!currentWorkspace) return null;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50">
+    <div className="fixed bottom-0 inset-x-0 z-50 safe-bottom">
       {/* Toggle button + sync indicator */}
       <div className="mx-auto max-w-3xl px-4 flex items-end justify-center gap-2">
         <SyncStatusIndicator lastStatus={syncStatus} className="mb-1" />
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 rounded-t-lg bg-primary px-6 py-3 text-primary-foreground text-base font-semibold shadow-lg hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 rounded-t-lg bg-primary px-4 sm:px-6 py-2.5 sm:py-3 text-primary-foreground text-sm sm:text-base font-semibold shadow-lg hover:bg-primary/90 transition-colors"
         >
-          <Zap className="h-5 w-5" />
+          <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
           Quick Add
-          {expanded ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+          {expanded ? <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" /> : <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />}
         </button>
       </div>
 
       {/* Panel */}
       {expanded && (
-        <div className="border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
-          <div className="mx-auto max-w-3xl px-6 py-5 space-y-4">
+        <div className="border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.15)] max-h-[70vh] overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-3 sm:px-6 py-4 sm:py-5 space-y-4">
             {/* Student + Behavior selectors */}
-            <div className="flex flex-wrap gap-3">
-              <div className="min-w-[180px] flex-1 max-w-xs">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
+              <div className="w-full sm:min-w-[180px] sm:flex-1 sm:max-w-xs">
                 <Select value={selectedClientId} onValueChange={setSelectedClientId}>
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Select student…" />
@@ -445,7 +445,7 @@ export const QuickAddPanel = () => {
                 </Select>
               </div>
               {selectedClientId && behaviorNames.length > 0 && (
-                <div className="min-w-[180px] flex-1 max-w-xs">
+                <div className="w-full sm:min-w-[180px] sm:flex-1 sm:max-w-xs">
                   <Select value={selectedBehavior} onValueChange={setSelectedBehavior}>
                     <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Select behavior…" />
