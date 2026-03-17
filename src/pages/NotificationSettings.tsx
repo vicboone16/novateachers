@@ -72,10 +72,10 @@ interface ReminderInfo {
 const PREF_TOGGLE_KEYS: { key: keyof NotifPrefs; label: string }[] = [
   { key: 'push_enabled', label: 'Push Notifications' },
   { key: 'local_reminders_enabled', label: 'Local Reminders' },
-  { key: 'teacher_log_reminders', label: 'Data Log Reminders' },
+  { key: 'data_log_reminders', label: 'Data Log Reminders' },
   { key: 'escalation_alerts', label: 'Escalation Alerts' },
-  { key: 'note_completion_reminders', label: 'Session Note Reminders' },
-  { key: 'parent_messages', label: 'Caregiver Messages' },
+  { key: 'session_note_reminders', label: 'Session Note Reminders' },
+  { key: 'caregiver_messages', label: 'Caregiver Messages' },
   { key: 'supervision_reminders', label: 'Supervision Reminders' },
   { key: 'admin_alerts', label: 'Admin Alerts' },
 ];
