@@ -140,95 +140,109 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─── write_frequency (bridged insert for iOS, schema-adaptive) ─
+    // ─── Adaptive insert helper ─────────────────────────────────
+    async function adaptiveInsert(table: string, variants: Record<string, unknown>[], selectCol = "id") {
+      for (const payload of variants) {
+        const res = await core.from(table).insert(payload).select(selectCol).single();
+        if (!res.error) return { data: res.data, error: null };
+        const msg = String(res.error.message || "");
+        if (msg.includes("column") || msg.includes("schema cache") || res.error.code === "42703") continue;
+        return { data: null, error: res.error };
+      }
+      return { data: null, error: { message: `All ${variants.length} column variants failed for ${table}. Run: SELECT pg_notify('pgrst', 'reload schema'); on Core.` } };
+    }
+
+    // ─── write_frequency (bridged, schema-adaptive) ───────────────
     if (action === "write_frequency") {
-      const base: Record<string, unknown> = {
-        agency_id: String(body.agency_id || ""),
-        client_id: String(body.client_id || ""),
-        user_id: String(body.user_id || ""),
-        behavior_name: String(body.behavior_name || ""),
-        count: Number(body.count || 1),
-        ...(body.target_id ? { target_id: String(body.target_id) } : {}),
-        ...(body.notes ? { notes: String(body.notes) } : {}),
-      };
-      const loggedDate = String(body.logged_date || new Date().toISOString().slice(0, 10));
+      const uid = String(body.user_id || "");
+      const cid = String(body.client_id || "");
+      const aid = String(body.agency_id || "");
+      const bn = String(body.behavior_name || "");
+      const cnt = Number(body.count || 1);
+      const ld = String(body.logged_date || new Date().toISOString().slice(0, 10));
+      const ex: Record<string, unknown> = {};
+      if (body.target_id) ex.target_id = String(body.target_id);
+      if (body.notes) ex.notes = String(body.notes);
 
-      // Try with logged_date first, then without (Core schema cache may not have it)
-      let res = await core.from("teacher_frequency_entries").insert({ ...base, logged_date: loggedDate }).select("id").single();
-      if (res.error && String(res.error.message).includes("logged_date")) {
-        res = await core.from("teacher_frequency_entries").insert(base).select("id").single();
-      }
+      const variants = [
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, count: cnt, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, count: cnt, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, count: cnt, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, count: cnt, ...ex },
+        { agency_id: aid, student_id: cid, staff_id: uid, behavior_name: bn, count: cnt, ...ex },
+      ];
 
-      if (res.error) return json({ error: res.error.message }, 400);
-      return json({ ok: true, id: res.data?.id });
-    }
-
-    // ─── write_duration (bridged insert for iOS, schema-adaptive) ──
-    if (action === "write_duration") {
-      const base: Record<string, unknown> = {
-        agency_id: String(body.agency_id || ""),
-        client_id: String(body.client_id || ""),
-        user_id: String(body.user_id || ""),
-        behavior_name: String(body.behavior_name || ""),
-        duration_seconds: Number(body.duration_seconds || 0),
-        ...(body.target_id ? { target_id: String(body.target_id) } : {}),
-        ...(body.notes ? { notes: String(body.notes) } : {}),
-      };
-      const loggedDate = String(body.logged_date || new Date().toISOString().slice(0, 10));
-
-      let res = await core.from("teacher_duration_entries").insert({ ...base, logged_date: loggedDate }).select("id").single();
-      if (res.error && String(res.error.message).includes("logged_date")) {
-        res = await core.from("teacher_duration_entries").insert(base).select("id").single();
-      }
-
-      if (res.error) return json({ error: res.error.message }, 400);
-      return json({ ok: true, id: res.data?.id });
-    }
-
-    // ─── write_abc (bridged insert for iOS) ───────────────────────
-    if (action === "write_abc") {
-      const payload = {
-        client_id: String(body.client_id || ""),
-        user_id: String(body.user_id || ""),
-        antecedent: String(body.antecedent || ""),
-        behavior: String(body.behavior || ""),
-        consequence: String(body.consequence || ""),
-        ...(body.behavior_category ? { behavior_category: String(body.behavior_category) } : {}),
-        ...(body.notes ? { notes: String(body.notes) } : {}),
-        ...(body.intensity != null ? { intensity: Number(body.intensity) } : {}),
-        ...(body.duration_seconds != null ? { duration_seconds: Number(body.duration_seconds) } : {}),
-      };
-
-      const { data, error } = await core
-        .from("abc_logs")
-        .insert(payload)
-        .select("id")
-        .single();
-
-      if (error) return json({ error: error.message }, 400);
+      const { data, error } = await adaptiveInsert("teacher_frequency_entries", variants);
+      if (error) return json({ error: (error as any).message }, 400);
       return json({ ok: true, id: data?.id });
     }
 
-    // ─── write_event (bridged unified event insert) ───────────────
+    // ─── write_duration (bridged, schema-adaptive) ────────────────
+    if (action === "write_duration") {
+      const uid = String(body.user_id || "");
+      const cid = String(body.client_id || "");
+      const aid = String(body.agency_id || "");
+      const bn = String(body.behavior_name || "");
+      const ds = Number(body.duration_seconds || 0);
+      const ld = String(body.logged_date || new Date().toISOString().slice(0, 10));
+      const ex: Record<string, unknown> = {};
+      if (body.target_id) ex.target_id = String(body.target_id);
+      if (body.notes) ex.notes = String(body.notes);
+
+      const variants = [
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, duration_seconds: ds, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, duration_seconds: ds, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, duration_seconds: ds, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, duration_seconds: ds, ...ex },
+        { agency_id: aid, student_id: cid, staff_id: uid, behavior_name: bn, duration_seconds: ds, ...ex },
+      ];
+
+      const { data, error } = await adaptiveInsert("teacher_duration_entries", variants);
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    // ─── write_abc (bridged, schema-adaptive) ─────────────────────
+    if (action === "write_abc") {
+      const ex: Record<string, unknown> = {};
+      if (body.behavior_category) ex.behavior_category = String(body.behavior_category);
+      if (body.notes) ex.notes = String(body.notes);
+      if (body.intensity != null) ex.intensity = Number(body.intensity);
+      if (body.duration_seconds != null) ex.duration_seconds = Number(body.duration_seconds);
+      const ant = String(body.antecedent || "");
+      const beh = String(body.behavior || "");
+      const con = String(body.consequence || "");
+
+      const variants = [
+        { client_id: String(body.client_id || ""), user_id: String(body.user_id || ""), antecedent: ant, behavior: beh, consequence: con, ...ex },
+        { client_id: String(body.client_id || ""), staff_id: String(body.user_id || ""), antecedent: ant, behavior: beh, consequence: con, ...ex },
+        { student_id: String(body.client_id || ""), staff_id: String(body.user_id || ""), antecedent: ant, behavior: beh, consequence: con, ...ex },
+      ];
+
+      const { data, error } = await adaptiveInsert("abc_logs", variants);
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    // ─── write_event (bridged, schema-adaptive) ───────────────────
     if (action === "write_event") {
-      const payload: Record<string, unknown> = {
+      const base: Record<string, unknown> = {
         student_id: String(body.student_id || ""),
         staff_id: String(body.staff_id || ""),
         event_type: String(body.event_type || ""),
-        ...(body.agency_id ? { agency_id: String(body.agency_id) } : {}),
-        ...(body.event_subtype ? { event_subtype: String(body.event_subtype) } : {}),
-        ...(body.event_value ? { event_value: body.event_value } : {}),
-        ...(body.source_module ? { source_module: String(body.source_module) } : {}),
-        ...(body.metadata ? { metadata: body.metadata } : {}),
       };
+      if (body.agency_id) base.agency_id = String(body.agency_id);
+      if (body.event_value) base.event_value = body.event_value;
+      if (body.source_module) base.source_module = String(body.source_module);
+      if (body.metadata) base.metadata = body.metadata;
 
-      const { data, error } = await core
-        .from("teacher_data_events")
-        .insert(payload)
-        .select("event_id")
-        .single();
+      const variants = [
+        { ...base, ...(body.event_subtype ? { event_subtype: String(body.event_subtype) } : {}) },
+        base,
+      ];
 
-      if (error) return json({ error: error.message }, 400);
+      const { data, error } = await adaptiveInsert("teacher_data_events", variants, "event_id");
+      if (error) return json({ error: (error as any).message }, 400);
       return json({ ok: true, event_id: data?.event_id });
     }
 
