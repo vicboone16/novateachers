@@ -31,6 +31,7 @@ import DataCollection from "@/pages/DataCollection";
 import TeacherGuide from "@/pages/TeacherGuide";
 import ClassroomView from "@/pages/ClassroomView";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
+import NotificationSettings from "@/pages/NotificationSettings";
 
 const queryClient = new QueryClient();
 
