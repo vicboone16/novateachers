@@ -1,6 +1,7 @@
 /**
  * Capacitor Push Notification + Local Notification helpers.
  * Captures APNs tokens and schedules local reminders natively on iOS.
+ * Gracefully degrades to no-op on web.
  */
 import { supabase } from '@/integrations/supabase/client';
 
@@ -10,9 +11,10 @@ let isNative = false;
 
 async function loadPlugins() {
   try {
-    const cap = await import('@capacitor/push-notifications');
+    // Dynamic import so web builds don't fail when Capacitor isn't installed
+    const cap = await import(/* @vite-ignore */ '@capacitor/push-notifications');
     PushNotifications = cap.PushNotifications;
-    const local = await import('@capacitor/local-notifications');
+    const local = await import(/* @vite-ignore */ '@capacitor/local-notifications');
     LocalNotifications = local.LocalNotifications;
     isNative = true;
   } catch {
@@ -24,7 +26,7 @@ const pluginReady = loadPlugins();
 
 /**
  * Request push permission & register for APNs token.
- * Stores token in push_tokens table (new schema: device_token, app_environment).
+ * Stores token in push_tokens table.
  */
 export async function registerPush(userId: string): Promise<string | null> {
   await pluginReady;
