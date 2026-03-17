@@ -283,16 +283,16 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} className="shrink-0">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} className="shrink-0 self-start">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex-1">
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">Admin Dashboard</h2>
-          <p className="text-sm text-muted-foreground">Manage all entities, IDs, and overrides</p>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Admin Dashboard</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage all entities, IDs, and overrides</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={loadAll}>
+        <Button variant="outline" size="sm" className="gap-1.5 self-start sm:self-auto" onClick={loadAll}>
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
         </Button>
       </div>
