@@ -230,6 +230,19 @@ const Settings = () => {
         </CardContent>
       </Card>
 
+      {/* Notifications */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle className="text-base">Notifications</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" size="sm" className="gap-1.5 w-full justify-start" onClick={() => navigate('/notifications')}>
+            <Bell className="h-3.5 w-3.5" />
+            Notification Settings
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Sharing & Invites */}
       <Card className="border-border/50">
         <CardHeader>
