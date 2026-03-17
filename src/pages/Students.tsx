@@ -430,26 +430,28 @@ const Students = () => {
       {/* Roster Tabs (connected teachers only) */}
       {showRosterTabs && (
         <Tabs value={rosterTab} onValueChange={v => setRosterTab(v as RosterTab)}>
-          <TabsList className="bg-muted/60 p-1">
-            <TabsTrigger value="all" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-sm">
-              All
-              <Badge variant="secondary" className="text-[10px] ml-1 h-4 px-1.5">{clients.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="classrooms" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-sm">
-              <Users className="h-3.5 w-3.5" />
-              My Classrooms
-              <Badge variant="secondary" className="text-[10px] ml-1 h-4 px-1.5">
-                {groupedRoster?.classrooms.reduce((n, cg) => n + cg.clients.length, 0) || 0}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="shared" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-sm">
-              <Share2 className="h-3.5 w-3.5" />
-              Shared with Me
-              <Badge variant="secondary" className="text-[10px] ml-1 h-4 px-1.5">
-                {groupedRoster?.sharedWithMe.length || 0}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scroll-x-mobile -mx-3 px-3 sm:mx-0 sm:px-0">
+            <TabsList className="bg-muted/60 p-1 w-max sm:w-auto">
+              <TabsTrigger value="all" className="gap-1 sm:gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+                All
+                <Badge variant="secondary" className="text-[10px] ml-1 h-4 px-1.5">{clients.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="classrooms" className="gap-1 sm:gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+                <Users className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">My </span>Classrooms
+                <Badge variant="secondary" className="text-[10px] ml-1 h-4 px-1.5">
+                  {groupedRoster?.classrooms.reduce((n, cg) => n + cg.clients.length, 0) || 0}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="shared" className="gap-1 sm:gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+                <Share2 className="h-3.5 w-3.5" />
+                Shared
+                <Badge variant="secondary" className="text-[10px] ml-1 h-4 px-1.5">
+                  {groupedRoster?.sharedWithMe.length || 0}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </Tabs>
       )}
 
