@@ -33,6 +33,80 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
 
+    // ─── diagnose_schema ───────────────────────────────────────────
+    if (action === "diagnose_schema") {
+      const targetTables = [
+        "teacher_frequency_entries",
+        "teacher_duration_entries",
+        "teacher_data_events",
+        "teacher_messages",
+        "teacher_message_attachments",
+        "teacher_weekly_summaries",
+        "teacher_quick_notes",
+        "teacher_interval_settings",
+        "teacher_targets",
+        "teacher_data_sessions",
+        "teacher_data_points",
+        "abc_logs",
+        "behavior_categories",
+        "clients",
+        "students",
+        "user_agency_access",
+        "user_student_access",
+        "user_app_access",
+        "agency_memberships",
+        "classrooms",
+        "event_stream",
+        "supervisor_signals",
+        "iep_drafts",
+      ];
+
+      const results: Record<string, { exists: boolean; columns?: string[]; error?: string }> = {};
+
+      for (const table of targetTables) {
+        try {
+          // Try selecting 0 rows to see if table exists + get column names
+          const { data, error } = await core.from(table).select("*").limit(0);
+          if (error) {
+            // 42P01 = table doesn't exist
+            if (String(error.code) === "42P01" || String(error.message).includes("does not exist")) {
+              results[table] = { exists: false };
+            } else {
+              results[table] = { exists: true, error: error.message };
+            }
+          } else {
+            // Get column names from a single row or from the empty result
+            const { data: sample } = await core.from(table).select("*").limit(1);
+            const columns = sample && sample.length > 0 ? Object.keys(sample[0]) : [];
+            results[table] = { exists: true, columns };
+          }
+        } catch (err) {
+          results[table] = { exists: false, error: String(err) };
+        }
+      }
+
+      // Also check for RPC functions
+      const rpcs = ["insert_event", "create_supervisor_signal"];
+      const rpcResults: Record<string, { available: boolean; error?: string }> = {};
+      for (const fn of rpcs) {
+        try {
+          // Call with empty/invalid params to see if function exists
+          const { error } = await core.rpc(fn, {});
+          if (error && String(error.message).includes("does not exist")) {
+            rpcResults[fn] = { available: false };
+          } else {
+            // Either succeeded or failed with param error — function exists
+            rpcResults[fn] = { available: true, error: error?.message };
+          }
+        } catch (err) {
+          rpcResults[fn] = { available: false, error: String(err) };
+        }
+      }
+
+      return json({ tables: results, rpcs: rpcResults, core_url: coreUrl });
+    }
+
+    // ─── list_recent_classroom_events ──────────────────────────────
     if (action === "list_recent_classroom_events") {
       const userId = String(body.user_id || "");
       const agencyId = body.agency_id ? String(body.agency_id) : null;
@@ -58,6 +132,7 @@ Deno.serve(async (req) => {
       return json({ events: data || [] });
     }
 
+    // ─── seed_teacher_events (schema-adaptive) ────────────────────
     if (action === "seed_teacher_events") {
       const studentId = String(body.student_id || "");
       const userId = String(body.user_id || "");
@@ -72,30 +147,63 @@ Deno.serve(async (req) => {
       const behaviorAt = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
       const abcAt = new Date(now.getTime() - 60 * 1000).toISOString();
       const loggedDate = now.toISOString().slice(0, 10);
+      const steps: { step: string; ok: boolean; error?: string }[] = [];
 
-      const { error: freqError } = await core.from("teacher_frequency_entries").insert({
-        agency_id: agencyId,
-        client_id: studentId,
-        user_id: userId,
-        behavior_name: behavior,
-        count: 1,
-        logged_date: loggedDate,
-      });
-      if (freqError) return json({ error: freqError.message, step: "teacher_frequency_entries" }, 400);
+      // Step 1: Detect schema for teacher_frequency_entries
+      const freqPayloads = [
+        // Try client_id + logged_date (Lovable Cloud schema)
+        { agency_id: agencyId, client_id: studentId, user_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate },
+        // Try student_id variant (some Core schemas)
+        { agency_id: agencyId, student_id: studentId, user_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate },
+        // Try staff_id variant
+        { agency_id: agencyId, client_id: studentId, staff_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate },
+      ];
 
-      const { error: abcError } = await core.from("abc_logs").insert({
-        client_id: studentId,
-        user_id: userId,
-        antecedent: "Transition to independent work",
-        behavior,
-        consequence: "Redirected and offered a brief break",
-        behavior_category: behavior,
-        notes: "Seeded test ABC event from core-bridge",
-        logged_at: abcAt,
-      });
-      if (abcError) return json({ error: abcError.message, step: "abc_logs" }, 400);
+      let freqOk = false;
+      for (const payload of freqPayloads) {
+        const { error } = await core.from("teacher_frequency_entries").insert(payload);
+        if (!error) {
+          steps.push({ step: "teacher_frequency_entries", ok: true });
+          freqOk = true;
+          break;
+        }
+        // If column doesn't exist, try next variant
+        if (String(error.message).includes("column") || String(error.code) === "42703") {
+          continue;
+        }
+        // Other error — record it but keep going
+        steps.push({ step: "teacher_frequency_entries", ok: false, error: error.message });
+        break;
+      }
+      if (!freqOk && steps.filter(s => s.step === "teacher_frequency_entries").length === 0) {
+        steps.push({ step: "teacher_frequency_entries", ok: false, error: "All column variants failed" });
+      }
 
-      const { error: eventsError } = await core.from("teacher_data_events").insert([
+      // Step 2: Try abc_logs with adaptive columns
+      const abcPayloads = [
+        { client_id: studentId, user_id: userId, antecedent: "Transition to independent work", behavior, consequence: "Redirected and offered a brief break", behavior_category: behavior, notes: "Seeded test ABC event", logged_at: abcAt },
+        { student_id: studentId, user_id: userId, antecedent: "Transition to independent work", behavior, consequence: "Redirected and offered a brief break", behavior_category: behavior, notes: "Seeded test ABC event", logged_at: abcAt },
+        { client_id: studentId, staff_id: userId, antecedent: "Transition to independent work", behavior, consequence: "Redirected and offered a brief break", behavior_category: behavior, notes: "Seeded test ABC event", logged_at: abcAt },
+      ];
+
+      let abcOk = false;
+      for (const payload of abcPayloads) {
+        const { error } = await core.from("abc_logs").insert(payload);
+        if (!error) {
+          steps.push({ step: "abc_logs", ok: true });
+          abcOk = true;
+          break;
+        }
+        if (String(error.message).includes("column") || String(error.code) === "42703") continue;
+        steps.push({ step: "abc_logs", ok: false, error: error.message });
+        break;
+      }
+      if (!abcOk && steps.filter(s => s.step === "abc_logs").length === 0) {
+        steps.push({ step: "abc_logs", ok: false, error: "All column variants failed" });
+      }
+
+      // Step 3: teacher_data_events (unified event stream)
+      const eventRows = [
         {
           student_id: studentId,
           staff_id: userId,
@@ -123,11 +231,20 @@ Deno.serve(async (req) => {
           metadata: { seeded: true },
           recorded_at: abcAt,
         },
-      ]);
-      if (eventsError) return json({ error: eventsError.message, step: "teacher_data_events" }, 400);
+      ];
+
+      const { error: eventsError } = await core.from("teacher_data_events").insert(eventRows);
+      steps.push({
+        step: "teacher_data_events",
+        ok: !eventsError,
+        ...(eventsError ? { error: eventsError.message } : {}),
+      });
+
+      const allOk = steps.every(s => s.ok);
 
       return json({
-        ok: true,
+        ok: allOk,
+        steps,
         seeded: {
           student_id: studentId,
           user_id: userId,
@@ -138,6 +255,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── count_unread_messages ─────────────────────────────────────
     if (action === "count_unread_messages") {
       const userId = String(body.user_id || "");
       const { count, error } = await core
@@ -150,6 +268,7 @@ Deno.serve(async (req) => {
       return json({ count: count || 0 });
     }
 
+    // ─── list_messages ────────────────────────────────────────────
     if (action === "list_messages") {
       const userId = String(body.user_id || "");
       const tab = String(body.tab || "inbox");
@@ -163,6 +282,7 @@ Deno.serve(async (req) => {
       return json({ messages: result.data || [] });
     }
 
+    // ─── list_thread ──────────────────────────────────────────────
     if (action === "list_thread") {
       const threadId = String(body.thread_id || "");
       const { data, error } = await core
@@ -174,6 +294,7 @@ Deno.serve(async (req) => {
       return json({ messages: data || [] });
     }
 
+    // ─── mark_messages_read ───────────────────────────────────────
     if (action === "mark_messages_read") {
       const messageIds = Array.isArray(body.message_ids) ? body.message_ids.map(String) : [];
       if (messageIds.length === 0) return json({ ok: true, updated: 0 });
@@ -185,6 +306,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, updated: messageIds.length });
     }
 
+    // ─── update_message_status ────────────────────────────────────
     if (action === "update_message_status") {
       const messageId = String(body.message_id || "");
       const status = String(body.status || "");
@@ -198,6 +320,7 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ─── list_recipients ──────────────────────────────────────────
     if (action === "list_recipients") {
       const agencyId = String(body.agency_id || "");
       const excludeUserId = String(body.exclude_user_id || "");
@@ -212,6 +335,7 @@ Deno.serve(async (req) => {
       return json({ user_ids: Array.from(new Set(recipients)) });
     }
 
+    // ─── send_message ─────────────────────────────────────────────
     if (action === "send_message") {
       const payload = {
         agency_id: String(body.agency_id || ""),
