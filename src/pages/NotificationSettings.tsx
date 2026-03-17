@@ -203,7 +203,7 @@ const NotificationSettings = () => {
             <CardContent className="space-y-3">
               {pushToken ? (
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs text-green-600 border-green-300">Registered</Badge>
+                  <Badge variant="outline" className="text-xs text-primary border-primary/30">Registered</Badge>
                   <span className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">{pushToken.slice(0, 20)}…</span>
                 </div>
               ) : (
