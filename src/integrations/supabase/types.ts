@@ -225,6 +225,93 @@ export type Database = {
         }
         Relationships: []
       }
+      default_reminder_schedules: {
+        Row: {
+          allow_user_override: boolean
+          app_environment: string
+          classroom_id: string | null
+          created_at: string
+          created_by: string | null
+          days_of_week: number[] | null
+          end_time: string | null
+          grace_period_minutes: number | null
+          id: string
+          interval_minutes: number | null
+          is_active: boolean
+          local_enabled: boolean
+          message_body: string | null
+          message_title: string | null
+          name: string
+          organization_id: string | null
+          owner_user_id: string | null
+          reminder_key: string
+          reminder_type: string
+          remote_enabled: boolean
+          role_scope: string
+          school_id: string | null
+          scope_type: string
+          start_time: string | null
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          allow_user_override?: boolean
+          app_environment?: string
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          days_of_week?: number[] | null
+          end_time?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          interval_minutes?: number | null
+          is_active?: boolean
+          local_enabled?: boolean
+          message_body?: string | null
+          message_title?: string | null
+          name: string
+          organization_id?: string | null
+          owner_user_id?: string | null
+          reminder_key: string
+          reminder_type: string
+          remote_enabled?: boolean
+          role_scope?: string
+          school_id?: string | null
+          scope_type: string
+          start_time?: string | null
+          timezone: string
+          updated_at?: string
+        }
+        Update: {
+          allow_user_override?: boolean
+          app_environment?: string
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          days_of_week?: number[] | null
+          end_time?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          interval_minutes?: number | null
+          is_active?: boolean
+          local_enabled?: boolean
+          message_body?: string | null
+          message_title?: string | null
+          name?: string
+          organization_id?: string | null
+          owner_user_id?: string | null
+          reminder_key?: string
+          reminder_type?: string
+          remote_enabled?: boolean
+          role_scope?: string
+          school_id?: string | null
+          scope_type?: string
+          start_time?: string | null
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guest_access_codes: {
         Row: {
           agency_id: string
@@ -602,95 +689,132 @@ export type Database = {
         }
         Relationships: []
       }
-      notification_defaults: {
-        Row: {
-          category: string
-          created_at: string
-          default_enabled: boolean
-          default_schedule_days: string[] | null
-          default_schedule_time: string | null
-          description: string | null
-          id: string
-          label: string
-          notification_key: string
-          sort_order: number
-        }
-        Insert: {
-          category?: string
-          created_at?: string
-          default_enabled?: boolean
-          default_schedule_days?: string[] | null
-          default_schedule_time?: string | null
-          description?: string | null
-          id?: string
-          label: string
-          notification_key: string
-          sort_order?: number
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          default_enabled?: boolean
-          default_schedule_days?: string[] | null
-          default_schedule_time?: string | null
-          description?: string | null
-          id?: string
-          label?: string
-          notification_key?: string
-          sort_order?: number
-        }
-        Relationships: []
-      }
       notification_preferences: {
         Row: {
-          agency_id: string | null
+          admin_alerts: boolean
           created_at: string
-          email_enabled: boolean
-          enabled: boolean
+          escalation_alerts: boolean
           id: string
-          in_app_enabled: boolean
-          notification_key: string
+          local_reminders_enabled: boolean
+          note_completion_reminders: boolean
+          parent_messages: boolean
           push_enabled: boolean
-          quiet_end: string | null
-          quiet_start: string | null
-          schedule_days: string[] | null
-          schedule_time: string | null
+          quiet_hours_enabled: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          supervision_reminders: boolean
+          teacher_log_reminders: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
-          agency_id?: string | null
+          admin_alerts?: boolean
           created_at?: string
-          email_enabled?: boolean
-          enabled?: boolean
+          escalation_alerts?: boolean
           id?: string
-          in_app_enabled?: boolean
-          notification_key: string
+          local_reminders_enabled?: boolean
+          note_completion_reminders?: boolean
+          parent_messages?: boolean
           push_enabled?: boolean
-          quiet_end?: string | null
-          quiet_start?: string | null
-          schedule_days?: string[] | null
-          schedule_time?: string | null
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          supervision_reminders?: boolean
+          teacher_log_reminders?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
-          agency_id?: string | null
+          admin_alerts?: boolean
           created_at?: string
-          email_enabled?: boolean
-          enabled?: boolean
+          escalation_alerts?: boolean
           id?: string
-          in_app_enabled?: boolean
-          notification_key?: string
+          local_reminders_enabled?: boolean
+          note_completion_reminders?: boolean
+          parent_messages?: boolean
           push_enabled?: boolean
-          quiet_end?: string | null
-          quiet_start?: string | null
-          schedule_days?: string[] | null
-          schedule_time?: string | null
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          supervision_reminders?: boolean
+          teacher_log_reminders?: boolean
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          app_environment: string
+          body: string
+          created_at: string
+          delivery_channel: string
+          error_message: string | null
+          id: string
+          related_event_id: string | null
+          related_schedule_id: string | null
+          related_student_id: string | null
+          sent_at: string | null
+          status: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          app_environment?: string
+          body: string
+          created_at?: string
+          delivery_channel?: string
+          error_message?: string | null
+          id?: string
+          related_event_id?: string | null
+          related_schedule_id?: string | null
+          related_student_id?: string | null
+          sent_at?: string | null
+          status?: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          app_environment?: string
+          body?: string
+          created_at?: string
+          delivery_channel?: string
+          error_message?: string | null
+          id?: string
+          related_event_id?: string | null
+          related_schedule_id?: string | null
+          related_student_id?: string | null
+          sent_at?: string | null
+          status?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_related_schedule_id_fkey"
+            columns: ["related_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "default_reminder_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_related_schedule_id_fkey"
+            columns: ["related_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "default_reminder_scope_rank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_related_schedule_id_fkey"
+            columns: ["related_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "effective_user_reminders"
+            referencedColumns: ["default_schedule_id"]
+          },
+        ]
       }
       pending_student_changes: {
         Row: {
@@ -736,29 +860,41 @@ export type Database = {
       }
       push_tokens: {
         Row: {
+          app_environment: string
           created_at: string
-          device_id: string | null
+          device_name: string | null
+          device_token: string
           id: string
+          is_active: boolean
+          last_seen_at: string | null
           platform: string
-          token: string
+          timezone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          app_environment?: string
           created_at?: string
-          device_id?: string | null
+          device_name?: string | null
+          device_token: string
           id?: string
-          platform?: string
-          token: string
+          is_active?: boolean
+          last_seen_at?: string | null
+          platform: string
+          timezone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          app_environment?: string
           created_at?: string
-          device_id?: string | null
+          device_name?: string | null
+          device_token?: string
           id?: string
+          is_active?: boolean
+          last_seen_at?: string | null
           platform?: string
-          token?: string
+          timezone?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1155,9 +1291,216 @@ export type Database = {
         }
         Relationships: []
       }
+      user_reminder_overrides: {
+        Row: {
+          created_at: string
+          custom_days_of_week: number[] | null
+          custom_end_time: string | null
+          custom_interval_minutes: number | null
+          custom_name: string | null
+          custom_start_time: string | null
+          custom_timezone: string | null
+          default_schedule_id: string
+          id: string
+          is_active: boolean
+          local_enabled: boolean | null
+          notifications_enabled: boolean
+          override_enabled: boolean
+          remote_enabled: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_days_of_week?: number[] | null
+          custom_end_time?: string | null
+          custom_interval_minutes?: number | null
+          custom_name?: string | null
+          custom_start_time?: string | null
+          custom_timezone?: string | null
+          default_schedule_id: string
+          id?: string
+          is_active?: boolean
+          local_enabled?: boolean | null
+          notifications_enabled?: boolean
+          override_enabled?: boolean
+          remote_enabled?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_days_of_week?: number[] | null
+          custom_end_time?: string | null
+          custom_interval_minutes?: number | null
+          custom_name?: string | null
+          custom_start_time?: string | null
+          custom_timezone?: string | null
+          default_schedule_id?: string
+          id?: string
+          is_active?: boolean
+          local_enabled?: boolean | null
+          notifications_enabled?: boolean
+          override_enabled?: boolean
+          remote_enabled?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_reminder_overrides_default_schedule_id_fkey"
+            columns: ["default_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "default_reminder_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_reminder_overrides_default_schedule_id_fkey"
+            columns: ["default_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "default_reminder_scope_rank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_reminder_overrides_default_schedule_id_fkey"
+            columns: ["default_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "effective_user_reminders"
+            referencedColumns: ["default_schedule_id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      default_reminder_scope_rank: {
+        Row: {
+          allow_user_override: boolean | null
+          app_environment: string | null
+          classroom_id: string | null
+          created_at: string | null
+          created_by: string | null
+          days_of_week: number[] | null
+          end_time: string | null
+          grace_period_minutes: number | null
+          id: string | null
+          interval_minutes: number | null
+          is_active: boolean | null
+          local_enabled: boolean | null
+          message_body: string | null
+          message_title: string | null
+          name: string | null
+          organization_id: string | null
+          owner_user_id: string | null
+          reminder_key: string | null
+          reminder_type: string | null
+          remote_enabled: boolean | null
+          role_scope: string | null
+          school_id: string | null
+          scope_rank: number | null
+          scope_type: string | null
+          start_time: string | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          allow_user_override?: boolean | null
+          app_environment?: string | null
+          classroom_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          days_of_week?: number[] | null
+          end_time?: string | null
+          grace_period_minutes?: number | null
+          id?: string | null
+          interval_minutes?: number | null
+          is_active?: boolean | null
+          local_enabled?: boolean | null
+          message_body?: string | null
+          message_title?: string | null
+          name?: string | null
+          organization_id?: string | null
+          owner_user_id?: string | null
+          reminder_key?: string | null
+          reminder_type?: string | null
+          remote_enabled?: boolean | null
+          role_scope?: string | null
+          school_id?: string | null
+          scope_rank?: never
+          scope_type?: string | null
+          start_time?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          allow_user_override?: boolean | null
+          app_environment?: string | null
+          classroom_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          days_of_week?: number[] | null
+          end_time?: string | null
+          grace_period_minutes?: number | null
+          id?: string | null
+          interval_minutes?: number | null
+          is_active?: boolean | null
+          local_enabled?: boolean | null
+          message_body?: string | null
+          message_title?: string | null
+          name?: string | null
+          organization_id?: string | null
+          owner_user_id?: string | null
+          reminder_key?: string | null
+          reminder_type?: string | null
+          remote_enabled?: boolean | null
+          role_scope?: string | null
+          school_id?: string | null
+          scope_rank?: never
+          scope_type?: string | null
+          start_time?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      effective_user_reminders: {
+        Row: {
+          admin_alerts: boolean | null
+          allow_user_override: boolean | null
+          app_environment: string | null
+          default_name: string | null
+          default_schedule_id: string | null
+          effective_days_of_week: number[] | null
+          effective_enabled: boolean | null
+          effective_end_time: string | null
+          effective_interval_minutes: number | null
+          effective_local_enabled: boolean | null
+          effective_name: string | null
+          effective_remote_enabled: boolean | null
+          effective_start_time: string | null
+          effective_timezone: string | null
+          escalation_alerts: boolean | null
+          grace_period_minutes: number | null
+          local_reminders_enabled: boolean | null
+          message_body: string | null
+          message_title: string | null
+          note_completion_reminders: boolean | null
+          notifications_enabled: boolean | null
+          override_enabled: boolean | null
+          override_id: string | null
+          parent_messages: boolean | null
+          push_enabled: boolean | null
+          quiet_hours_enabled: boolean | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          reminder_key: string | null
+          reminder_type: string | null
+          source_scope_type: string | null
+          supervision_reminders: boolean | null
+          teacher_log_reminders: boolean | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_invite_code_access: {
