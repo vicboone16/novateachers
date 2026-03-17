@@ -254,7 +254,61 @@ const NotificationSettings = () => {
     await triggerRebuild();
   };
 
-  const handleRegisterPush = async () => {
+  const createCustomSchedule = async () => {
+    if (!user || !newSchedule.name.trim()) return;
+    setCreating(true);
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const row = {
+        scope_type: 'user',
+        owner_user_id: user.id,
+        created_by: user.id,
+        role_scope: 'teacher',
+        name: newSchedule.name.trim(),
+        reminder_key: newSchedule.reminder_key,
+        reminder_type: newSchedule.reminder_type,
+        timezone: tz,
+        is_active: true,
+        allow_user_override: true,
+        local_enabled: newSchedule.local_enabled,
+        remote_enabled: newSchedule.remote_enabled,
+        start_time: newSchedule.start_time + ':00',
+        end_time: newSchedule.end_time + ':00',
+        days_of_week: newSchedule.days_of_week,
+        interval_minutes: newSchedule.reminder_type === 'interval' ? newSchedule.interval_minutes : null,
+        message_title: newSchedule.message_title || newSchedule.name.trim(),
+        message_body: newSchedule.message_body || 'Tap to take action.',
+        app_environment: 'beta',
+      };
+      const { error } = await (supabase as any).from('default_reminder_schedules').insert(row);
+      if (error) throw error;
+      toast({ title: 'Schedule created', description: newSchedule.name });
+      setShowCreateForm(false);
+      setNewSchedule(s => ({ ...s, name: '', message_title: '', message_body: '' }));
+      await loadSettings();
+    } catch (err: any) {
+      toast({ title: 'Failed to create', description: err.message, variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteCustomSchedule = async (schedId: string) => {
+    if (!user) return;
+    const { error } = await (supabase as any)
+      .from('default_reminder_schedules')
+      .delete()
+      .eq('id', schedId)
+      .eq('owner_user_id', user.id)
+      .eq('scope_type', 'user');
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Schedule deleted' });
+      await loadSettings();
+    }
+  };
+
     if (!user) return;
     setRegisteringPush(true);
     const token = await registerPush(user.id);
