@@ -723,6 +723,15 @@ const AdminDashboard = () => {
                 }}>
                   <BellOff className="h-3 w-3" /> Clear Local Reminders
                 </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={async () => {
+                  setDebugRebuilding(true);
+                  const result = await rebuildLocalSchedules();
+                  toast({ title: 'Schedules rebuilt', description: `${result.scheduled} scheduled, ${result.skipped} skipped` });
+                  await loadDebugState();
+                  setDebugRebuilding(false);
+                }}>
+                  <RefreshCw className={`h-3 w-3 ${debugRebuilding ? 'animate-spin' : ''}`} /> Rebuild Schedules
+                </Button>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => loadDebugState()}>
                   <RefreshCw className="h-3 w-3" /> Reload Debug
                 </Button>
