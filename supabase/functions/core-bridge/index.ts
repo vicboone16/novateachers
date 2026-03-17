@@ -33,6 +33,105 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
 
+    // ─── health_check: detect stale PostgREST cache & connectivity ─
+    if (action === "health_check") {
+      const checks: { name: string; status: "ok" | "warn" | "error"; detail: string }[] = [];
+
+      // 1. Core connectivity
+      const { error: pingErr } = await core.from("teacher_data_events").select("event_id").limit(0);
+      if (pingErr) {
+        checks.push({ name: "core_connectivity", status: "error", detail: `Cannot reach Core PostgREST: ${pingErr.message}` });
+      } else {
+        checks.push({ name: "core_connectivity", status: "ok", detail: "Core PostgREST reachable" });
+      }
+
+      // 2. PostgREST schema cache freshness — probe known tables for column mismatches
+      const probeTests: { table: string; column: string }[] = [
+        { table: "teacher_frequency_entries", column: "behavior_name" },
+        { table: "teacher_duration_entries", column: "behavior_name" },
+        { table: "teacher_quick_notes", column: "note" },
+        { table: "abc_logs", column: "antecedent" },
+        { table: "teacher_data_events", column: "event_type" },
+      ];
+
+      let staleCount = 0;
+      const staleDetails: string[] = [];
+
+      for (const probe of probeTests) {
+        const { error } = await core.from(probe.table).select(probe.column).limit(0);
+        if (error) {
+          const msg = String(error.message || "");
+          if (msg.includes("does not exist") && error.code === "42P01") {
+            // Table genuinely missing — not a cache issue
+            continue;
+          }
+          if (msg.includes("column") || msg.includes("schema cache") || error.code === "42703") {
+            staleCount++;
+            staleDetails.push(`${probe.table}.${probe.column}: ${msg}`);
+          }
+        }
+      }
+
+      if (staleCount > 0) {
+        checks.push({
+          name: "postgrest_schema_cache",
+          status: "warn",
+          detail: `${staleCount} table(s) returning column errors — likely stale PostgREST cache: ${staleDetails.join("; ")}`,
+        });
+      } else {
+        checks.push({ name: "postgrest_schema_cache", status: "ok", detail: "All probed tables have expected columns" });
+      }
+
+      // 3. Service role key validity — try information_schema
+      const { error: isErr } = await core
+        .from("information_schema.columns" as any)
+        .select("column_name")
+        .eq("table_schema", "public")
+        .limit(1);
+      if (isErr) {
+        checks.push({ name: "service_role_permissions", status: "warn", detail: `information_schema query failed: ${isErr.message}` });
+      } else {
+        checks.push({ name: "service_role_permissions", status: "ok", detail: "Service role can query information_schema" });
+      }
+
+      // 4. Key write tables accessible
+      const writeTables = ["teacher_frequency_entries", "teacher_duration_entries", "teacher_quick_notes", "abc_logs"];
+      const missingWrite: string[] = [];
+      for (const t of writeTables) {
+        const { error } = await core.from(t).select("*").limit(0);
+        if (error && (error.code === "42P01" || String(error.message).includes("does not exist"))) {
+          missingWrite.push(t);
+        }
+      }
+      if (missingWrite.length > 0) {
+        checks.push({ name: "write_tables", status: "error", detail: `Missing tables on Core: ${missingWrite.join(", ")}` });
+      } else {
+        checks.push({ name: "write_tables", status: "ok", detail: "All write target tables exist" });
+      }
+
+      const overallStatus = checks.some(c => c.status === "error") ? "error" : checks.some(c => c.status === "warn") ? "warn" : "ok";
+
+      const remediation: string[] = [];
+      if (staleCount > 0) {
+        remediation.push("Run on the Nova Core database: SELECT pg_notify('pgrst', 'reload schema');");
+        remediation.push("Or call core-bridge with action: 'reload_schema' to attempt an automatic refresh.");
+      }
+      if (missingWrite.length > 0) {
+        remediation.push(`Create missing tables on Core: ${missingWrite.join(", ")}. Check sql/ folder for migration scripts.`);
+      }
+      if (checks.some(c => c.name === "service_role_permissions" && c.status === "warn")) {
+        remediation.push("Verify CORE_SERVICE_ROLE_KEY has service_role privileges on the Core instance.");
+      }
+
+      return json({
+        status: overallStatus,
+        checks,
+        remediation: remediation.length > 0 ? remediation : ["No issues detected — all systems operational."],
+        core_url: coreUrl,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // ─── diagnose_schema (uses information_schema for real columns) ─
     if (action === "diagnose_schema") {
       const targetTables = [
