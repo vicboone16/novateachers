@@ -1,7 +1,9 @@
 /**
  * Offline-resilient sync queue for teacher data writes to Core.
- * Queues failed writes in localStorage and retries them when online.
+ * Routes writes through the core-bridge edge function to avoid
+ * iOS "Load failed" errors from direct cross-origin PostgREST calls.
  */
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { supabase } from '@/lib/supabase';
 
 export interface QueuedWrite {
@@ -16,6 +18,14 @@ export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'queued';
 
 const QUEUE_KEY = 'beacon_sync_queue';
 const MAX_RETRIES = 5;
+
+/** Maps table names to core-bridge actions for bridged writes */
+const BRIDGE_ACTION_MAP: Record<string, string> = {
+  teacher_frequency_entries: 'write_frequency',
+  teacher_duration_entries: 'write_duration',
+  abc_logs: 'write_abc',
+  teacher_data_events: 'write_event',
+};
 
 function getQueue(): QueuedWrite[] {
   try {
@@ -46,6 +56,29 @@ export function enqueue(table: string, payload: Record<string, any>) {
 }
 
 /**
+ * Write a single row via the core-bridge edge function.
+ * Falls back to direct Supabase insert if bridge action is unavailable.
+ */
+async function bridgedInsert(table: string, payload: Record<string, any>): Promise<{ ok: boolean; error?: string }> {
+  const bridgeAction = BRIDGE_ACTION_MAP[table];
+
+  if (bridgeAction) {
+    const { data, error } = await invokeCloudFunction('core-bridge', {
+      action: bridgeAction,
+      ...payload,
+    });
+    if (error) return { ok: false, error: error.message };
+    if (data?.error) return { ok: false, error: data.error };
+    return { ok: true };
+  }
+
+  // Fallback: direct Supabase insert for tables not mapped to bridge
+  const { error } = await supabase.from(table as any).insert(payload as any);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
  * Attempt to flush all queued writes. Returns count of remaining failures.
  */
 export async function flushQueue(): Promise<{ flushed: number; remaining: number }> {
@@ -57,8 +90,8 @@ export async function flushQueue(): Promise<{ flushed: number; remaining: number
 
   for (const item of queue) {
     try {
-      const { error } = await supabase.from(item.table as any).insert(item.payload as any);
-      if (error) throw error;
+      const result = await bridgedInsert(item.table, item.payload);
+      if (!result.ok) throw new Error(result.error);
       flushed++;
     } catch {
       if (item.retries < MAX_RETRIES) {
@@ -73,16 +106,16 @@ export async function flushQueue(): Promise<{ flushed: number; remaining: number
 }
 
 /**
- * Wraps a Supabase insert with automatic queuing on failure.
- * Returns success status; on failure queues for retry.
+ * Wraps a Core write with automatic queuing on failure.
+ * Uses the core-bridge edge function for iOS compatibility.
  */
 export async function writeWithRetry(
   table: string,
   payload: Record<string, any>,
 ): Promise<{ ok: boolean; queued: boolean }> {
   try {
-    const { error } = await supabase.from(table as any).insert(payload as any);
-    if (error) throw error;
+    const result = await bridgedInsert(table, payload);
+    if (!result.ok) throw new Error(result.error);
     return { ok: true, queued: false };
   } catch {
     enqueue(table, payload);

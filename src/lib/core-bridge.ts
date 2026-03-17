@@ -135,6 +135,7 @@ export interface CoreDiagnostics {
   tables: Record<string, { exists: boolean; columns?: string[]; error?: string }>;
   rpcs: Record<string, { available: boolean; error?: string }>;
   core_url: string;
+  note?: string;
 }
 
 export async function diagnoseSchema() {
