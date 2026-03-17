@@ -46,6 +46,8 @@ interface DefaultSchedule {
   remote_enabled: boolean;
   message_title: string | null;
   message_body: string | null;
+  scope_type: string;
+  owner_user_id: string | null;
 }
 
 interface UserOverride {
