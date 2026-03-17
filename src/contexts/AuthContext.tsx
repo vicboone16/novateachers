@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { clearResolvedUserCache } from '@/hooks/useResolvedUser';
+import { registerPush, deactivatePushTokens, isPushAvailable } from '@/lib/push';
 
 interface AuthContextType {
   session: Session | null;
@@ -18,18 +19,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const pushRegisteredRef = useRef(false);
+
+  // Auto-register push after login on native
+  const tryRegisterPush = (userId: string) => {
+    if (pushRegisteredRef.current || !isPushAvailable()) return;
+    pushRegisteredRef.current = true;
+    registerPush(userId).catch(() => {});
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Auto-register push on sign-in
+      if (session?.user) {
+        tryRegisterPush(session.user.id);
+      }
+
+      // Handle session expiry / sign out
+      if (_event === 'SIGNED_OUT') {
+        pushRegisteredRef.current = false;
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        tryRegisterPush(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -47,6 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Deactivate push tokens before signing out
+    if (user?.id) {
+      await deactivatePushTokens(user.id).catch(() => {});
+    }
+    pushRegisteredRef.current = false;
     await supabase.auth.signOut();
   };
 
