@@ -192,11 +192,8 @@ const Inbox = () => {
 
   const handleMarkReviewed = async (msgId: string) => {
     try {
-      await supabase.from('teacher_messages').update({
-        status: 'reviewed',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: user?.id,
-      }).eq('id', msgId);
+      const { error } = await updateMessageStatus({ messageId: msgId, status: 'reviewed', reviewedBy: user?.id });
+      if (error) throw error;
       toast({ title: 'Marked as reviewed' });
       if (selectedThread) loadThread(selectedThread);
       loadMessages();
@@ -207,7 +204,8 @@ const Inbox = () => {
 
   const handleMarkCompleted = async (msgId: string) => {
     try {
-      await supabase.from('teacher_messages').update({ status: 'completed' }).eq('id', msgId);
+      const { error } = await updateMessageStatus({ messageId: msgId, status: 'completed' });
+      if (error) throw error;
       toast({ title: 'Marked as completed' });
       if (selectedThread) loadThread(selectedThread);
       loadMessages();

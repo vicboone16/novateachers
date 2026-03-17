@@ -100,23 +100,19 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
     if (!recipientId || !body.trim() || !user || !currentWorkspace) return;
     setSending(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from('teacher_messages')
-        .insert({
-          agency_id: currentWorkspace.agency_id,
-          sender_id: user.id,
-          recipient_id: recipientId,
-          message_type: messageType,
-          subject: subject.trim() || null,
-          body: body.trim(),
-          metadata: { app_source: 'teacher_hub' },
-        })
-        .select('id')
-        .single();
+      const { data: inserted, error } = await sendMessageViaBridge({
+        agencyId: currentWorkspace.agency_id,
+        senderId: user.id,
+        recipientId,
+        messageType: messageType,
+        subject: subject.trim() || null,
+        body: body.trim(),
+        metadata: { app_source: 'teacher_hub' },
+      });
 
       if (error) throw error;
 
-      if (files.length > 0 && inserted) {
+      if (files.length > 0 && inserted?.id) {
         const ok = await uploadAttachments(inserted.id, user.id, files);
         if (!ok) {
           toast({ title: 'Message sent but some attachments failed', variant: 'destructive' });
