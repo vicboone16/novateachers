@@ -64,30 +64,25 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
   }, [open, currentWorkspace]);
 
   const loadRecipients = async () => {
-    if (!currentWorkspace) return;
+    if (!currentWorkspace || !user) return;
     setLoadingRecipients(true);
     try {
-      // Fetch agency members from Core
-      const { data } = await supabase
-        .from('user_agency_access')
-        .select('user_id')
-        .eq('agency_id', currentWorkspace.agency_id);
-
-      if (data && data.length > 0) {
-        const userIds = data.map((d: any) => d.user_id).filter((id: string) => id !== user?.id);
-        if (userIds.length > 0) {
-          // Resolve names via edge function (profiles + auth metadata fallback)
-          const resolved = await resolveDisplayNames(userIds, session?.access_token);
-          setRecipients(
-            userIds.map(id => ({
-              id,
-              name: resolved.get(id) || id.slice(0, 8),
-            }))
-          );
-        }
+      const { data, error } = await listRecipients({ agencyId: currentWorkspace.agency_id, excludeUserId: user.id });
+      if (error) throw error;
+      const userIds = data?.user_ids || [];
+      if (userIds.length > 0) {
+        const resolved = await resolveDisplayNames(userIds, session?.access_token);
+        setRecipients(
+          userIds.map(id => ({
+            id,
+            name: resolved.get(id) || id.slice(0, 8),
+          }))
+        );
+      } else {
+        setRecipients([]);
       }
     } catch {
-      // Fallback: empty recipients
+      setRecipients([]);
     } finally {
       setLoadingRecipients(false);
     }
