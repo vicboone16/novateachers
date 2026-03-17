@@ -27,8 +27,9 @@ import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
-  Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2,
+  Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
 } from 'lucide-react';
+import { NOTIFICATION_LABELS } from '@/lib/notifications';
 
 // ── Types ──
 interface InviteCode {
