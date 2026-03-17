@@ -326,6 +326,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="invites" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Key className="h-3.5 w-3.5" /> Invites</TabsTrigger>
               <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
               <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
+              <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
             </TabsList>
           </div>
 
