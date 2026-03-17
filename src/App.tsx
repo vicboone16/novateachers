@@ -30,6 +30,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import DataCollection from "@/pages/DataCollection";
 import TeacherGuide from "@/pages/TeacherGuide";
 import ClassroomView from "@/pages/ClassroomView";
+import CoreDiagnostics from "@/pages/CoreDiagnostics";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +96,7 @@ const WorkspaceRoutes = () => {
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/install" element={<InstallApp />} />
         <Route path="/" element={<Navigate to="/classroom" replace />} />
       </Route>
