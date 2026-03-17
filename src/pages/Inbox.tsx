@@ -163,30 +163,20 @@ const Inbox = () => {
     try {
       const rootMsg = threadMessages[0];
       const recipientId = rootMsg.sender_id === user.id ? rootMsg.recipient_id : rootMsg.sender_id;
-      const replyPayload: Record<string, any> = {
-        agency_id: currentWorkspace.agency_id,
-        thread_id: selectedThread,
-        sender_id: user.id,
-        recipient_id: recipientId,
-        message_type: 'note',
+      const { data: inserted, error } = await sendMessageViaBridge({
+        agencyId: currentWorkspace.agency_id,
+        threadId: selectedThread,
+        parentId: threadMessages[threadMessages.length - 1]?.id,
+        senderId: user.id,
+        recipientId,
+        messageType: 'note',
         subject: rootMsg.subject ? `Re: ${rootMsg.subject}` : null,
         body: replyText.trim(),
         metadata: { app_source: 'teacher_hub' },
-      };
-      // Try with parent_id first; omit if column doesn't exist on Core
-      let inserted: any = null;
-      let error: any = null;
-      ({ data: inserted, error } = await supabase.from('teacher_messages').insert({
-        ...replyPayload,
-        parent_id: threadMessages[threadMessages.length - 1].id,
-      }).select('id').single());
-      if (error?.message?.includes('parent_id')) {
-        ({ data: inserted, error } = await supabase.from('teacher_messages').insert(replyPayload).select('id').single());
-      }
+      });
       if (error) throw error;
 
-      // Upload attachments if any
-      if (replyFiles.length > 0 && inserted) {
+      if (replyFiles.length > 0 && inserted?.id) {
         await uploadAttachments(inserted.id, user.id, replyFiles);
       }
 
