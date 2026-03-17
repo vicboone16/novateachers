@@ -391,16 +391,16 @@ function StudentCard({ client, count, lastEvent, flash, onBehavior, onEngagement
           <button
             onClick={() => onEngagement(true)}
             title="Engaged — Yes"
-            className="flex items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2 py-1 text-[10px] font-medium text-accent-foreground transition-colors hover:bg-accent/20 active:scale-95"
+            className="flex items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-accent/20 active:scale-95"
           >
             <Check className="h-3 w-3 text-accent" /> Yes
           </button>
           <button
             onClick={() => onEngagement(false)}
             title="Engaged — No"
-            className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-[10px] font-medium text-destructive transition-colors hover:bg-destructive/10 active:scale-95"
+            className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-destructive/10 active:scale-95"
           >
-            <X className="h-3 w-3" /> No
+            <X className="h-3 w-3 text-destructive" /> No
           </button>
           <div className="flex-1" />
           <button
