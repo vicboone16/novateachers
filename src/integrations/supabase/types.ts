@@ -1228,6 +1228,72 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_reminder_schedules: {
+        Row: {
+          app_environment: string
+          classroom_id: string | null
+          created_at: string
+          days_of_week: number[] | null
+          end_time: string | null
+          grace_period_minutes: number | null
+          id: string
+          interval_minutes: number | null
+          is_active: boolean
+          message_body: string | null
+          message_title: string | null
+          name: string
+          reminder_type: string
+          school_id: string | null
+          start_time: string | null
+          student_id: string | null
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_environment?: string
+          classroom_id?: string | null
+          created_at?: string
+          days_of_week?: number[] | null
+          end_time?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          interval_minutes?: number | null
+          is_active?: boolean
+          message_body?: string | null
+          message_title?: string | null
+          name: string
+          reminder_type: string
+          school_id?: string | null
+          start_time?: string | null
+          student_id?: string | null
+          timezone: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_environment?: string
+          classroom_id?: string | null
+          created_at?: string
+          days_of_week?: number[] | null
+          end_time?: string | null
+          grace_period_minutes?: number | null
+          id?: string
+          interval_minutes?: number | null
+          is_active?: boolean
+          message_body?: string | null
+          message_title?: string | null
+          name?: string
+          reminder_type?: string
+          school_id?: string | null
+          start_time?: string | null
+          student_id?: string | null
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       teacher_weekly_summaries: {
         Row: {
           abc_summary: Json | null
