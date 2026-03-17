@@ -208,7 +208,6 @@ const ClassroomView = () => {
 
     toast({ title: `${engaged ? '✓ Engaged' : '✗ Not engaged'}` });
 
-    // Unified event stream (teacher_data_events — immediate Core write)
     writeUnifiedEvent({
       studentId: clientId,
       staffId: user.id,
@@ -219,7 +218,6 @@ const ClassroomView = () => {
       sourceModule: 'classroom_view',
     });
 
-    // Core event stream RPC for supervisor live feed
     try {
       await logEvent({
         clientId,
@@ -229,7 +227,29 @@ const ClassroomView = () => {
         value: engaged ? 1 : 0,
         metadata: { engaged, source: 'classroom_view' },
       });
+      loadTodayCounts();
     } catch (e) { console.warn('[ClassroomView] logEvent engagement failed:', e); }
+  };
+
+  const handleSeedTestData = async () => {
+    if (!user || !effectiveAgencyId || clients.length === 0) return;
+    setSeeding(true);
+    try {
+      const targetStudent = clients[0];
+      const { error } = await seedTeacherEvents({
+        studentId: targetStudent.id,
+        userId: user.id,
+        agencyId: effectiveAgencyId,
+        behavior: 'Aggression',
+      });
+      if (error) throw error;
+      toast({ title: 'Test events seeded' });
+      await loadTodayCounts();
+    } catch (err: any) {
+      toast({ title: 'Seed failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setSeeding(false);
+    }
   };
 
   const formatTime = (iso: string) => {
