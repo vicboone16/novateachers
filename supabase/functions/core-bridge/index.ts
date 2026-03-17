@@ -252,11 +252,6 @@ Deno.serve(async (req) => {
       if (!eventsOk && steps.filter(s => s.step === "teacher_data_events").length === 0) {
         steps.push({ step: "teacher_data_events", ok: false, error: "All column variants failed" });
       }
-      steps.push({
-        step: "teacher_data_events",
-        ok: !eventsError,
-        ...(eventsError ? { error: eventsError.message } : {}),
-      });
 
       const allOk = steps.every(s => s.ok);
 
