@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { registerPush, isPushAvailable } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import { NOTIFICATION_LABELS, resolveNotificationKey } from '@/lib/notifications';
-import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp, RefreshCw, Calendar } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp, RefreshCw, Calendar, Plus, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -45,6 +46,8 @@ interface DefaultSchedule {
   remote_enabled: boolean;
   message_title: string | null;
   message_body: string | null;
+  scope_type: string;
+  owner_user_id: string | null;
 }
 
 interface UserOverride {
@@ -94,6 +97,21 @@ const NotificationSettings = () => {
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
   const [reminderSummary, setReminderSummary] = useState<ReminderInfo[]>([]);
   const [rebuilding, setRebuilding] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newSchedule, setNewSchedule] = useState({
+    name: '',
+    reminder_key: 'data_log_reminder',
+    reminder_type: 'interval' as string,
+    start_time: '08:00',
+    end_time: '15:00',
+    days_of_week: [1, 2, 3, 4, 5] as number[],
+    interval_minutes: 30,
+    local_enabled: true,
+    remote_enabled: false,
+    message_title: '',
+    message_body: '',
+  });
 
   useEffect(() => { if (user) loadSettings(); }, [user]);
 
@@ -236,6 +254,61 @@ const NotificationSettings = () => {
       }
     }
     await triggerRebuild();
+  };
+
+  const createCustomSchedule = async () => {
+    if (!user || !newSchedule.name.trim()) return;
+    setCreating(true);
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const row = {
+        scope_type: 'user',
+        owner_user_id: user.id,
+        created_by: user.id,
+        role_scope: 'teacher',
+        name: newSchedule.name.trim(),
+        reminder_key: newSchedule.reminder_key,
+        reminder_type: newSchedule.reminder_type,
+        timezone: tz,
+        is_active: true,
+        allow_user_override: true,
+        local_enabled: newSchedule.local_enabled,
+        remote_enabled: newSchedule.remote_enabled,
+        start_time: newSchedule.start_time + ':00',
+        end_time: newSchedule.end_time + ':00',
+        days_of_week: newSchedule.days_of_week,
+        interval_minutes: newSchedule.reminder_type === 'interval' ? newSchedule.interval_minutes : null,
+        message_title: newSchedule.message_title || newSchedule.name.trim(),
+        message_body: newSchedule.message_body || 'Tap to take action.',
+        app_environment: 'beta',
+      };
+      const { error } = await (supabase as any).from('default_reminder_schedules').insert(row);
+      if (error) throw error;
+      toast({ title: 'Schedule created', description: newSchedule.name });
+      setShowCreateForm(false);
+      setNewSchedule(s => ({ ...s, name: '', message_title: '', message_body: '' }));
+      await loadSettings();
+    } catch (err: any) {
+      toast({ title: 'Failed to create', description: err.message, variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const deleteCustomSchedule = async (schedId: string) => {
+    if (!user) return;
+    const { error } = await (supabase as any)
+      .from('default_reminder_schedules')
+      .delete()
+      .eq('id', schedId)
+      .eq('owner_user_id', user.id)
+      .eq('scope_type', 'user');
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Schedule deleted' });
+      await loadSettings();
+    }
   };
 
   const handleRegisterPush = async () => {
@@ -414,6 +487,7 @@ const NotificationSettings = () => {
                           {sched.local_enabled && <Badge variant="secondary" className="text-[9px]">Local</Badge>}
                           {sched.remote_enabled && <Badge variant="secondary" className="text-[9px]">Remote</Badge>}
                           {!canOverride && <Badge variant="destructive" className="text-[9px]">Locked</Badge>}
+                          {sched.scope_type === 'user' && <Badge className="text-[9px] bg-accent text-accent-foreground">My Schedule</Badge>}
                           {summaryItem && (
                             <Badge variant="outline" className="text-[8px] text-muted-foreground">
                               src: {summaryItem.source}
@@ -433,6 +507,16 @@ const NotificationSettings = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
+                        {sched.scope_type === 'user' && sched.owner_user_id === user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); deleteCustomSchedule(sched.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Switch
                           checked={isEnabled}
                           onCheckedChange={(val) => upsertOverride(sched.id, { notifications_enabled: val })}
@@ -558,7 +642,130 @@ const NotificationSettings = () => {
             </CardContent>
           </Card>
 
-          {/* Reminder Summary */}
+          {/* Create Your Own Schedule */}
+          <Card className="border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Plus className="h-4 w-4 text-primary" />
+                Create Your Own Schedule
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!showCreateForm ? (
+                <Button variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setShowCreateForm(true)}>
+                  <Plus className="h-3.5 w-3.5" />
+                  New Custom Reminder
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Reminder Name</Label>
+                    <Input
+                      placeholder="e.g. My Data Log Reminder"
+                      value={newSchedule.name}
+                      onChange={e => setNewSchedule(s => ({ ...s, name: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="space-y-1 flex-1">
+                      <Label className="text-xs">Type</Label>
+                      <Select value={newSchedule.reminder_type} onValueChange={v => setNewSchedule(s => ({ ...s, reminder_type: v }))}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="interval">Interval</SelectItem>
+                          <SelectItem value="fixed_time">Fixed Time</SelectItem>
+                          <SelectItem value="session_close">Session Close</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <Label className="text-xs">Category</Label>
+                      <Select value={newSchedule.reminder_key} onValueChange={v => setNewSchedule(s => ({ ...s, reminder_key: v }))}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="data_log_reminder">Data Log</SelectItem>
+                          <SelectItem value="session_note_reminder">Session Note</SelectItem>
+                          <SelectItem value="supervision_reminder">Supervision</SelectItem>
+                          <SelectItem value="escalation_alert">Escalation</SelectItem>
+                          <SelectItem value="caregiver_message">Caregiver</SelectItem>
+                          <SelectItem value="admin_alert">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {newSchedule.reminder_type === 'interval' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Interval (minutes)</Label>
+                      <Input
+                        type="number" min={5} max={240}
+                        value={newSchedule.interval_minutes}
+                        onChange={e => setNewSchedule(s => ({ ...s, interval_minutes: parseInt(e.target.value) || 30 }))}
+                        className="h-8 text-sm w-24"
+                      />
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Start</Label>
+                      <Input type="time" value={newSchedule.start_time} onChange={e => setNewSchedule(s => ({ ...s, start_time: e.target.value }))} className="h-8 text-sm w-28" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">End</Label>
+                      <Input type="time" value={newSchedule.end_time} onChange={e => setNewSchedule(s => ({ ...s, end_time: e.target.value }))} className="h-8 text-sm w-28" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Days of Week</Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[1, 2, 3, 4, 5, 6, 7].map(d => {
+                        const isActive = newSchedule.days_of_week.includes(d);
+                        return (
+                          <Button
+                            key={d}
+                            variant={isActive ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-7 w-10 text-xs px-0"
+                            onClick={() => setNewSchedule(s => ({
+                              ...s,
+                              days_of_week: isActive ? s.days_of_week.filter(x => x !== d) : [...s.days_of_week, d].sort()
+                            }))}
+                          >
+                            {DAY_LABELS[d]}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={newSchedule.local_enabled} onCheckedChange={v => setNewSchedule(s => ({ ...s, local_enabled: v }))} />
+                      <Label className="text-xs">Local</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={newSchedule.remote_enabled} onCheckedChange={v => setNewSchedule(s => ({ ...s, remote_enabled: v }))} />
+                      <Label className="text-xs">Remote</Label>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Message Title</Label>
+                    <Input placeholder="e.g. Time to log data" value={newSchedule.message_title} onChange={e => setNewSchedule(s => ({ ...s, message_title: e.target.value }))} className="h-8 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Message Body</Label>
+                    <Input placeholder="e.g. Please log your session data." value={newSchedule.message_body} onChange={e => setNewSchedule(s => ({ ...s, message_body: e.target.value }))} className="h-8 text-sm" />
+                  </div>
+                  <Separator />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="gap-1.5" onClick={createCustomSchedule} disabled={creating || !newSchedule.name.trim()}>
+                      {creating ? 'Creating…' : 'Create Schedule'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShowCreateForm(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
           {reminderSummary.length > 0 && (
             <Card className="border-border/50">
               <CardHeader className="pb-2">
