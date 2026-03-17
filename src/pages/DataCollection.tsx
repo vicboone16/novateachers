@@ -149,21 +149,21 @@ const DataCollection = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight font-heading flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-primary" />
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             Data Collection
           </h2>
-          <p className="text-sm text-muted-foreground">Record behaviors, probes, and engagement</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Record behaviors, probes, and engagement</p>
         </div>
         <SyncStatusIndicator lastStatus={syncStatus} />
       </div>
 
       {/* Student selector */}
-      <div className="max-w-xs">
+      <div className="w-full sm:max-w-xs">
         <Select value={selectedClientId} onValueChange={setSelectedClientId}>
           <SelectTrigger className="h-10">
             <SelectValue placeholder="Select student…" />

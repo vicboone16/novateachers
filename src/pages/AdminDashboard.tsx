@@ -314,12 +314,14 @@ const AdminDashboard = () => {
         </div>
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="ids" className="gap-1.5"><Hash className="h-3.5 w-3.5" /> All IDs</TabsTrigger>
-            <TabsTrigger value="invites" className="gap-1.5"><Key className="h-3.5 w-3.5" /> Invite Codes</TabsTrigger>
-            <TabsTrigger value="students" className="gap-1.5"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
-            <TabsTrigger value="staff" className="gap-1.5"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scroll-x-mobile -mx-3 px-3 sm:mx-0 sm:px-0">
+            <TabsList className="w-max sm:w-full sm:justify-start">
+              <TabsTrigger value="ids" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Hash className="h-3.5 w-3.5" /> IDs</TabsTrigger>
+              <TabsTrigger value="invites" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Key className="h-3.5 w-3.5" /> Invites</TabsTrigger>
+              <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
+              <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ═══════════════ ALL IDs ═══════════════ */}
           <TabsContent value="ids" className="space-y-4 mt-4">
