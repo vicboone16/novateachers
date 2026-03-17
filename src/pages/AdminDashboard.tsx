@@ -618,6 +618,8 @@ const AdminDashboard = () => {
               <CardContent className="space-y-1">
                 <IdRow label="User ID" value={user?.id || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Email" value={user?.email || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Session" value={user ? '✅ Active' : '❌ None'} onCopy={copyToClipboard} />
+                <IdRow label="Session Exp" value={user?.app_metadata?.exp ? new Date(user.app_metadata.exp * 1000).toLocaleString() : 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Agency ID" value={currentWorkspace?.agency_id || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Workspace" value={currentWorkspace?.name || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Role" value={isAdmin ? 'Admin' : 'Member'} onCopy={copyToClipboard} />
