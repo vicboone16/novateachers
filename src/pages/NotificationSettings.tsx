@@ -507,6 +507,16 @@ const NotificationSettings = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
+                        {sched.scope_type === 'user' && sched.owner_user_id === user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); deleteCustomSchedule(sched.id); }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Switch
                           checked={isEnabled}
                           onCheckedChange={(val) => upsertOverride(sched.id, { notifications_enabled: val })}
