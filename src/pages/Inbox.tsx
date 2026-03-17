@@ -269,31 +269,35 @@ const Inbox = () => {
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => { setSelectedThread(null); setThreadMessages([]); }}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <Badge className={cn('text-xs', typeConfig?.color)}>{typeConfig?.label}</Badge>
-              <h3 className="font-semibold">{rootMsg?.subject || 'No subject'}</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => { setSelectedThread(null); setThreadMessages([]); }} className="shrink-0">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={cn('text-xs shrink-0', typeConfig?.color)}>{typeConfig?.label}</Badge>
+                <h3 className="font-semibold truncate">{rootMsg?.subject || 'No subject'}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {userNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {userNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
-            </p>
           </div>
-          {rootMsg && rootMsg.recipient_id === user?.id && rootMsg.status !== 'reviewed' && rootMsg.status !== 'completed' && (
-            <Button size="sm" variant="outline" onClick={() => handleMarkReviewed(rootMsg.id)} className="gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Mark Reviewed
-            </Button>
-          )}
-          {rootMsg && rootMsg.message_type === 'action_item' && rootMsg.status !== 'completed' && (
-            <Button size="sm" onClick={() => handleMarkCompleted(rootMsg.id)} className="gap-1.5">
-              <ClipboardCheck className="h-3.5 w-3.5" />
-              Complete
-            </Button>
-          )}
+          <div className="flex items-center gap-2 shrink-0 ml-10 sm:ml-0">
+            {rootMsg && rootMsg.recipient_id === user?.id && rootMsg.status !== 'reviewed' && rootMsg.status !== 'completed' && (
+              <Button size="sm" variant="outline" onClick={() => handleMarkReviewed(rootMsg.id)} className="gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Mark</span> Reviewed
+              </Button>
+            )}
+            {rootMsg && rootMsg.message_type === 'action_item' && rootMsg.status !== 'completed' && (
+              <Button size="sm" onClick={() => handleMarkCompleted(rootMsg.id)} className="gap-1.5">
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Complete
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Messages in thread */}
