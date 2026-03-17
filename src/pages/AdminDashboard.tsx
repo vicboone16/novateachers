@@ -649,7 +649,26 @@ const AdminDashboard = () => {
                 <CardTitle className="text-sm flex items-center gap-2"><Timer className="h-4 w-4 text-primary" /> Active Reminder Schedules</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {debugSchedules.map((s: any) => {
+                {debugEffective.length > 0 ? debugEffective.map((r: any, i: number) => (
+                  <div key={i} className="rounded border border-border/40 p-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${r.enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                      <span className="text-xs font-medium">{r.name}</span>
+                      <Badge variant="outline" className="text-[8px]">{r.type}</Badge>
+                      <Badge variant={r.source === 'override' ? 'default' : 'secondary'} className="text-[8px]">
+                        {r.source}
+                      </Badge>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Key: <code className="font-mono">{r.key}</code>
+                      {r.nextFire && (
+                        <span className="ml-2 text-primary">
+                          Next: {new Date(r.nextFire).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )) : debugSchedules.map((s: any) => {
                   const ov = debugOverrides.find((o: any) => o.default_schedule_id === s.id);
                   return (
                     <div key={s.id} className="rounded border border-border/40 p-2 space-y-1">
@@ -668,7 +687,7 @@ const AdminDashboard = () => {
                     </div>
                   );
                 })}
-                {debugSchedules.length === 0 && <p className="text-xs text-muted-foreground">No active schedules found.</p>}
+                {debugSchedules.length === 0 && debugEffective.length === 0 && <p className="text-xs text-muted-foreground">No active schedules found.</p>}
               </CardContent>
             </Card>
 
