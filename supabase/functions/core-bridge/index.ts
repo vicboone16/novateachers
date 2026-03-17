@@ -163,27 +163,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, id: res.data?.id });
     }
 
-    // ─── write_duration (bridged insert for iOS) ──────────────────
+    // ─── write_duration (bridged insert for iOS, schema-adaptive) ──
     if (action === "write_duration") {
-      const payload = {
+      const base: Record<string, unknown> = {
         agency_id: String(body.agency_id || ""),
         client_id: String(body.client_id || ""),
         user_id: String(body.user_id || ""),
         behavior_name: String(body.behavior_name || ""),
         duration_seconds: Number(body.duration_seconds || 0),
-        logged_date: String(body.logged_date || new Date().toISOString().slice(0, 10)),
         ...(body.target_id ? { target_id: String(body.target_id) } : {}),
         ...(body.notes ? { notes: String(body.notes) } : {}),
       };
+      const loggedDate = String(body.logged_date || new Date().toISOString().slice(0, 10));
 
-      const { data, error } = await core
-        .from("teacher_duration_entries")
-        .insert(payload)
-        .select("id")
-        .single();
+      let res = await core.from("teacher_duration_entries").insert({ ...base, logged_date: loggedDate }).select("id").single();
+      if (res.error && String(res.error.message).includes("logged_date")) {
+        res = await core.from("teacher_duration_entries").insert(base).select("id").single();
+      }
 
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true, id: data?.id });
+      if (res.error) return json({ error: res.error.message }, 400);
+      return json({ ok: true, id: res.data?.id });
     }
 
     // ─── write_abc (bridged insert for iOS) ───────────────────────
