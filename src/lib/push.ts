@@ -161,3 +161,19 @@ export async function cancelAllLocalNotifications(): Promise<void> {
 export function isPushAvailable(): boolean {
   return isNative;
 }
+
+/**
+ * Mark all push tokens inactive for a user on this device (call on logout).
+ */
+export async function deactivatePushTokens(userId: string): Promise<void> {
+  try {
+    await (supabase as any)
+      .from('push_tokens')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('is_active', true);
+    console.log('[Push] Tokens deactivated for user', userId);
+  } catch (err) {
+    console.warn('[Push] Failed to deactivate tokens:', err);
+  }
+}
