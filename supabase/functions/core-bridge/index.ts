@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
 
-    // ─── diagnose_schema ───────────────────────────────────────────
+    // ─── diagnose_schema (uses information_schema for real columns) ─
     if (action === "diagnose_schema") {
       const targetTables = [
         "teacher_frequency_entries",
@@ -63,39 +63,68 @@ Deno.serve(async (req) => {
 
       const results: Record<string, { exists: boolean; columns?: string[]; error?: string }> = {};
 
-      for (const table of targetTables) {
-        try {
-          // Try selecting 0 rows to see if table exists + get column names
-          const { data, error } = await core.from(table).select("*").limit(0);
-          if (error) {
-            // 42P01 = table doesn't exist
-            if (String(error.code) === "42P01" || String(error.message).includes("does not exist")) {
-              results[table] = { exists: false };
+      // Use information_schema to get real column names even for empty tables
+      const { data: allCols, error: colsErr } = await core
+        .from("information_schema.columns" as any)
+        .select("table_name, column_name")
+        .eq("table_schema", "public")
+        .in("table_name", targetTables);
+
+      // Fallback: if information_schema query fails, use the old method
+      if (colsErr) {
+        // Try RPC approach or fall back to select * limit 0
+        for (const table of targetTables) {
+          try {
+            const { data, error } = await core.from(table).select("*").limit(1);
+            if (error) {
+              if (String(error.code) === "42P01" || String(error.message).includes("does not exist")) {
+                results[table] = { exists: false };
+              } else {
+                results[table] = { exists: true, columns: [], error: error.message };
+              }
             } else {
-              results[table] = { exists: true, error: error.message };
+              const columns = data && data.length > 0 ? Object.keys(data[0]) : [];
+              results[table] = { exists: true, columns };
             }
-          } else {
-            // Get column names from a single row or from the empty result
-            const { data: sample } = await core.from(table).select("*").limit(1);
-            const columns = sample && sample.length > 0 ? Object.keys(sample[0]) : [];
-            results[table] = { exists: true, columns };
+          } catch (err) {
+            results[table] = { exists: false, error: String(err) };
           }
-        } catch (err) {
-          results[table] = { exists: false, error: String(err) };
+        }
+      } else {
+        // Build column map from information_schema
+        const colMap: Record<string, string[]> = {};
+        for (const row of (allCols || []) as { table_name: string; column_name: string }[]) {
+          if (!colMap[row.table_name]) colMap[row.table_name] = [];
+          colMap[row.table_name].push(row.column_name);
+        }
+        for (const table of targetTables) {
+          if (colMap[table]) {
+            results[table] = { exists: true, columns: colMap[table].sort() };
+          } else {
+            // Check if table exists but wasn't in information_schema (permissions)
+            const { error } = await core.from(table).select("*").limit(0);
+            if (error) {
+              if (String(error.code) === "42P01" || String(error.message).includes("does not exist")) {
+                results[table] = { exists: false };
+              } else {
+                results[table] = { exists: true, columns: [], error: error.message };
+              }
+            } else {
+              results[table] = { exists: true, columns: [] };
+            }
+          }
         }
       }
 
-      // Also check for RPC functions
+      // Check RPCs
       const rpcs = ["insert_event", "create_supervisor_signal"];
       const rpcResults: Record<string, { available: boolean; error?: string }> = {};
       for (const fn of rpcs) {
         try {
-          // Call with empty/invalid params to see if function exists
           const { error } = await core.rpc(fn, {});
           if (error && String(error.message).includes("does not exist")) {
             rpcResults[fn] = { available: false };
           } else {
-            // Either succeeded or failed with param error — function exists
             rpcResults[fn] = { available: true, error: error?.message };
           }
         } catch (err) {
@@ -103,7 +132,118 @@ Deno.serve(async (req) => {
         }
       }
 
-      return json({ tables: results, rpcs: rpcResults, core_url: coreUrl });
+      return json({
+        tables: results,
+        rpcs: rpcResults,
+        core_url: coreUrl,
+        note: "If tables show 0 columns via information_schema, the service role may lack access to information_schema. Run: NOTIFY pgrst, 'reload schema'; on Core to refresh the PostgREST cache for newly created tables.",
+      });
+    }
+
+    // ─── Adaptive insert helper ─────────────────────────────────
+    async function adaptiveInsert(table: string, variants: Record<string, unknown>[], selectCol = "id") {
+      for (const payload of variants) {
+        const res = await core.from(table).insert(payload).select(selectCol).single();
+        if (!res.error) return { data: res.data, error: null };
+        const msg = String(res.error.message || "");
+        if (msg.includes("column") || msg.includes("schema cache") || res.error.code === "42703") continue;
+        return { data: null, error: res.error };
+      }
+      return { data: null, error: { message: `All ${variants.length} column variants failed for ${table}. Run: SELECT pg_notify('pgrst', 'reload schema'); on Core.` } };
+    }
+
+    // ─── write_frequency (bridged, schema-adaptive) ───────────────
+    if (action === "write_frequency") {
+      const uid = String(body.user_id || "");
+      const cid = String(body.client_id || "");
+      const aid = String(body.agency_id || "");
+      const bn = String(body.behavior_name || "");
+      const cnt = Number(body.count || 1);
+      const ld = String(body.logged_date || new Date().toISOString().slice(0, 10));
+      const ex: Record<string, unknown> = {};
+      if (body.target_id) ex.target_id = String(body.target_id);
+      if (body.notes) ex.notes = String(body.notes);
+
+      const variants = [
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, count: cnt, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, count: cnt, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, count: cnt, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, count: cnt, ...ex },
+        { agency_id: aid, student_id: cid, staff_id: uid, behavior_name: bn, count: cnt, ...ex },
+      ];
+
+      const { data, error } = await adaptiveInsert("teacher_frequency_entries", variants);
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    // ─── write_duration (bridged, schema-adaptive) ────────────────
+    if (action === "write_duration") {
+      const uid = String(body.user_id || "");
+      const cid = String(body.client_id || "");
+      const aid = String(body.agency_id || "");
+      const bn = String(body.behavior_name || "");
+      const ds = Number(body.duration_seconds || 0);
+      const ld = String(body.logged_date || new Date().toISOString().slice(0, 10));
+      const ex: Record<string, unknown> = {};
+      if (body.target_id) ex.target_id = String(body.target_id);
+      if (body.notes) ex.notes = String(body.notes);
+
+      const variants = [
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, duration_seconds: ds, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, duration_seconds: ds, logged_date: ld, ...ex },
+        { agency_id: aid, client_id: cid, user_id: uid, behavior_name: bn, duration_seconds: ds, ...ex },
+        { agency_id: aid, client_id: cid, staff_id: uid, behavior_name: bn, duration_seconds: ds, ...ex },
+        { agency_id: aid, student_id: cid, staff_id: uid, behavior_name: bn, duration_seconds: ds, ...ex },
+      ];
+
+      const { data, error } = await adaptiveInsert("teacher_duration_entries", variants);
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    // ─── write_abc (bridged, schema-adaptive) ─────────────────────
+    if (action === "write_abc") {
+      const ex: Record<string, unknown> = {};
+      if (body.behavior_category) ex.behavior_category = String(body.behavior_category);
+      if (body.notes) ex.notes = String(body.notes);
+      if (body.intensity != null) ex.intensity = Number(body.intensity);
+      if (body.duration_seconds != null) ex.duration_seconds = Number(body.duration_seconds);
+      const ant = String(body.antecedent || "");
+      const beh = String(body.behavior || "");
+      const con = String(body.consequence || "");
+
+      const variants = [
+        { client_id: String(body.client_id || ""), user_id: String(body.user_id || ""), antecedent: ant, behavior: beh, consequence: con, ...ex },
+        { client_id: String(body.client_id || ""), staff_id: String(body.user_id || ""), antecedent: ant, behavior: beh, consequence: con, ...ex },
+        { student_id: String(body.client_id || ""), staff_id: String(body.user_id || ""), antecedent: ant, behavior: beh, consequence: con, ...ex },
+      ];
+
+      const { data, error } = await adaptiveInsert("abc_logs", variants);
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    // ─── write_event (bridged, schema-adaptive) ───────────────────
+    if (action === "write_event") {
+      const base: Record<string, unknown> = {
+        student_id: String(body.student_id || ""),
+        staff_id: String(body.staff_id || ""),
+        event_type: String(body.event_type || ""),
+      };
+      if (body.agency_id) base.agency_id = String(body.agency_id);
+      if (body.event_value) base.event_value = body.event_value;
+      if (body.source_module) base.source_module = String(body.source_module);
+      if (body.metadata) base.metadata = body.metadata;
+
+      const variants = [
+        { ...base, ...(body.event_subtype ? { event_subtype: String(body.event_subtype) } : {}) },
+        base,
+      ];
+
+      const { data, error } = await adaptiveInsert("teacher_data_events", variants, "event_id");
+      if (error) return json({ error: (error as any).message }, 400);
+      return json({ ok: true, event_id: data?.event_id });
     }
 
     // ─── list_recent_classroom_events ──────────────────────────────
@@ -132,7 +272,7 @@ Deno.serve(async (req) => {
       return json({ events: data || [] });
     }
 
-    // ─── seed_teacher_events (schema-adaptive) ────────────────────
+    // ─── seed_teacher_events (schema-adaptive + PostgREST note) ───
     if (action === "seed_teacher_events") {
       const studentId = String(body.student_id || "");
       const userId = String(body.user_id || "");
@@ -147,63 +287,56 @@ Deno.serve(async (req) => {
       const behaviorAt = new Date(now.getTime() - 2 * 60 * 1000).toISOString();
       const abcAt = new Date(now.getTime() - 60 * 1000).toISOString();
       const loggedDate = now.toISOString().slice(0, 10);
-      const steps: { step: string; ok: boolean; error?: string }[] = [];
+      const steps: { step: string; ok: boolean; error?: string; variant?: string }[] = [];
 
-      // Step 1: Detect schema for teacher_frequency_entries
+      // Step 1: teacher_frequency_entries
       const freqPayloads = [
-        // Try client_id + logged_date (Lovable Cloud schema)
-        { agency_id: agencyId, client_id: studentId, user_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate },
-        // Try student_id variant (some Core schemas)
-        { agency_id: agencyId, student_id: studentId, user_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate },
-        // Try staff_id variant
-        { agency_id: agencyId, client_id: studentId, staff_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate },
+        { v: "client_id+user_id", p: { agency_id: agencyId, client_id: studentId, user_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate } },
+        { v: "student_id+user_id", p: { agency_id: agencyId, student_id: studentId, user_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate } },
+        { v: "client_id+staff_id", p: { agency_id: agencyId, client_id: studentId, staff_id: userId, behavior_name: behavior, count: 1, logged_date: loggedDate } },
       ];
 
       let freqOk = false;
-      for (const payload of freqPayloads) {
-        const { error } = await core.from("teacher_frequency_entries").insert(payload);
+      for (const { v, p } of freqPayloads) {
+        const { error } = await core.from("teacher_frequency_entries").insert(p);
         if (!error) {
-          steps.push({ step: "teacher_frequency_entries", ok: true });
+          steps.push({ step: "teacher_frequency_entries", ok: true, variant: v });
           freqOk = true;
           break;
         }
-        // If column doesn't exist, try next variant
-        if (String(error.message).includes("column") || String(error.code) === "42703") {
-          continue;
-        }
-        // Other error — record it but keep going
-        steps.push({ step: "teacher_frequency_entries", ok: false, error: error.message });
+        if (String(error.message).includes("column") || String(error.code) === "42703") continue;
+        steps.push({ step: "teacher_frequency_entries", ok: false, error: error.message, variant: v });
         break;
       }
       if (!freqOk && steps.filter(s => s.step === "teacher_frequency_entries").length === 0) {
-        steps.push({ step: "teacher_frequency_entries", ok: false, error: "All column variants failed" });
+        steps.push({ step: "teacher_frequency_entries", ok: false, error: "All column variants rejected. Run NOTIFY pgrst, 'reload schema'; on Core if tables were recently created." });
       }
 
-      // Step 2: Try abc_logs with adaptive columns
+      // Step 2: abc_logs
       const abcPayloads = [
-        { client_id: studentId, user_id: userId, antecedent: "Transition to independent work", behavior, consequence: "Redirected and offered a brief break", behavior_category: behavior, notes: "Seeded test ABC event", logged_at: abcAt },
-        { student_id: studentId, user_id: userId, antecedent: "Transition to independent work", behavior, consequence: "Redirected and offered a brief break", behavior_category: behavior, notes: "Seeded test ABC event", logged_at: abcAt },
-        { client_id: studentId, staff_id: userId, antecedent: "Transition to independent work", behavior, consequence: "Redirected and offered a brief break", behavior_category: behavior, notes: "Seeded test ABC event", logged_at: abcAt },
+        { v: "client_id+user_id", p: { client_id: studentId, user_id: userId, antecedent: "Transition", behavior, consequence: "Redirected", behavior_category: behavior, notes: "Seeded", logged_at: abcAt } },
+        { v: "student_id+user_id", p: { student_id: studentId, user_id: userId, antecedent: "Transition", behavior, consequence: "Redirected", behavior_category: behavior, notes: "Seeded", logged_at: abcAt } },
+        { v: "client_id+staff_id", p: { client_id: studentId, staff_id: userId, antecedent: "Transition", behavior, consequence: "Redirected", behavior_category: behavior, notes: "Seeded", logged_at: abcAt } },
       ];
 
       let abcOk = false;
-      for (const payload of abcPayloads) {
-        const { error } = await core.from("abc_logs").insert(payload);
+      for (const { v, p } of abcPayloads) {
+        const { error } = await core.from("abc_logs").insert(p);
         if (!error) {
-          steps.push({ step: "abc_logs", ok: true });
+          steps.push({ step: "abc_logs", ok: true, variant: v });
           abcOk = true;
           break;
         }
         if (String(error.message).includes("column") || String(error.code) === "42703") continue;
-        steps.push({ step: "abc_logs", ok: false, error: error.message });
+        steps.push({ step: "abc_logs", ok: false, error: error.message, variant: v });
         break;
       }
       if (!abcOk && steps.filter(s => s.step === "abc_logs").length === 0) {
-        steps.push({ step: "abc_logs", ok: false, error: "All column variants failed" });
+        steps.push({ step: "abc_logs", ok: false, error: "All variants rejected — check RLS allows service_role inserts, or run NOTIFY pgrst, 'reload schema';" });
       }
 
-      // Step 3: teacher_data_events (unified event stream) — try with and without optional columns
-      const baseEvent1 = {
+      // Step 3: teacher_data_events
+      const baseEvent = {
         student_id: studentId,
         staff_id: userId,
         agency_id: agencyId,
@@ -213,44 +346,26 @@ Deno.serve(async (req) => {
         metadata: { seeded: true },
         recorded_at: behaviorAt,
       };
-      const baseEvent2 = {
-        student_id: studentId,
-        staff_id: userId,
-        agency_id: agencyId,
-        event_type: "abc_event",
-        event_value: {
-          antecedent: "Transition to independent work",
-          behavior,
-          consequence: "Redirected and offered a brief break",
-          seeded: true,
-        },
-        source_module: "core_bridge_seed",
-        metadata: { seeded: true },
-        recorded_at: abcAt,
-      };
 
-      // Try with event_subtype first, then without
       const eventVariants = [
-        [{ ...baseEvent1, event_subtype: "frequency" }, { ...baseEvent2, event_subtype: behavior }],
-        [baseEvent1, baseEvent2],
+        { v: "with_event_subtype", rows: [{ ...baseEvent, event_subtype: "frequency" }] },
+        { v: "without_event_subtype", rows: [baseEvent] },
       ];
 
       let eventsOk = false;
-      for (const rows of eventVariants) {
-        const { error: eventsError } = await core.from("teacher_data_events").insert(rows);
-        if (!eventsError) {
-          steps.push({ step: "teacher_data_events", ok: true });
+      for (const { v, rows } of eventVariants) {
+        const { error } = await core.from("teacher_data_events").insert(rows);
+        if (!error) {
+          steps.push({ step: "teacher_data_events", ok: true, variant: v });
           eventsOk = true;
           break;
         }
-        if (String(eventsError.message).includes("column") || String(eventsError.message).includes("schema cache")) {
-          continue;
-        }
-        steps.push({ step: "teacher_data_events", ok: false, error: eventsError.message });
+        if (String(error.message).includes("column") || String(error.message).includes("schema cache")) continue;
+        steps.push({ step: "teacher_data_events", ok: false, error: error.message, variant: v });
         break;
       }
       if (!eventsOk && steps.filter(s => s.step === "teacher_data_events").length === 0) {
-        steps.push({ step: "teacher_data_events", ok: false, error: "All column variants failed" });
+        steps.push({ step: "teacher_data_events", ok: false, error: "All variants rejected" });
       }
 
       const allOk = steps.every(s => s.ok);
@@ -258,13 +373,8 @@ Deno.serve(async (req) => {
       return json({
         ok: allOk,
         steps,
-        seeded: {
-          student_id: studentId,
-          user_id: userId,
-          agency_id: agencyId,
-          behavior_timestamp: behaviorAt,
-          abc_timestamp: abcAt,
-        },
+        seeded: { student_id: studentId, user_id: userId, agency_id: agencyId, behavior_timestamp: behaviorAt, abc_timestamp: abcAt },
+        postgrest_hint: allOk ? null : "If Core tables were recently created or altered, run on the Core database: SELECT pg_notify('pgrst', 'reload schema'); — This forces PostgREST to refresh its schema cache.",
       });
     }
 
