@@ -27,6 +27,7 @@ import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import { NOTIFICATION_LABELS } from '@/lib/notifications';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
+import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
   Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
