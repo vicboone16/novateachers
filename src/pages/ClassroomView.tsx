@@ -268,7 +268,7 @@ const ClassroomView = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -278,6 +278,12 @@ const ClassroomView = () => {
             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
+        {user && effectiveAgencyId && clients.length > 0 && (
+          <Button size="sm" variant="outline" onClick={handleSeedTestData} disabled={seeding} className="gap-1.5">
+            <Radio className="h-3.5 w-3.5" />
+            {seeding ? 'Seeding…' : 'Seed Test Data'}
+          </Button>
+        )}
       </div>
 
       {/* Daily stats bar */}
@@ -294,6 +300,38 @@ const ClassroomView = () => {
         />
         <StatCard label="Active Students" value={Object.keys(todayCounts).length} icon={AlertTriangle} />
       </div>
+
+      {liveEvents.length > 0 && (
+        <Card className="border-border/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-heading">Classroom Today Live Stream</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {liveEvents.map((event) => (
+              <div key={event.event_id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={event.event_type === 'abc_event' ? 'destructive' : 'secondary'}>
+                      {event.event_type === 'abc_event' ? 'ABC' : 'Behavior'}
+                    </Badge>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {event.event_type === 'abc_event'
+                        ? String(event.event_value?.behavior || event.event_subtype || 'ABC event')
+                        : String(event.event_value?.behavior || event.event_subtype || 'Behavior event')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {event.event_type === 'abc_event'
+                      ? `${event.event_value?.antecedent || 'Antecedent'} → ${event.event_value?.consequence || 'Consequence'}`
+                      : `${event.source_module || 'classroom_view'} · count ${event.event_value?.count || 1}`}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatTime(event.recorded_at)}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Student grid */}
       {clients.length === 0 ? (
