@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,83 +8,133 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { NOTIFICATION_CATEGORIES, NOTIFICATION_LABELS, type NotificationKey } from '@/lib/notifications';
 import { registerPush, isPushAvailable } from '@/lib/push';
-import { ArrowLeft, Bell, BellOff, Clock, Smartphone } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 
-interface NotifDefault {
-  notification_key: string;
-  label: string;
-  description: string | null;
-  default_enabled: boolean;
-  default_schedule_time: string | null;
-  category: string;
-  sort_order: number;
-}
+const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-interface UserPref {
-  notification_key: string;
-  enabled: boolean;
+interface NotifPrefs {
   push_enabled: boolean;
-  in_app_enabled: boolean;
-  email_enabled: boolean;
-  quiet_start: string | null;
-  quiet_end: string | null;
-  schedule_time: string | null;
+  local_reminders_enabled: boolean;
+  teacher_log_reminders: boolean;
+  escalation_alerts: boolean;
+  note_completion_reminders: boolean;
+  parent_messages: boolean;
+  supervision_reminders: boolean;
+  admin_alerts: boolean;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
 }
+
+interface DefaultSchedule {
+  id: string;
+  name: string;
+  reminder_key: string;
+  reminder_type: string;
+  start_time: string | null;
+  end_time: string | null;
+  days_of_week: number[] | null;
+  interval_minutes: number | null;
+  allow_user_override: boolean;
+  local_enabled: boolean;
+  remote_enabled: boolean;
+  message_title: string | null;
+  message_body: string | null;
+}
+
+interface UserOverride {
+  id: string;
+  default_schedule_id: string;
+  override_enabled: boolean;
+  notifications_enabled: boolean;
+  custom_start_time: string | null;
+  custom_end_time: string | null;
+  custom_days_of_week: number[] | null;
+  custom_interval_minutes: number | null;
+  local_enabled: boolean | null;
+  remote_enabled: boolean | null;
+}
+
+const PREF_TOGGLE_KEYS: { key: keyof NotifPrefs; label: string }[] = [
+  { key: 'push_enabled', label: 'Push Notifications' },
+  { key: 'local_reminders_enabled', label: 'Local Reminders' },
+  { key: 'teacher_log_reminders', label: 'Data Log Reminders' },
+  { key: 'escalation_alerts', label: 'Escalation Alerts' },
+  { key: 'note_completion_reminders', label: 'Session Note Reminders' },
+  { key: 'parent_messages', label: 'Caregiver Messages' },
+  { key: 'supervision_reminders', label: 'Supervision Reminders' },
+  { key: 'admin_alerts', label: 'Admin Alerts' },
+];
 
 const NotificationSettings = () => {
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [defaults, setDefaults] = useState<NotifDefault[]>([]);
-  const [prefs, setPrefs] = useState<Map<string, UserPref>>(new Map());
+  const [prefs, setPrefs] = useState<NotifPrefs | null>(null);
+  const [schedules, setSchedules] = useState<DefaultSchedule[]>([]);
+  const [overrides, setOverrides] = useState<Map<string, UserOverride>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [quietStart, setQuietStart] = useState('22:00');
-  const [quietEnd, setQuietEnd] = useState('07:00');
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [registeringPush, setRegisteringPush] = useState(false);
+  const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSettings();
-  }, [user]);
+  useEffect(() => { if (user) loadSettings(); }, [user]);
 
   const loadSettings = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Load platform defaults
-      const { data: defs } = await (supabase as any)
-        .from('notification_defaults')
-        .select('*')
-        .order('sort_order');
-      setDefaults(defs || []);
-
-      // Load user preferences
-      const { data: userPrefs } = await (supabase as any)
+      // Load notification preferences
+      const { data: prefRows } = await (supabase as any)
         .from('notification_preferences')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .limit(1);
 
-      const prefMap = new Map<string, UserPref>();
-      (userPrefs || []).forEach((p: any) => {
-        prefMap.set(p.notification_key, p);
-        // Extract quiet hours from first pref that has them
-        if (p.quiet_start) setQuietStart(p.quiet_start.slice(0, 5));
-        if (p.quiet_end) setQuietEnd(p.quiet_end.slice(0, 5));
-      });
-      setPrefs(prefMap);
+      if (prefRows?.length) {
+        setPrefs(prefRows[0]);
+      } else {
+        // Create default prefs
+        const defaultPrefs: any = { user_id: user.id };
+        await (supabase as any).from('notification_preferences').insert(defaultPrefs);
+        const { data: newPrefs } = await (supabase as any)
+          .from('notification_preferences')
+          .select('*')
+          .eq('user_id', user.id)
+          .limit(1);
+        setPrefs(newPrefs?.[0] || null);
+      }
+
+      // Load default schedules
+      const { data: sched } = await (supabase as any)
+        .from('default_reminder_schedules')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at');
+      setSchedules(sched || []);
+
+      // Load user overrides
+      const { data: ov } = await (supabase as any)
+        .from('user_reminder_overrides')
+        .select('*')
+        .eq('user_id', user.id);
+      const ovMap = new Map<string, UserOverride>();
+      (ov || []).forEach((o: any) => ovMap.set(o.default_schedule_id, o));
+      setOverrides(ovMap);
 
       // Check push token
       const { data: tokens } = await (supabase as any)
         .from('push_tokens')
-        .select('token')
+        .select('device_token')
         .eq('user_id', user.id)
+        .eq('is_active', true)
         .limit(1);
-      if (tokens?.length) setPushToken(tokens[0].token);
+      if (tokens?.length) setPushToken(tokens[0].device_token);
     } catch (err) {
       console.error('Failed to load notification settings:', err);
     } finally {
@@ -93,72 +142,67 @@ const NotificationSettings = () => {
     }
   };
 
-  const getEffectiveValue = (key: string, field: keyof UserPref): any => {
-    const pref = prefs.get(key);
-    if (pref) return pref[field];
-    const def = defaults.find(d => d.notification_key === key);
-    if (field === 'enabled') return def?.default_enabled ?? true;
-    if (field === 'push_enabled') return true;
-    if (field === 'in_app_enabled') return true;
-    if (field === 'schedule_time') return def?.default_schedule_time ?? null;
-    return null;
-  };
-
-  const togglePref = async (key: string, field: 'enabled' | 'push_enabled' | 'in_app_enabled' | 'email_enabled', newVal: boolean) => {
-    if (!user) return;
-    const existing = prefs.get(key);
-    const row: any = {
-      user_id: user.id,
-      agency_id: currentWorkspace?.agency_id || null,
-      notification_key: key,
-      enabled: existing?.enabled ?? getEffectiveValue(key, 'enabled'),
-      push_enabled: existing?.push_enabled ?? true,
-      in_app_enabled: existing?.in_app_enabled ?? true,
-      email_enabled: existing?.email_enabled ?? false,
-      quiet_start: quietStart + ':00',
-      quiet_end: quietEnd + ':00',
-      updated_at: new Date().toISOString(),
-      [field]: newVal,
-    };
-
+  const updatePref = async (key: keyof NotifPrefs, value: boolean) => {
+    if (!user || !prefs) return;
+    const updated = { ...prefs, [key]: value };
+    setPrefs(updated);
     const { error } = await (supabase as any)
       .from('notification_preferences')
-      .upsert(row, { onConflict: 'user_id,notification_key' });
-
-    if (error) {
-      toast({ title: 'Error saving preference', description: error.message, variant: 'destructive' });
-    } else {
-      setPrefs(prev => {
-        const next = new Map(prev);
-        next.set(key, { ...row });
-        return next;
-      });
-    }
+      .update({ [key]: value })
+      .eq('user_id', user.id);
+    if (error) toast({ title: 'Error saving', description: error.message, variant: 'destructive' });
   };
 
-  const saveQuietHours = async () => {
-    if (!user) return;
-    // Update all existing prefs with new quiet hours
-    const keys = defaults.map(d => d.notification_key);
-    for (const key of keys) {
-      const existing = prefs.get(key);
-      const row: any = {
-        user_id: user.id,
-        agency_id: currentWorkspace?.agency_id || null,
-        notification_key: key,
-        enabled: existing?.enabled ?? getEffectiveValue(key, 'enabled'),
-        push_enabled: existing?.push_enabled ?? true,
-        in_app_enabled: existing?.in_app_enabled ?? true,
-        email_enabled: existing?.email_enabled ?? false,
-        quiet_start: quietStart + ':00',
-        quiet_end: quietEnd + ':00',
-        updated_at: new Date().toISOString(),
-      };
-      await (supabase as any)
-        .from('notification_preferences')
-        .upsert(row, { onConflict: 'user_id,notification_key' });
+  const updateQuietHours = async (field: 'quiet_hours_enabled' | 'quiet_hours_start' | 'quiet_hours_end', value: any) => {
+    if (!user || !prefs) return;
+    const updated = { ...prefs, [field]: value };
+    if (field === 'quiet_hours_enabled' && value === true && !prefs.quiet_hours_start) {
+      updated.quiet_hours_start = '22:00:00';
+      updated.quiet_hours_end = '07:00:00';
     }
-    toast({ title: 'Quiet hours updated' });
+    setPrefs(updated);
+    const updateObj: any = { [field]: value };
+    if (field === 'quiet_hours_enabled' && value === true && !prefs.quiet_hours_start) {
+      updateObj.quiet_hours_start = '22:00:00';
+      updateObj.quiet_hours_end = '07:00:00';
+    }
+    await (supabase as any).from('notification_preferences').update(updateObj).eq('user_id', user.id);
+  };
+
+  const upsertOverride = async (scheduleId: string, changes: Partial<UserOverride>) => {
+    if (!user) return;
+    const existing = overrides.get(scheduleId);
+    if (existing) {
+      await (supabase as any)
+        .from('user_reminder_overrides')
+        .update(changes)
+        .eq('id', existing.id);
+      setOverrides(prev => {
+        const next = new Map(prev);
+        next.set(scheduleId, { ...existing, ...changes });
+        return next;
+      });
+    } else {
+      const row = {
+        user_id: user.id,
+        default_schedule_id: scheduleId,
+        override_enabled: false,
+        notifications_enabled: true,
+        ...changes,
+      };
+      const { data } = await (supabase as any)
+        .from('user_reminder_overrides')
+        .insert(row)
+        .select()
+        .single();
+      if (data) {
+        setOverrides(prev => {
+          const next = new Map(prev);
+          next.set(scheduleId, data);
+          return next;
+        });
+      }
+    }
   };
 
   const handleRegisterPush = async () => {
@@ -172,6 +216,12 @@ const NotificationSettings = () => {
       toast({ title: 'Push not available', description: 'Push notifications require the native iOS app', variant: 'destructive' });
     }
     setRegisteringPush(false);
+  };
+
+  const formatTime = (t: string | null) => t ? t.slice(0, 5) : '--:--';
+  const formatDays = (days: number[] | null) => {
+    if (!days?.length) return 'No days';
+    return days.map(d => DAY_LABELS[d] || d).join(', ');
   };
 
   return (
@@ -213,18 +263,33 @@ const NotificationSettings = () => {
                       ? 'Enable push notifications to receive alerts on your device.'
                       : 'Push notifications are available in the native iOS app.'}
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={handleRegisterPush}
-                    disabled={registeringPush}
-                  >
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleRegisterPush} disabled={registeringPush}>
                     <Bell className="h-3.5 w-3.5" />
                     {registeringPush ? 'Registering…' : 'Enable Push Notifications'}
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Global Toggles */}
+          <Card className="border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary" />
+                Global Preferences
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {PREF_TOGGLE_KEYS.map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between py-1">
+                  <Label className="text-sm">{label}</Label>
+                  <Switch
+                    checked={prefs?.[key] as boolean ?? true}
+                    onCheckedChange={(val) => updatePref(key, val)}
+                  />
+                </div>
+              ))}
             </CardContent>
           </Card>
 
@@ -237,95 +302,189 @@ const NotificationSettings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">Silence all notifications during these hours.</p>
-              <div className="flex items-center gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Start</Label>
-                  <Input
-                    type="time"
-                    value={quietStart}
-                    onChange={e => setQuietStart(e.target.value)}
-                    className="h-8 text-sm w-28"
-                  />
-                </div>
-                <span className="text-muted-foreground mt-5">→</span>
-                <div className="space-y-1">
-                  <Label className="text-xs">End</Label>
-                  <Input
-                    type="time"
-                    value={quietEnd}
-                    onChange={e => setQuietEnd(e.target.value)}
-                    className="h-8 text-sm w-28"
-                  />
-                </div>
-                <Button variant="outline" size="sm" className="mt-5" onClick={saveQuietHours}>
-                  Save
-                </Button>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Enable Quiet Hours</Label>
+                <Switch
+                  checked={prefs?.quiet_hours_enabled ?? false}
+                  onCheckedChange={(val) => updateQuietHours('quiet_hours_enabled', val)}
+                />
               </div>
+              {prefs?.quiet_hours_enabled && (
+                <div className="flex items-center gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Start</Label>
+                    <Input
+                      type="time"
+                      value={(prefs.quiet_hours_start || '22:00:00').slice(0, 5)}
+                      onChange={e => updateQuietHours('quiet_hours_start', e.target.value + ':00')}
+                      className="h-8 text-sm w-28"
+                    />
+                  </div>
+                  <span className="text-muted-foreground mt-5">→</span>
+                  <div className="space-y-1">
+                    <Label className="text-xs">End</Label>
+                    <Input
+                      type="time"
+                      value={(prefs.quiet_hours_end || '07:00:00').slice(0, 5)}
+                      onChange={e => updateQuietHours('quiet_hours_end', e.target.value + ':00')}
+                      className="h-8 text-sm w-28"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Notification Toggles by Category */}
-          {Object.entries(NOTIFICATION_CATEGORIES).map(([catKey, cat]) => (
-            <Card key={catKey} className="border-border/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  {cat.label}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {cat.keys.map(key => {
-                  const def = defaults.find(d => d.notification_key === key);
-                  const enabled = getEffectiveValue(key, 'enabled') as boolean;
-                  const pushOn = getEffectiveValue(key, 'push_enabled') as boolean;
-                  const inAppOn = getEffectiveValue(key, 'in_app_enabled') as boolean;
+          {/* Reminder Schedules with Override Controls */}
+          <Card className="border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Reminder Schedules
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Override default reminder schedules. Locked reminders cannot be customized.
+              </p>
+              {schedules.map(sched => {
+                const ov = overrides.get(sched.id);
+                const isExpanded = expandedSchedule === sched.id;
+                const isEnabled = ov?.notifications_enabled ?? true;
+                const isOverridden = ov?.override_enabled ?? false;
+                const canOverride = sched.allow_user_override;
 
-                  return (
-                    <div key={key} className="rounded-lg border border-border/60 p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">{NOTIFICATION_LABELS[key] || def?.label || key}</p>
-                          {def?.description && (
-                            <p className="text-xs text-muted-foreground">{def.description}</p>
-                          )}
+                return (
+                  <div key={sched.id} className="rounded-lg border border-border/60 overflow-hidden">
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
+                      onClick={() => setExpandedSchedule(isExpanded ? null : sched.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{sched.name}</p>
+                          <Badge variant="outline" className="text-[9px]">{sched.reminder_type.replace(/_/g, ' ')}</Badge>
+                          {sched.local_enabled && <Badge variant="secondary" className="text-[9px]">Local</Badge>}
+                          {sched.remote_enabled && <Badge variant="secondary" className="text-[9px]">Remote</Badge>}
+                          {!canOverride && <Badge variant="destructive" className="text-[9px]">Locked</Badge>}
                         </div>
-                        <Switch
-                          checked={enabled}
-                          onCheckedChange={(val) => togglePref(key, 'enabled', val)}
-                        />
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {sched.interval_minutes ? `Every ${sched.interval_minutes}min` : ''}
+                          {sched.start_time ? ` ${formatTime(sched.start_time)}` : ''}
+                          {sched.end_time ? `–${formatTime(sched.end_time)}` : ''}
+                          {sched.days_of_week ? ` · ${formatDays(sched.days_of_week)}` : ''}
+                        </p>
                       </div>
-                      {enabled && (
-                        <div className="flex items-center gap-4 pl-1">
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Switch
-                              checked={pushOn}
-                              onCheckedChange={(val) => togglePref(key, 'push_enabled', val)}
-                              className="scale-75"
-                            />
-                            Push
-                          </label>
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Switch
-                              checked={inAppOn}
-                              onCheckedChange={(val) => togglePref(key, 'in_app_enabled', val)}
-                              className="scale-75"
-                            />
-                            In-App
-                          </label>
-                          {def?.default_schedule_time && (
-                            <span className="text-[10px] text-muted-foreground ml-auto">
-                              Default: {def.default_schedule_time.slice(0, 5)}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={isEnabled}
+                          onCheckedChange={(val) => {
+                            upsertOverride(sched.id, { notifications_enabled: val });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </div>
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          ))}
+
+                    {isExpanded && isEnabled && (
+                      <div className="border-t border-border/40 p-3 space-y-3 bg-muted/10">
+                        {canOverride ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs flex items-center gap-1.5">
+                                <Settings2 className="h-3 w-3" /> Customize My Schedule
+                              </Label>
+                              <Switch
+                                checked={isOverridden}
+                                onCheckedChange={(val) => upsertOverride(sched.id, { override_enabled: val })}
+                              />
+                            </div>
+
+                            {isOverridden && (
+                              <div className="space-y-3 pl-1">
+                                {sched.interval_minutes !== null && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Interval (minutes)</Label>
+                                    <Input
+                                      type="number"
+                                      min={5}
+                                      max={240}
+                                      value={ov?.custom_interval_minutes ?? sched.interval_minutes ?? ''}
+                                      onChange={e => upsertOverride(sched.id, { custom_interval_minutes: parseInt(e.target.value) || null })}
+                                      className="h-8 text-sm w-24"
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Start Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={(ov?.custom_start_time || sched.start_time || '').slice(0, 5)}
+                                      onChange={e => upsertOverride(sched.id, { custom_start_time: e.target.value + ':00' })}
+                                      className="h-8 text-sm w-28"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">End Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={(ov?.custom_end_time || sched.end_time || '').slice(0, 5)}
+                                      onChange={e => upsertOverride(sched.id, { custom_end_time: e.target.value + ':00' })}
+                                      className="h-8 text-sm w-28"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Days of Week</Label>
+                                  <div className="flex gap-1.5 flex-wrap">
+                                    {[1, 2, 3, 4, 5, 6, 7].map(d => {
+                                      const currentDays = ov?.custom_days_of_week ?? sched.days_of_week ?? [];
+                                      const isActive = currentDays.includes(d);
+                                      return (
+                                        <Button
+                                          key={d}
+                                          variant={isActive ? 'default' : 'outline'}
+                                          size="sm"
+                                          className="h-7 w-10 text-xs px-0"
+                                          onClick={() => {
+                                            const newDays = isActive
+                                              ? currentDays.filter((x: number) => x !== d)
+                                              : [...currentDays, d].sort();
+                                            upsertOverride(sched.id, { custom_days_of_week: newDays });
+                                          }}
+                                        >
+                                          {DAY_LABELS[d]}
+                                        </Button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            This reminder is managed by your organization and cannot be customized.
+                          </p>
+                        )}
+
+                        {sched.message_title && (
+                          <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                            <span className="font-medium">Preview:</span> {sched.message_title} — {sched.message_body}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {schedules.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No reminder schedules configured.</p>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

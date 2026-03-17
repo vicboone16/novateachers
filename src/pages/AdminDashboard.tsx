@@ -25,11 +25,13 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
+import { NOTIFICATION_LABELS } from '@/lib/notifications';
+import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
   Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
+  Bell, BellOff, Smartphone, Timer, Zap,
 } from 'lucide-react';
-import { NOTIFICATION_LABELS } from '@/lib/notifications';
 
 // ── Types ──
 interface InviteCode {
@@ -69,10 +71,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Tabs
   const [tab, setTab] = useState('ids');
-
-  // All entities
   const [students, setStudents] = useState<Client[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
@@ -98,6 +97,13 @@ const AdminDashboard = () => {
   // Edit display name
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState('');
+
+  // Debug state
+  const [debugPushToken, setDebugPushToken] = useState<string | null>(null);
+  const [debugTokenSynced, setDebugTokenSynced] = useState(false);
+  const [debugPendingCount, setDebugPendingCount] = useState(0);
+  const [debugSchedules, setDebugSchedules] = useState<any[]>([]);
+  const [debugOverrides, setDebugOverrides] = useState<any[]>([]);
 
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
@@ -156,21 +162,55 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadDebugState = async () => {
+    if (!user) return;
+    // Push token
+    const { data: tokens } = await (cloudSupabase as any)
+      .from('push_tokens')
+      .select('device_token, is_active, app_environment, timezone, last_seen_at')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1);
+    if (tokens?.length) {
+      setDebugPushToken(tokens[0].device_token);
+      setDebugTokenSynced(true);
+    } else {
+      setDebugPushToken(null);
+      setDebugTokenSynced(false);
+    }
+
+    // Pending local notifications
+    const pending = await getPendingLocalNotifications();
+    setDebugPendingCount(pending.length);
+
+    // Schedules
+    const { data: sched } = await (cloudSupabase as any)
+      .from('default_reminder_schedules')
+      .select('*')
+      .eq('is_active', true);
+    setDebugSchedules(sched || []);
+
+    // Overrides
+    const { data: ov } = await (cloudSupabase as any)
+      .from('user_reminder_overrides')
+      .select('*')
+      .eq('user_id', user.id);
+    setDebugOverrides(ov || []);
+  };
+
+  useEffect(() => {
+    if (tab === 'debug' && user) loadDebugState();
+  }, [tab, user]);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: 'Copied!' });
   };
 
-  // ── Invite Code Overrides ──
   const handleToggleInviteCode = async (codeId: string, currentlyRevoked: boolean) => {
     try {
-      const update = currentlyRevoked
-        ? { revoked_at: null }
-        : { revoked_at: new Date().toISOString() };
-      const { error } = await cloudSupabase
-        .from('invite_codes')
-        .update(update)
-        .eq('id', codeId);
+      const update = currentlyRevoked ? { revoked_at: null } : { revoked_at: new Date().toISOString() };
+      const { error } = await cloudSupabase.from('invite_codes').update(update).eq('id', codeId);
       if (error) throw error;
       toast({ title: currentlyRevoked ? 'Code reactivated' : 'Code revoked' });
       loadAll();
@@ -181,10 +221,7 @@ const AdminDashboard = () => {
 
   const handleResetInviteUses = async (codeId: string) => {
     try {
-      const { error } = await cloudSupabase
-        .from('invite_codes')
-        .update({ uses_count: 0 })
-        .eq('id', codeId);
+      const { error } = await cloudSupabase.from('invite_codes').update({ uses_count: 0 }).eq('id', codeId);
       if (error) throw error;
       toast({ title: 'Uses reset to 0' });
       loadAll();
@@ -193,12 +230,10 @@ const AdminDashboard = () => {
     }
   };
 
-  // ── Add Student ──
   const handleAddStudent = async () => {
     if (!currentWorkspace || !user || !newFirstName.trim()) return;
     setAddingStudent(true);
     try {
-      // Try clients table first, then students
       const row: any = {
         agency_id: currentWorkspace.agency_id,
         first_name: newFirstName.trim(),
@@ -222,18 +257,10 @@ const AdminDashboard = () => {
     }
   };
 
-  // ── Add Staff ──
   const handleAddStaff = async () => {
     if (!currentWorkspace || !newStaffEmail.trim()) return;
     setAddingStaff(true);
     try {
-      // We create a membership directly — user may or may not exist yet
-      const row: any = {
-        agency_id: currentWorkspace.agency_id,
-        user_id: newStaffEmail.trim(), // Placeholder — real flow uses invite codes
-        role: newStaffRole,
-      };
-      // For now, we just note this — real staff needs to join via invite
       toast({
         title: 'Staff registration',
         description: `To add ${newStaffName || newStaffEmail}, generate an invite code from Settings → Sharing. They will be added when they redeem the code.`,
@@ -247,21 +274,12 @@ const AdminDashboard = () => {
     }
   };
 
-  // ── Update Display Name ──
   const handleUpdateDisplayName = async (userId: string) => {
     if (!editNameValue.trim()) return;
     try {
-      // Try updating profiles table
-      const { error } = await supabase
-        .from('profiles')
-        .update({ full_name: editNameValue.trim() })
-        .eq('id', userId);
+      const { error } = await supabase.from('profiles').update({ full_name: editNameValue.trim() }).eq('id', userId);
       if (error) {
-        // Try user_profiles
-        const { error: err2 } = await supabase
-          .from('user_profiles')
-          .update({ full_name: editNameValue.trim() })
-          .eq('user_id', userId);
+        const { error: err2 } = await supabase.from('user_profiles').update({ full_name: editNameValue.trim() }).eq('user_id', userId);
         if (err2) throw err2;
       }
       toast({ title: 'Display name updated' });
@@ -306,12 +324,7 @@ const AdminDashboard = () => {
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, ID, code…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-10"
-        />
+        <Input placeholder="Search by name, ID, code…" value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
       </div>
 
       {loading ? (
@@ -332,7 +345,6 @@ const AdminDashboard = () => {
 
           {/* ═══════════════ ALL IDs ═══════════════ */}
           <TabsContent value="ids" className="space-y-4 mt-4">
-            {/* Agency */}
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> Agency</CardTitle>
@@ -343,7 +355,6 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Users */}
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Staff ({staff.length})</CardTitle>
@@ -354,13 +365,8 @@ const AdminDashboard = () => {
                     <div className="flex-1 min-w-0">
                       {editingUserId === s.user_id ? (
                         <div className="flex items-center gap-1">
-                          <Input
-                            value={editNameValue}
-                            onChange={e => setEditNameValue(e.target.value)}
-                            className="h-7 text-xs max-w-[200px]"
-                            autoFocus
-                            onKeyDown={e => { if (e.key === 'Enter') handleUpdateDisplayName(s.user_id); if (e.key === 'Escape') setEditingUserId(null); }}
-                          />
+                          <Input value={editNameValue} onChange={e => setEditNameValue(e.target.value)} className="h-7 text-xs max-w-[200px]" autoFocus
+                            onKeyDown={e => { if (e.key === 'Enter') handleUpdateDisplayName(s.user_id); if (e.key === 'Escape') setEditingUserId(null); }} />
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleUpdateDisplayName(s.user_id)}><Check className="h-3 w-3" /></Button>
                           <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingUserId(null)}><X className="h-3 w-3" /></Button>
                         </div>
@@ -385,7 +391,6 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Students */}
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4 text-primary" /> Students ({students.length})</CardTitle>
@@ -406,7 +411,6 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Classrooms */}
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> Classrooms ({classrooms.length})</CardTitle>
@@ -458,18 +462,9 @@ const AdminDashboard = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground">{isRevoked ? 'Revoked' : 'Active'}</span>
-                        <Switch
-                          checked={!isRevoked}
-                          onCheckedChange={() => handleToggleInviteCode(code.id, isRevoked)}
-                        />
+                        <Switch checked={!isRevoked} onCheckedChange={() => handleToggleInviteCode(code.id, isRevoked)} />
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => handleResetInviteUses(code.id)}
-                        title="Reset uses to 0"
-                      >
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleResetInviteUses(code.id)} title="Reset uses to 0">
                         <RefreshCw className="h-3 w-3" /> Reset
                       </Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(code.code)}>
@@ -582,13 +577,8 @@ const AdminDashboard = () => {
                   <div className="flex-1 min-w-0">
                     {editingUserId === s.user_id ? (
                       <div className="flex items-center gap-1">
-                        <Input
-                          value={editNameValue}
-                          onChange={e => setEditNameValue(e.target.value)}
-                          className="h-7 text-xs max-w-[200px]"
-                          autoFocus
-                          onKeyDown={e => { if (e.key === 'Enter') handleUpdateDisplayName(s.user_id); if (e.key === 'Escape') setEditingUserId(null); }}
-                        />
+                        <Input value={editNameValue} onChange={e => setEditNameValue(e.target.value)} className="h-7 text-xs max-w-[200px]" autoFocus
+                          onKeyDown={e => { if (e.key === 'Enter') handleUpdateDisplayName(s.user_id); if (e.key === 'Escape') setEditingUserId(null); }} />
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleUpdateDisplayName(s.user_id)}><Check className="h-3 w-3" /></Button>
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingUserId(null)}><X className="h-3 w-3" /></Button>
                       </div>
@@ -613,6 +603,7 @@ const AdminDashboard = () => {
 
           {/* ═══════════════ DEBUG ═══════════════ */}
           <TabsContent value="debug" className="space-y-4 mt-4">
+            {/* System State */}
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Bug className="h-4 w-4 text-primary" /> System State</CardTitle>
@@ -620,18 +611,97 @@ const AdminDashboard = () => {
               <CardContent className="space-y-1">
                 <IdRow label="User ID" value={user?.id || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Email" value={user?.email || 'N/A'} onCopy={copyToClipboard} />
-                <IdRow label="Display Name" value={user?.user_metadata?.full_name || 'Not set'} onCopy={copyToClipboard} />
                 <IdRow label="Agency ID" value={currentWorkspace?.agency_id || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Workspace" value={currentWorkspace?.name || 'N/A'} onCopy={copyToClipboard} />
-                <IdRow label="Mode" value={currentWorkspace?.mode || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Role" value={isAdmin ? 'Admin' : 'Member'} onCopy={copyToClipboard} />
-                <IdRow label="Students" value={String(students.length)} onCopy={copyToClipboard} />
-                <IdRow label="Staff" value={String(staff.length)} onCopy={copyToClipboard} />
-                <IdRow label="Classrooms" value={String(classrooms.length)} onCopy={copyToClipboard} />
-                <IdRow label="Invite Codes" value={String(inviteCodes.length)} onCopy={copyToClipboard} />
+                <IdRow label="Timezone" value={Intl.DateTimeFormat().resolvedOptions().timeZone} onCopy={copyToClipboard} />
+                <IdRow label="App Environment" value="beta" onCopy={copyToClipboard} />
               </CardContent>
             </Card>
 
+            {/* Push & Notification Debug */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Smartphone className="h-4 w-4 text-primary" /> Push & Reminders</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <IdRow label="Push Available" value={isPushAvailable() ? '✅ Yes (native)' : '❌ No (web)'} onCopy={copyToClipboard} />
+                <IdRow label="Push Token" value={debugPushToken ? debugPushToken.slice(0, 24) + '…' : 'Not registered'} onCopy={copyToClipboard} />
+                <IdRow label="Token Synced" value={debugTokenSynced ? '✅ Synced' : '❌ Not synced'} onCopy={copyToClipboard} />
+                <IdRow label="Pending Local" value={String(debugPendingCount)} onCopy={copyToClipboard} />
+                <IdRow label="Schedules" value={`${debugSchedules.length} active`} onCopy={copyToClipboard} />
+                <IdRow label="Overrides" value={`${debugOverrides.length} configured`} onCopy={copyToClipboard} />
+              </CardContent>
+            </Card>
+
+            {/* Active Schedules Detail */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Timer className="h-4 w-4 text-primary" /> Active Reminder Schedules</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {debugSchedules.map((s: any) => {
+                  const ov = debugOverrides.find((o: any) => o.default_schedule_id === s.id);
+                  return (
+                    <div key={s.id} className="rounded border border-border/40 p-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">{s.name}</span>
+                        <Badge variant="outline" className="text-[8px]">{s.reminder_type}</Badge>
+                        <Badge variant={ov ? 'default' : 'secondary'} className="text-[8px]">
+                          {ov?.override_enabled ? 'Custom' : 'Default'}
+                        </Badge>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {s.interval_minutes && <span>Interval: {ov?.override_enabled && ov?.custom_interval_minutes ? ov.custom_interval_minutes : s.interval_minutes}min · </span>}
+                        {s.start_time && <span>Start: {(ov?.override_enabled && ov?.custom_start_time) || s.start_time} · </span>}
+                        Key: <code className="font-mono">{s.reminder_key}</code>
+                      </div>
+                    </div>
+                  );
+                })}
+                {debugSchedules.length === 0 && <p className="text-xs text-muted-foreground">No active schedules found.</p>}
+              </CardContent>
+            </Card>
+
+            {/* Debug Actions */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Debug Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={async () => {
+                  if (!user) return;
+                  const token = await registerPush(user.id);
+                  if (token) { setDebugPushToken(token); setDebugTokenSynced(true); toast({ title: 'Token refreshed' }); }
+                  else toast({ title: 'Push not available on web' });
+                }}>
+                  <RefreshCw className="h-3 w-3" /> Refresh Token
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={async () => {
+                  await scheduleLocalNotification({
+                    id: 99999,
+                    title: 'Test Local Reminder',
+                    body: 'This is a test local notification from debug.',
+                    scheduleAt: new Date(Date.now() + 5000),
+                  });
+                  toast({ title: 'Test reminder scheduled (5s)' });
+                }}>
+                  <Bell className="h-3 w-3" /> Test Local Reminder
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={async () => {
+                  await cancelAllLocalNotifications();
+                  setDebugPendingCount(0);
+                  toast({ title: 'All local reminders cleared' });
+                }}>
+                  <BellOff className="h-3 w-3" /> Clear Local Reminders
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => loadDebugState()}>
+                  <RefreshCw className="h-3 w-3" /> Reload Debug
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Notification Keys */}
             <Card className="border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Notification Keys</CardTitle>
@@ -646,6 +716,7 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Danger Zone */}
             <Card className="border-destructive/30">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2 text-destructive"><LogOut className="h-4 w-4" /> Danger Zone</CardTitle>
@@ -654,8 +725,7 @@ const AdminDashboard = () => {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" size="sm" className="gap-1.5">
-                      <LogOut className="h-3.5 w-3.5" />
-                      Clear Auth & Sign Out
+                      <LogOut className="h-3.5 w-3.5" /> Clear Auth & Sign Out
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -672,6 +742,7 @@ const AdminDashboard = () => {
                           try {
                             localStorage.clear();
                             sessionStorage.clear();
+                            await cancelAllLocalNotifications();
                             await supabase.auth.signOut();
                             await cloudSupabase.auth.signOut();
                             window.location.href = '/';
@@ -687,7 +758,7 @@ const AdminDashboard = () => {
                   </AlertDialogContent>
                 </AlertDialog>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Clears localStorage, sessionStorage, and both Core + Cloud auth sessions.
+                  Clears localStorage, sessionStorage, local reminders, and both Core + Cloud auth sessions.
                 </p>
               </CardContent>
             </Card>

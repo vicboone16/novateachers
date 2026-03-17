@@ -4,7 +4,6 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 
-// Dynamically import Capacitor plugins — they're no-ops on web
 let PushNotifications: any = null;
 let LocalNotifications: any = null;
 let isNative = false;
@@ -17,17 +16,15 @@ async function loadPlugins() {
     LocalNotifications = local.LocalNotifications;
     isNative = true;
   } catch {
-    // Running on web — plugins unavailable
     isNative = false;
   }
 }
 
-// Initialize once
 const pluginReady = loadPlugins();
 
 /**
  * Request push permission & register for APNs token.
- * Stores token in push_tokens table.
+ * Stores token in push_tokens table (new schema: device_token, app_environment).
  */
 export async function registerPush(userId: string): Promise<string | null> {
   await pluginReady;
@@ -49,17 +46,22 @@ export async function registerPush(userId: string): Promise<string | null> {
       PushNotifications.addListener('registration', async (token: { value: string }) => {
         console.log('[Push] APNs token:', token.value);
 
-        // Upsert token to database
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
         await (supabase as any)
           .from('push_tokens')
           .upsert(
             {
               user_id: userId,
-              token: token.value,
+              device_token: token.value,
               platform: 'ios',
+              app_environment: 'beta',
+              timezone: tz,
+              is_active: true,
+              last_seen_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
-            { onConflict: 'user_id,token' }
+            { onConflict: 'device_token,app_environment' }
           );
 
         resolve(token.value);
@@ -117,6 +119,36 @@ export async function cancelLocalNotification(id: number): Promise<void> {
 
   try {
     await LocalNotifications.cancel({ notifications: [{ id }] });
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Get pending local notifications count.
+ */
+export async function getPendingLocalNotifications(): Promise<any[]> {
+  await pluginReady;
+  if (!LocalNotifications || !isNative) return [];
+  try {
+    const result = await LocalNotifications.getPending();
+    return result.notifications || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Cancel all pending local notifications.
+ */
+export async function cancelAllLocalNotifications(): Promise<void> {
+  await pluginReady;
+  if (!LocalNotifications || !isNative) return;
+  try {
+    const pending = await getPendingLocalNotifications();
+    if (pending.length > 0) {
+      await LocalNotifications.cancel({ notifications: pending.map((n: any) => ({ id: n.id })) });
+    }
   } catch {
     // Ignore
   }
