@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/lib/supabase';
+import { countUnreadMessages } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
