@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { registerPush, isPushAvailable } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import { NOTIFICATION_LABELS, resolveNotificationKey } from '@/lib/notifications';
-import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp, RefreshCw, Calendar } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp, RefreshCw, Calendar, Plus, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
