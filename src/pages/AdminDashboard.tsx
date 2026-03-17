@@ -27,6 +27,7 @@ import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import { NOTIFICATION_LABELS } from '@/lib/notifications';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
+import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
   Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
@@ -104,6 +105,8 @@ const AdminDashboard = () => {
   const [debugPendingCount, setDebugPendingCount] = useState(0);
   const [debugSchedules, setDebugSchedules] = useState<any[]>([]);
   const [debugOverrides, setDebugOverrides] = useState<any[]>([]);
+  const [debugEffective, setDebugEffective] = useState<any[]>([]);
+  const [debugRebuilding, setDebugRebuilding] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
@@ -196,6 +199,10 @@ const AdminDashboard = () => {
       .select('*')
       .eq('user_id', user.id);
     setDebugOverrides(ov || []);
+
+    // Effective reminders summary
+    const summary = await getReminderSummary();
+    setDebugEffective(summary);
   };
 
   useEffect(() => {
@@ -611,6 +618,8 @@ const AdminDashboard = () => {
               <CardContent className="space-y-1">
                 <IdRow label="User ID" value={user?.id || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Email" value={user?.email || 'N/A'} onCopy={copyToClipboard} />
+                <IdRow label="Session" value={user ? '✅ Active' : '❌ None'} onCopy={copyToClipboard} />
+                <IdRow label="Session Exp" value={user?.app_metadata?.exp ? new Date(user.app_metadata.exp * 1000).toLocaleString() : 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Agency ID" value={currentWorkspace?.agency_id || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Workspace" value={currentWorkspace?.name || 'N/A'} onCopy={copyToClipboard} />
                 <IdRow label="Role" value={isAdmin ? 'Admin' : 'Member'} onCopy={copyToClipboard} />
@@ -640,7 +649,26 @@ const AdminDashboard = () => {
                 <CardTitle className="text-sm flex items-center gap-2"><Timer className="h-4 w-4 text-primary" /> Active Reminder Schedules</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {debugSchedules.map((s: any) => {
+                {debugEffective.length > 0 ? debugEffective.map((r: any, i: number) => (
+                  <div key={i} className="rounded border border-border/40 p-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${r.enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                      <span className="text-xs font-medium">{r.name}</span>
+                      <Badge variant="outline" className="text-[8px]">{r.type}</Badge>
+                      <Badge variant={r.source === 'override' ? 'default' : 'secondary'} className="text-[8px]">
+                        {r.source}
+                      </Badge>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Key: <code className="font-mono">{r.key}</code>
+                      {r.nextFire && (
+                        <span className="ml-2 text-primary">
+                          Next: {new Date(r.nextFire).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )) : debugSchedules.map((s: any) => {
                   const ov = debugOverrides.find((o: any) => o.default_schedule_id === s.id);
                   return (
                     <div key={s.id} className="rounded border border-border/40 p-2 space-y-1">
@@ -659,7 +687,7 @@ const AdminDashboard = () => {
                     </div>
                   );
                 })}
-                {debugSchedules.length === 0 && <p className="text-xs text-muted-foreground">No active schedules found.</p>}
+                {debugSchedules.length === 0 && debugEffective.length === 0 && <p className="text-xs text-muted-foreground">No active schedules found.</p>}
               </CardContent>
             </Card>
 
@@ -694,6 +722,15 @@ const AdminDashboard = () => {
                   toast({ title: 'All local reminders cleared' });
                 }}>
                   <BellOff className="h-3 w-3" /> Clear Local Reminders
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={async () => {
+                  setDebugRebuilding(true);
+                  const result = await rebuildLocalSchedules();
+                  toast({ title: 'Schedules rebuilt', description: `${result.scheduled} scheduled, ${result.skipped} skipped` });
+                  await loadDebugState();
+                  setDebugRebuilding(false);
+                }}>
+                  <RefreshCw className={`h-3 w-3 ${debugRebuilding ? 'animate-spin' : ''}`} /> Rebuild Schedules
                 </Button>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => loadDebugState()}>
                   <RefreshCw className="h-3 w-3" /> Reload Debug

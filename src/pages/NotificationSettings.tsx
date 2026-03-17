@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,11 +8,12 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { registerPush, isPushAvailable } from '@/lib/push';
-import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
+import { NOTIFICATION_LABELS, resolveNotificationKey } from '@/lib/notifications';
+import { ArrowLeft, Bell, BellOff, Clock, Smartphone, Settings2, ChevronDown, ChevronUp, RefreshCw, Calendar } from 'lucide-react';
 
 const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -59,6 +60,15 @@ interface UserOverride {
   remote_enabled: boolean | null;
 }
 
+interface ReminderInfo {
+  key: string;
+  name: string;
+  nextFire: Date | null;
+  source: string;
+  enabled: boolean;
+  type: string;
+}
+
 const PREF_TOGGLE_KEYS: { key: keyof NotifPrefs; label: string }[] = [
   { key: 'push_enabled', label: 'Push Notifications' },
   { key: 'local_reminders_enabled', label: 'Local Reminders' },
@@ -82,14 +92,23 @@ const NotificationSettings = () => {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [registeringPush, setRegisteringPush] = useState(false);
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
+  const [reminderSummary, setReminderSummary] = useState<ReminderInfo[]>([]);
+  const [rebuilding, setRebuilding] = useState(false);
 
   useEffect(() => { if (user) loadSettings(); }, [user]);
+
+  const loadReminderSummary = useCallback(async () => {
+    const summary = await getReminderSummary();
+    setReminderSummary(summary.map(s => ({
+      ...s,
+      nextFire: s.nextFire ? new Date(s.nextFire) : null,
+    })));
+  }, []);
 
   const loadSettings = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Load notification preferences
       const { data: prefRows } = await (supabase as any)
         .from('notification_preferences')
         .select('*')
@@ -99,7 +118,6 @@ const NotificationSettings = () => {
       if (prefRows?.length) {
         setPrefs(prefRows[0]);
       } else {
-        // Create default prefs
         const defaultPrefs: any = { user_id: user.id };
         await (supabase as any).from('notification_preferences').insert(defaultPrefs);
         const { data: newPrefs } = await (supabase as any)
@@ -110,7 +128,6 @@ const NotificationSettings = () => {
         setPrefs(newPrefs?.[0] || null);
       }
 
-      // Load default schedules
       const { data: sched } = await (supabase as any)
         .from('default_reminder_schedules')
         .select('*')
@@ -118,7 +135,6 @@ const NotificationSettings = () => {
         .order('created_at');
       setSchedules(sched || []);
 
-      // Load user overrides
       const { data: ov } = await (supabase as any)
         .from('user_reminder_overrides')
         .select('*')
@@ -127,7 +143,6 @@ const NotificationSettings = () => {
       (ov || []).forEach((o: any) => ovMap.set(o.default_schedule_id, o));
       setOverrides(ovMap);
 
-      // Check push token
       const { data: tokens } = await (supabase as any)
         .from('push_tokens')
         .select('device_token')
@@ -135,10 +150,25 @@ const NotificationSettings = () => {
         .eq('is_active', true)
         .limit(1);
       if (tokens?.length) setPushToken(tokens[0].device_token);
+
+      await loadReminderSummary();
     } catch (err) {
       console.error('Failed to load notification settings:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const triggerRebuild = async () => {
+    setRebuilding(true);
+    try {
+      const result = await rebuildLocalSchedules();
+      toast({ title: `Schedules rebuilt`, description: `${result.scheduled} scheduled, ${result.skipped} skipped` });
+      await loadReminderSummary();
+    } catch (err: any) {
+      toast({ title: 'Rebuild failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setRebuilding(false);
     }
   };
 
@@ -151,6 +181,7 @@ const NotificationSettings = () => {
       .update({ [key]: value })
       .eq('user_id', user.id);
     if (error) toast({ title: 'Error saving', description: error.message, variant: 'destructive' });
+    else await triggerRebuild();
   };
 
   const updateQuietHours = async (field: 'quiet_hours_enabled' | 'quiet_hours_start' | 'quiet_hours_end', value: any) => {
@@ -167,6 +198,7 @@ const NotificationSettings = () => {
       updateObj.quiet_hours_end = '07:00:00';
     }
     await (supabase as any).from('notification_preferences').update(updateObj).eq('user_id', user.id);
+    await triggerRebuild();
   };
 
   const upsertOverride = async (scheduleId: string, changes: Partial<UserOverride>) => {
@@ -203,6 +235,7 @@ const NotificationSettings = () => {
         });
       }
     }
+    await triggerRebuild();
   };
 
   const handleRegisterPush = async () => {
@@ -224,16 +257,28 @@ const NotificationSettings = () => {
     return days.map(d => DAY_LABELS[d] || d).join(', ');
   };
 
+  const getNextFireForSchedule = (scheduleId: string): Date | null => {
+    const sched = schedules.find(s => s.id === scheduleId);
+    if (!sched) return null;
+    const key = resolveNotificationKey(sched.reminder_key);
+    const info = reminderSummary.find(r => r.key === key);
+    return info?.nextFire || null;
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Notification Settings</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">Configure alerts, reminders, and quiet hours</p>
         </div>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={triggerRebuild} disabled={rebuilding}>
+          <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+          Rebuild
+        </Button>
       </div>
 
       {loading ? (
@@ -251,23 +296,22 @@ const NotificationSettings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pushToken ? (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs text-primary border-primary/30">Registered</Badge>
-                  <span className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">{pushToken.slice(0, 20)}…</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    {isPushAvailable()
-                      ? 'Enable push notifications to receive alerts on your device.'
-                      : 'Push notifications are available in the native iOS app.'}
-                  </p>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleRegisterPush} disabled={registeringPush}>
-                    <Bell className="h-3.5 w-3.5" />
-                    {registeringPush ? 'Registering…' : 'Enable Push Notifications'}
-                  </Button>
-                </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[9px]">
+                  {isPushAvailable() ? '✅ Native' : '📱 Web only'}
+                </Badge>
+                {pushToken && (
+                  <>
+                    <Badge variant="outline" className="text-xs text-primary border-primary/30">Registered</Badge>
+                    <span className="text-[10px] text-muted-foreground font-mono truncate max-w-[160px]">{pushToken.slice(0, 20)}…</span>
+                  </>
+                )}
+              </div>
+              {!pushToken && (
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={handleRegisterPush} disabled={registeringPush}>
+                  <Bell className="h-3.5 w-3.5" />
+                  {registeringPush ? 'Registering…' : 'Enable Push Notifications'}
+                </Button>
               )}
             </CardContent>
           </Card>
@@ -353,6 +397,9 @@ const NotificationSettings = () => {
                 const isEnabled = ov?.notifications_enabled ?? true;
                 const isOverridden = ov?.override_enabled ?? false;
                 const canOverride = sched.allow_user_override;
+                const nextFire = getNextFireForSchedule(sched.id);
+                const resolvedKey = resolveNotificationKey(sched.reminder_key);
+                const summaryItem = reminderSummary.find(r => r.key === resolvedKey);
 
                 return (
                   <div key={sched.id} className="rounded-lg border border-border/60 overflow-hidden">
@@ -361,26 +408,34 @@ const NotificationSettings = () => {
                       onClick={() => setExpandedSchedule(isExpanded ? null : sched.id)}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium">{sched.name}</p>
                           <Badge variant="outline" className="text-[9px]">{sched.reminder_type.replace(/_/g, ' ')}</Badge>
                           {sched.local_enabled && <Badge variant="secondary" className="text-[9px]">Local</Badge>}
                           {sched.remote_enabled && <Badge variant="secondary" className="text-[9px]">Remote</Badge>}
                           {!canOverride && <Badge variant="destructive" className="text-[9px]">Locked</Badge>}
+                          {summaryItem && (
+                            <Badge variant="outline" className="text-[8px] text-muted-foreground">
+                              src: {summaryItem.source}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
                           {sched.interval_minutes ? `Every ${sched.interval_minutes}min` : ''}
                           {sched.start_time ? ` ${formatTime(sched.start_time)}` : ''}
                           {sched.end_time ? `–${formatTime(sched.end_time)}` : ''}
                           {sched.days_of_week ? ` · ${formatDays(sched.days_of_week)}` : ''}
+                          {nextFire && (
+                            <span className="ml-2 text-primary">
+                              ⏱ Next: {nextFire.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={isEnabled}
-                          onCheckedChange={(val) => {
-                            upsertOverride(sched.id, { notifications_enabled: val });
-                          }}
+                          onCheckedChange={(val) => upsertOverride(sched.id, { notifications_enabled: val })}
                           onClick={(e) => e.stopPropagation()}
                         />
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -461,6 +516,23 @@ const NotificationSettings = () => {
                                     })}
                                   </div>
                                 </div>
+                                <Separator />
+                                <div className="flex gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={ov?.local_enabled ?? sched.local_enabled}
+                                      onCheckedChange={(val) => upsertOverride(sched.id, { local_enabled: val })}
+                                    />
+                                    <Label className="text-xs">Local</Label>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={ov?.remote_enabled ?? sched.remote_enabled}
+                                      onCheckedChange={(val) => upsertOverride(sched.id, { remote_enabled: val })}
+                                    />
+                                    <Label className="text-xs">Remote</Label>
+                                  </div>
+                                </div>
                               </div>
                             )}
                           </>
@@ -485,6 +557,35 @@ const NotificationSettings = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Reminder Summary */}
+          {reminderSummary.length > 0 && (
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  Effective Schedule Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {reminderSummary.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 py-1 border-b border-border/30 last:border-0">
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${r.enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                    <span className="text-xs font-medium flex-1 truncate">{r.name}</span>
+                    <Badge variant="outline" className="text-[8px]">{r.source}</Badge>
+                    <Badge variant="outline" className="text-[8px]">{r.type.replace(/_/g, ' ')}</Badge>
+                    {r.nextFire ? (
+                      <span className="text-[10px] text-primary font-mono">
+                        {r.nextFire.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
