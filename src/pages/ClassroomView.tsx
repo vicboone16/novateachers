@@ -2,7 +2,7 @@
  * "Today in My Classroom" — default teacher landing page.
  * Grid of student cards with inline data collection.
  */
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,13 +14,14 @@ import { normalizeClients, displayName, displayInitials } from '@/lib/student-ut
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
+import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Check, X, Play, ExternalLink, Clock, Bell,
-  BarChart3, AlertTriangle, Users,
+  BarChart3, AlertTriangle, Users, Radio,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
