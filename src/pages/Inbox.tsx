@@ -131,17 +131,12 @@ const Inbox = () => {
 
   const loadThread = async (threadId: string) => {
     setSelectedThread(threadId);
-    const { data, error } = await supabase
-      .from('teacher_messages')
-      .select('*')
-      .eq('thread_id', threadId)
-      .order('created_at', { ascending: true });
+    const { data, error } = await listThread(threadId);
 
-    if (!error && data) {
-      const threadMsgs = data as TeacherMessage[];
+    if (!error && data?.messages) {
+      const threadMsgs = data.messages as TeacherMessage[];
       setThreadMessages(threadMsgs);
 
-      // Resolve names for thread participants via edge function
       const threadUserIds = new Set<string>();
       threadMsgs.forEach(m => { threadUserIds.add(m.sender_id); threadUserIds.add(m.recipient_id); });
       const unknownIds = Array.from(threadUserIds).filter(id => !userNames.has(id));
@@ -154,13 +149,9 @@ const Inbox = () => {
         });
       }
 
-      // Mark unread messages as read
       const unread = threadMsgs.filter(m => !m.is_read && m.recipient_id === user?.id);
       if (unread.length > 0) {
-        await supabase
-          .from('teacher_messages')
-          .update({ is_read: true, read_at: new Date().toISOString(), status: 'read' })
-          .in('id', unread.map(m => m.id));
+        await markMessagesRead(unread.map(m => m.id));
         loadMessages();
       }
     }
