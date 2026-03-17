@@ -202,38 +202,56 @@ Deno.serve(async (req) => {
         steps.push({ step: "abc_logs", ok: false, error: "All column variants failed" });
       }
 
-      // Step 3: teacher_data_events (unified event stream)
-      const eventRows = [
-        {
-          student_id: studentId,
-          staff_id: userId,
-          agency_id: agencyId,
-          event_type: "behavior_event",
-          event_subtype: "frequency",
-          event_value: { behavior, count: 1, seeded: true },
-          source_module: "core_bridge_seed",
-          metadata: { seeded: true },
-          recorded_at: behaviorAt,
+      // Step 3: teacher_data_events (unified event stream) — try with and without optional columns
+      const baseEvent1 = {
+        student_id: studentId,
+        staff_id: userId,
+        agency_id: agencyId,
+        event_type: "behavior_event",
+        event_value: { behavior, count: 1, seeded: true },
+        source_module: "core_bridge_seed",
+        metadata: { seeded: true },
+        recorded_at: behaviorAt,
+      };
+      const baseEvent2 = {
+        student_id: studentId,
+        staff_id: userId,
+        agency_id: agencyId,
+        event_type: "abc_event",
+        event_value: {
+          antecedent: "Transition to independent work",
+          behavior,
+          consequence: "Redirected and offered a brief break",
+          seeded: true,
         },
-        {
-          student_id: studentId,
-          staff_id: userId,
-          agency_id: agencyId,
-          event_type: "abc_event",
-          event_subtype: behavior,
-          event_value: {
-            antecedent: "Transition to independent work",
-            behavior,
-            consequence: "Redirected and offered a brief break",
-            seeded: true,
-          },
-          source_module: "core_bridge_seed",
-          metadata: { seeded: true },
-          recorded_at: abcAt,
-        },
+        source_module: "core_bridge_seed",
+        metadata: { seeded: true },
+        recorded_at: abcAt,
+      };
+
+      // Try with event_subtype first, then without
+      const eventVariants = [
+        [{ ...baseEvent1, event_subtype: "frequency" }, { ...baseEvent2, event_subtype: behavior }],
+        [baseEvent1, baseEvent2],
       ];
 
-      const { error: eventsError } = await core.from("teacher_data_events").insert(eventRows);
+      let eventsOk = false;
+      for (const rows of eventVariants) {
+        const { error: eventsError } = await core.from("teacher_data_events").insert(rows);
+        if (!eventsError) {
+          steps.push({ step: "teacher_data_events", ok: true });
+          eventsOk = true;
+          break;
+        }
+        if (String(eventsError.message).includes("column") || String(eventsError.message).includes("schema cache")) {
+          continue;
+        }
+        steps.push({ step: "teacher_data_events", ok: false, error: eventsError.message });
+        break;
+      }
+      if (!eventsOk && steps.filter(s => s.step === "teacher_data_events").length === 0) {
+        steps.push({ step: "teacher_data_events", ok: false, error: "All column variants failed" });
+      }
       steps.push({
         step: "teacher_data_events",
         ok: !eventsError,
