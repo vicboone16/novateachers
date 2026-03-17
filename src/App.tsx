@@ -96,6 +96,7 @@ const WorkspaceRoutes = () => {
         <Route path="/inbox" element={<Inbox />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/install" element={<InstallApp />} />
         <Route path="/" element={<Navigate to="/classroom" replace />} />
       </Route>
