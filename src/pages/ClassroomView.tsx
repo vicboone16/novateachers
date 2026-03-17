@@ -76,7 +76,7 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
-  // Load today's counts
+  // Load today's counts + recent live events
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
@@ -86,38 +86,41 @@ const ClassroomView = () => {
     if (!user) return;
     try {
       const clientIds = clients.map(c => c.id);
-      const { data: freq } = await supabase
-        .from('teacher_frequency_entries')
-        .select('client_id, count')
-        .eq('user_id', user.id)
-        .eq('logged_date', today)
-        .in('client_id', clientIds);
+      const [freqRes, eventsRes] = await Promise.all([
+        supabase
+          .from('teacher_frequency_entries')
+          .select('client_id, count')
+          .eq('user_id', user.id)
+          .eq('logged_date', today)
+          .in('client_id', clientIds),
+        listRecentClassroomEvents({
+          userId: user.id,
+          agencyId: effectiveAgencyId || undefined,
+          studentIds: clientIds,
+          limit: 12,
+        }),
+      ]);
 
       const counts: TodayCounts = {};
       let total = 0;
-      for (const row of (freq || []) as any[]) {
+      for (const row of (freqRes.data || []) as any[]) {
         counts[row.client_id] = (counts[row.client_id] || 0) + (row.count || 1);
         total += row.count || 1;
       }
       setTodayCounts(counts);
       setTotalToday(total);
 
-      // Last events from teacher_data_events
-      const startOfDay = today + 'T00:00:00Z';
-      const { data: events } = await supabase
-        .from('teacher_data_events')
-        .select('student_id, recorded_at')
-        .eq('staff_id', user.id)
-        .gte('recorded_at', startOfDay)
-        .in('student_id', clientIds)
-        .order('recorded_at', { ascending: false });
+      const recent = eventsRes.data?.events || [];
+      setLiveEvents(recent);
 
       const last: LastEvent = {};
-      for (const e of (events || []) as any[]) {
+      for (const e of recent) {
         if (!last[e.student_id]) last[e.student_id] = e.recorded_at;
       }
       setLastEvents(last);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   };
 
   const logBehavior = async (clientId: string, behaviorName: string) => {
