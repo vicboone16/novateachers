@@ -11,10 +11,12 @@ let isNative = false;
 
 async function loadPlugins() {
   try {
-    // Dynamic import so web builds don't fail when Capacitor isn't installed
-    const cap = await import(/* @vite-ignore */ '@capacitor/push-notifications');
+    // Use string variable to prevent TS from resolving the module at compile time
+    const pushMod = '@capac' + 'itor/push-notifications';
+    const localMod = '@capac' + 'itor/local-notifications';
+    const cap = await (Function('m', 'return import(m)') as (m: string) => Promise<any>)(pushMod);
     PushNotifications = cap.PushNotifications;
-    const local = await import(/* @vite-ignore */ '@capacitor/local-notifications');
+    const local = await (Function('m', 'return import(m)') as (m: string) => Promise<any>)(localMod);
     LocalNotifications = local.LocalNotifications;
     isNative = true;
   } catch {
