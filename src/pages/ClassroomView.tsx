@@ -54,6 +54,8 @@ const ClassroomView = () => {
   const [todayCounts, setTodayCounts] = useState<TodayCounts>({});
   const [lastEvents, setLastEvents] = useState<LastEvent>({});
   const [totalToday, setTotalToday] = useState(0);
+  const [liveEvents, setLiveEvents] = useState<CoreBridgeEvent[]>([]);
+  const [seeding, setSeeding] = useState(false);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
