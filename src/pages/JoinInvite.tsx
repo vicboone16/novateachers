@@ -62,16 +62,21 @@ const JoinInvite = () => {
 
       const firstResult = Array.isArray(data) && data.length > 0 ? data[0] : data;
 
-      // Backward compat: if app_context mismatch (not redeemed), retry with legacy slug
+      // Backward compat: if app_context mismatch, retry with legacy slugs
+      const legacySlugs = ['novatrack_teacher', 'teacher_hub'];
       if (firstResult && !firstResult.redeemed && String(firstResult.message || '').toLowerCase().includes('app context')) {
-        const retryResult = await supabase.rpc('redeem_invite_code', {
-          p_code: parsed.data,
-          p_expected_app_context: 'novatrack_teacher',
-          p_redeemer_id: user.id,
-        });
-        if (!retryResult.error) {
-          data = retryResult.data;
-          rpcError = retryResult.error;
+        for (const slug of legacySlugs) {
+          const retryResult = await supabase.rpc('redeem_invite_code', {
+            p_code: parsed.data,
+            p_expected_app_context: slug,
+            p_redeemer_id: user.id,
+          });
+          const retryRow = Array.isArray(retryResult.data) && retryResult.data.length > 0 ? retryResult.data[0] : retryResult.data;
+          if (!retryResult.error && retryRow?.redeemed) {
+            data = retryResult.data;
+            rpcError = retryResult.error;
+            break;
+          }
         }
       }
 

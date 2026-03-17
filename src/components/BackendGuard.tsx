@@ -26,7 +26,7 @@ export const BackendGuard: React.FC<BackendGuardProps> = ({ children }) => {
 
       if (error) throw error;
 
-      if (data?.app_slug === 'novateachers' || data?.app_slug === 'novatrack') {
+      if (['novateachers', 'novatrack', 'teacher_hub'].includes(data?.app_slug)) {
         setStatus('ok');
       } else {
         setStatus('error');
