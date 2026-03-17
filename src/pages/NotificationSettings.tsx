@@ -309,6 +309,7 @@ const NotificationSettings = () => {
     }
   };
 
+  const handleRegisterPush = async () => {
     if (!user) return;
     setRegisteringPush(true);
     const token = await registerPush(user.id);
