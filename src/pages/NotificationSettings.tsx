@@ -95,6 +95,21 @@ const NotificationSettings = () => {
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
   const [reminderSummary, setReminderSummary] = useState<ReminderInfo[]>([]);
   const [rebuilding, setRebuilding] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newSchedule, setNewSchedule] = useState({
+    name: '',
+    reminder_key: 'data_log_reminder',
+    reminder_type: 'interval' as string,
+    start_time: '08:00',
+    end_time: '15:00',
+    days_of_week: [1, 2, 3, 4, 5] as number[],
+    interval_minutes: 30,
+    local_enabled: true,
+    remote_enabled: false,
+    message_title: '',
+    message_body: '',
+  });
 
   useEffect(() => { if (user) loadSettings(); }, [user]);
 
