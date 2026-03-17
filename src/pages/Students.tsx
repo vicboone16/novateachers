@@ -296,16 +296,16 @@ const Students = () => {
     (groupedRoster.classrooms.length > 0 || groupedRoster.sharedWithMe.length > 0);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight font-heading">Students</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight font-heading">Students</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             {isSoloMode ? 'Manage your classroom roster' : 'View your assigned students'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate('/join')}>
             <KeyRound className="h-3.5 w-3.5" />
             Join
