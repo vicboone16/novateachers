@@ -105,6 +105,8 @@ const AdminDashboard = () => {
   const [debugPendingCount, setDebugPendingCount] = useState(0);
   const [debugSchedules, setDebugSchedules] = useState<any[]>([]);
   const [debugOverrides, setDebugOverrides] = useState<any[]>([]);
+  const [debugEffective, setDebugEffective] = useState<any[]>([]);
+  const [debugRebuilding, setDebugRebuilding] = useState(false);
 
   useEffect(() => {
     if (currentWorkspace && isAdmin) loadAll();
