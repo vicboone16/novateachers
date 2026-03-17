@@ -37,7 +37,8 @@ const ROLE_OPTIONS = [
 ] as const;
 
 const APP_CONTEXT_OPTIONS = [
-  { value: 'novatrack_teacher', label: 'NovaTrack Teacher' },
+  { value: 'novateachers', label: 'NovaTeachers' },
+  { value: 'novatrack_teacher', label: 'NovaTrack Teacher (Legacy)' },
   { value: 'behavior_decoded_parent', label: 'Behavior Decoded (Parent)' },
 ] as const;
 
