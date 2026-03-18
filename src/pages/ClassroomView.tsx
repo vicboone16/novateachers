@@ -391,6 +391,20 @@ const ClassroomView = () => {
         <ContingencyPanel classroomId={activeGroupId} agencyId={effectiveAgencyId} />
       )}
 
+      {/* Reward Store */}
+      {activeGroupId && user && (
+        <ReinforcerStore
+          agencyId={effectiveAgencyId}
+          classroomId={activeGroupId}
+          students={clients.map(c => ({
+            id: c.id,
+            name: displayName(c),
+            balance: pointBalances[c.id] || 0,
+          }))}
+          onRedemption={loadPointBalances}
+        />
+      )}
+
       {liveEvents.length > 0 && (
         <Card className="border-border/40">
           <CardHeader className="pb-2">
