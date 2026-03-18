@@ -81,6 +81,19 @@ const ClassroomView = () => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
 
+  // Load the first group_id for attendance tracking
+  useEffect(() => {
+    if (!user || !effectiveAgencyId) return;
+    (supabase as any)
+      .from('classroom_groups')
+      .select('group_id')
+      .eq('agency_id', effectiveAgencyId)
+      .limit(1)
+      .then(({ data }: any) => {
+        if (data?.[0]?.group_id) setActiveGroupId(data[0].group_id);
+      });
+  }, [user, effectiveAgencyId]);
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
