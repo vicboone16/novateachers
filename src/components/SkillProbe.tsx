@@ -5,6 +5,7 @@
  */
 import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { writePointEntry } from '@/lib/beacon-points';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
