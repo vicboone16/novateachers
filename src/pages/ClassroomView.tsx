@@ -228,7 +228,20 @@ const ClassroomView = () => {
     setFlashCard(clientId);
     setTimeout(() => setFlashCard(null), 300);
 
-    toast({ title: `${engaged ? '✓ Engaged' : '✗ Not engaged'}` });
+    toast({ title: `${engaged ? '✓ Engaged +1⭐' : '✗ Not engaged'}` });
+
+    // Auto-reinforcement: Engagement YES = +1 Beacon Point
+    if (engaged) {
+      handlePointChange(clientId, 1);
+      writePointEntry({
+        studentId: clientId,
+        staffId: user.id,
+        agencyId: effectiveAgencyId,
+        points: 1,
+        reason: 'Engagement sample — engaged',
+        source: 'engagement_sample',
+      });
+    }
 
     writeUnifiedEvent({
       studentId: clientId,
