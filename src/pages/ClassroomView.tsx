@@ -435,6 +435,9 @@ const ClassroomView = () => {
               pointBalance={pointBalances[client.id] || 0}
               staffId={user?.id || ''}
               agencyId={effectiveAgencyId}
+              groupId={activeGroupId || ''}
+              studentStatus={studentStatuses[client.id] || 'present'}
+              onStudentStatusChange={handleStudentStatusChange}
               onBehavior={(name) => logBehavior(client.id, name)}
               onEngagement={(engaged) => logEngagement(client.id, engaged)}
               onPointChange={handlePointChange}
