@@ -677,6 +677,9 @@ const ClassroomManager = () => {
                       <TabsTrigger value="feed" className="text-xs gap-1 h-7">
                         <MessageSquare className="h-3 w-3" /> Feed
                       </TabsTrigger>
+                      <TabsTrigger value="store" className="text-xs gap-1 h-7">
+                        <ShoppingBag className="h-3 w-3" /> Store
+                      </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="roster" className="space-y-4 mt-3">
