@@ -104,12 +104,13 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
-  // Load today's counts + recent live events
+  // Load today's counts + recent live events + attendance
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
     loadPointBalances();
-  }, [clients, user]);
+    loadAttendance();
+  }, [clients, user, activeGroupId]);
 
   const loadPointBalances = async () => {
     if (!user) return;
