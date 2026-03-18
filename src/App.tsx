@@ -30,6 +30,8 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import DataCollection from "@/pages/DataCollection";
 import TeacherGuide from "@/pages/TeacherGuide";
 import ClassroomView from "@/pages/ClassroomView";
+import ClassroomBoard from "@/pages/ClassroomBoard";
+import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 
@@ -95,6 +97,7 @@ const WorkspaceRoutes = () => {
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />
         <Route path="/inbox" element={<Inbox />} />
+        <Route path="/threads" element={<Threads />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
@@ -117,6 +120,7 @@ const App = () => (
           <Routes>
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/guest/:code" element={<GuestDataCollection />} />
+            <Route path="/board" element={<ClassroomBoard />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

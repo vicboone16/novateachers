@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 
@@ -23,6 +23,7 @@ const navItems = [
   { to: '/tracker', label: 'Tracker', icon: Activity },
   { to: '/data-summary', label: 'Summary', icon: BarChart3 },
   { to: '/guide', label: 'Guide', icon: BookOpen },
+  { to: '/threads', label: 'Threads', icon: MessageCircle },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
 ];
 
