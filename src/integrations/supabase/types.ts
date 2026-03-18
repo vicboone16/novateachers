@@ -1067,6 +1067,88 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_presence: {
+        Row: {
+          agency_id: string
+          changed_at: string
+          group_id: string
+          id: string
+          notes: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          changed_at?: string
+          group_id: string
+          id?: string
+          notes?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          changed_at?: string
+          group_id?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_presence_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      student_attendance: {
+        Row: {
+          agency_id: string
+          changed_at: string
+          group_id: string
+          id: string
+          notes: string | null
+          recorded_by: string
+          recorded_date: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          agency_id: string
+          changed_at?: string
+          group_id: string
+          id?: string
+          notes?: string | null
+          recorded_by: string
+          recorded_date?: string
+          status?: string
+          student_id: string
+        }
+        Update: {
+          agency_id?: string
+          changed_at?: string
+          group_id?: string
+          id?: string
+          notes?: string | null
+          recorded_by?: string
+          recorded_date?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_attendance_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
       teacher_data_events: {
         Row: {
           agency_id: string | null
