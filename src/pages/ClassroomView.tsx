@@ -465,6 +465,23 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
           )}
         </div>
 
+        {/* Beacon Points */}
+        <div className="flex items-center justify-between">
+          <BeaconPointsControls
+            studentId={client.id}
+            staffId={staffId}
+            agencyId={agencyId}
+            balance={pointBalance}
+            onPointChange={onPointChange}
+            responseCostEnabled
+          />
+          {count > 0 && (
+            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+              {count} events
+            </Badge>
+          )}
+        </div>
+
         {/* Quick behavior buttons */}
         <div className="flex flex-wrap gap-1">
           {BEHAVIORS.map(({ name, abbr, icon: Icon }) => (
