@@ -1,12 +1,11 @@
 /**
- * StaffPresencePanel — shows staff members in the classroom and their current status.
- * Brightwheel-style tap-to-toggle presence for current user.
+ * StaffPresencePanel — shows current user's presence status in a classroom.
+ * Reads/writes to Core-owned `staff_presence_status` table.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +57,6 @@ export function StaffPresencePanel({ groupId, agencyId }: StaffPresencePanelProp
   const [myStatus, setMyStatus] = useState<StaffStatus>('in_classroom');
   const [saving, setSaving] = useState(false);
 
-  // Load current status
   useEffect(() => {
     if (!user || !groupId) return;
     loadPresence();
@@ -67,14 +65,15 @@ export function StaffPresencePanel({ groupId, agencyId }: StaffPresencePanelProp
   const loadPresence = async () => {
     if (!user) return;
     try {
-      const { data } = await (supabase as any)
-        .from('staff_presence')
+      // Core-owned table: staff_presence_status
+      const { data } = await supabase
+        .from('staff_presence_status' as any)
         .select('status')
         .eq('user_id', user.id)
-        .eq('group_id', groupId)
+        .eq('classroom_id', groupId)
         .maybeSingle();
       if (data?.status) setMyStatus(data.status as StaffStatus);
-    } catch { /* silent */ }
+    } catch { /* silent — table may not exist yet on Core */ }
   };
 
   const updateStatus = useCallback(async (newStatus: StaffStatus) => {
@@ -83,29 +82,21 @@ export function StaffPresencePanel({ groupId, agencyId }: StaffPresencePanelProp
     setMyStatus(newStatus);
 
     try {
-      // Try update first, then insert
-      const { data: existing } = await (supabase as any)
-        .from('staff_presence')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('group_id', groupId)
-        .maybeSingle();
-
-      if (existing?.id) {
-        await (supabase as any)
-          .from('staff_presence')
-          .update({ status: newStatus, changed_at: new Date().toISOString() })
-          .eq('id', existing.id);
-      } else {
-        await (supabase as any)
-          .from('staff_presence')
-          .insert({
+      // Core-owned table: staff_presence_status
+      // Upsert by user + classroom
+      const { error } = await supabase
+        .from('staff_presence_status' as any)
+        .upsert(
+          {
             user_id: user.id,
-            group_id: groupId,
+            classroom_id: groupId,
             agency_id: agencyId,
             status: newStatus,
-          });
-      }
+            changed_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,classroom_id' }
+        );
+      if (error) console.warn('[StaffPresence] upsert failed:', error.message);
     } catch (err) {
       console.warn('[StaffPresence] save failed:', err);
     } finally {

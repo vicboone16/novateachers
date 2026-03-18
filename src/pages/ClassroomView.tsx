@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
@@ -84,12 +85,13 @@ const ClassroomView = () => {
   // Load the first group_id for attendance tracking
   useEffect(() => {
     if (!user || !effectiveAgencyId) return;
-    (supabase as any)
+    // classroom_groups lives on Cloud
+    cloudSupabase
       .from('classroom_groups')
       .select('group_id')
       .eq('agency_id', effectiveAgencyId)
       .limit(1)
-      .then(({ data }: any) => {
+      .then(({ data }) => {
         if (data?.[0]?.group_id) setActiveGroupId(data[0].group_id);
       });
   }, [user, effectiveAgencyId]);
@@ -122,17 +124,18 @@ const ClassroomView = () => {
   const loadAttendance = async () => {
     if (!user || !activeGroupId) return;
     try {
-      const { data } = await (supabase as any)
-        .from('student_attendance')
+      // Core-owned table: student_attendance_status
+      const { data } = await supabase
+        .from('student_attendance_status' as any)
         .select('student_id, status')
-        .eq('group_id', activeGroupId)
+        .eq('classroom_id', activeGroupId)
         .eq('recorded_date', today);
       const statuses: StudentStatuses = {};
-      for (const row of data || []) {
+      for (const row of (data || []) as any[]) {
         statuses[row.student_id] = row.status as StudentStatus;
       }
       setStudentStatuses(statuses);
-    } catch { /* silent */ }
+    } catch { /* silent — Core table may not exist yet */ }
   };
 
   const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
