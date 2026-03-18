@@ -14,6 +14,8 @@ import { normalizeClients, displayName, displayInitials } from '@/lib/student-ut
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
+import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
+import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +44,10 @@ interface LastEvent {
   [clientId: string]: string; // ISO timestamp
 }
 
+interface PointBalances {
+  [clientId: string]: number;
+}
+
 const ClassroomView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -56,6 +62,7 @@ const ClassroomView = () => {
   const [totalToday, setTotalToday] = useState(0);
   const [liveEvents, setLiveEvents] = useState<CoreBridgeEvent[]>([]);
   const [seeding, setSeeding] = useState(false);
+  const [pointBalances, setPointBalances] = useState<PointBalances>({});
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
@@ -80,7 +87,22 @@ const ClassroomView = () => {
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
+    loadPointBalances();
   }, [clients, user]);
+
+  const loadPointBalances = async () => {
+    if (!user) return;
+    const clientIds = clients.map(c => c.id);
+    const balances = await getStudentBalances(user.id, clientIds);
+    setPointBalances(balances);
+  };
+
+  const handlePointChange = (studentId: string, delta: number) => {
+    setPointBalances(prev => ({
+      ...prev,
+      [studentId]: (prev[studentId] || 0) + delta,
+    }));
+  };
 
   const loadTodayCounts = async () => {
     if (!user) return;
@@ -206,7 +228,20 @@ const ClassroomView = () => {
     setFlashCard(clientId);
     setTimeout(() => setFlashCard(null), 300);
 
-    toast({ title: `${engaged ? '✓ Engaged' : '✗ Not engaged'}` });
+    toast({ title: `${engaged ? '✓ Engaged +1⭐' : '✗ Not engaged'}` });
+
+    // Auto-reinforcement: Engagement YES = +1 Beacon Point
+    if (engaged) {
+      handlePointChange(clientId, 1);
+      writePointEntry({
+        studentId: clientId,
+        staffId: user.id,
+        agencyId: effectiveAgencyId,
+        points: 1,
+        reason: 'Engagement sample — engaged',
+        source: 'engagement_sample',
+      });
+    }
 
     writeUnifiedEvent({
       studentId: clientId,
@@ -352,8 +387,12 @@ const ClassroomView = () => {
               count={todayCounts[client.id] || 0}
               lastEvent={lastEvents[client.id]}
               flash={flashCard === client.id}
+              pointBalance={pointBalances[client.id] || 0}
+              staffId={user?.id || ''}
+              agencyId={effectiveAgencyId}
               onBehavior={(name) => logBehavior(client.id, name)}
               onEngagement={(engaged) => logEngagement(client.id, engaged)}
+              onPointChange={handlePointChange}
               onProbe={() => navigate(`/collect?student=${client.id}`)}
               onTracker={() => navigate('/tracker')}
               onDetail={() => navigate(`/students/${client.id}`)}
@@ -386,13 +425,17 @@ function StatCard({ label, value, icon: Icon, isText }: {
 }
 
 /* ── Student card with inline data entry ── */
-function StudentCard({ client, count, lastEvent, flash, onBehavior, onEngagement, onProbe, onTracker, onDetail, formatTime }: {
+function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
   client: Client;
   count: number;
   lastEvent?: string;
   flash: boolean;
+  pointBalance: number;
+  staffId: string;
+  agencyId: string;
   onBehavior: (name: string) => void;
   onEngagement: (engaged: boolean) => void;
+  onPointChange: (studentId: string, delta: number) => void;
   onProbe: () => void;
   onTracker: () => void;
   onDetail: () => void;
@@ -428,9 +471,21 @@ function StudentCard({ client, count, lastEvent, flash, onBehavior, onEngagement
               </div>
             </div>
           </button>
+        </div>
+
+        {/* Beacon Points */}
+        <div className="flex items-center justify-between">
+          <BeaconPointsControls
+            studentId={client.id}
+            staffId={staffId}
+            agencyId={agencyId}
+            balance={pointBalance}
+            onPointChange={onPointChange}
+            responseCostEnabled
+          />
           {count > 0 && (
             <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
-              {count} today
+              {count} events
             </Badge>
           )}
         </div>
