@@ -515,11 +515,13 @@ Deno.serve(async (req) => {
     if (action === "list_messages") {
       const userId = String(body.user_id || "");
       const tab = String(body.tab || "inbox");
-      let query = core.from("teacher_messages").select("*");
-      query = tab === "sent" ? query.eq("sender_id", userId) : query.eq("recipient_id", userId);
-      let result = await query.is("parent_id", null).order("created_at", { ascending: false });
+      const buildQuery = () => {
+        const q = core.from("teacher_messages").select("*");
+        return tab === "sent" ? q.eq("sender_id", userId) : q.eq("recipient_id", userId);
+      };
+      let result = await buildQuery().is("parent_id", null).order("created_at", { ascending: false });
       if (result.error && String(result.error.message || "").includes("parent_id")) {
-        result = await query.order("created_at", { ascending: false });
+        result = await buildQuery().order("created_at", { ascending: false });
       }
       if (result.error) return json({ error: result.error.message }, 400);
       return json({ messages: result.data || [] });
