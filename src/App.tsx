@@ -97,6 +97,7 @@ const WorkspaceRoutes = () => {
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />
         <Route path="/inbox" element={<Inbox />} />
+        <Route path="/threads" element={<Threads />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
