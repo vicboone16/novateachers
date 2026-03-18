@@ -385,6 +385,11 @@ const ClassroomView = () => {
         )}
       </div>
 
+      {/* Contingencies & Culture Prompts */}
+      {activeGroupId && (
+        <ContingencyPanel classroomId={activeGroupId} agencyId={effectiveAgencyId} />
+      )}
+
       {liveEvents.length > 0 && (
         <Card className="border-border/40">
           <CardHeader className="pb-2">
