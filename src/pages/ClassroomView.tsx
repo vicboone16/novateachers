@@ -87,7 +87,22 @@ const ClassroomView = () => {
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
+    loadPointBalances();
   }, [clients, user]);
+
+  const loadPointBalances = async () => {
+    if (!user) return;
+    const clientIds = clients.map(c => c.id);
+    const balances = await getStudentBalances(user.id, clientIds);
+    setPointBalances(balances);
+  };
+
+  const handlePointChange = (studentId: string, delta: number) => {
+    setPointBalances(prev => ({
+      ...prev,
+      [studentId]: (prev[studentId] || 0) + delta,
+    }));
+  };
 
   const loadTodayCounts = async () => {
     if (!user) return;
