@@ -69,6 +69,8 @@ const ClassroomView = () => {
   const [liveEvents, setLiveEvents] = useState<CoreBridgeEvent[]>([]);
   const [seeding, setSeeding] = useState(false);
   const [pointBalances, setPointBalances] = useState<PointBalances>({});
+  const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
