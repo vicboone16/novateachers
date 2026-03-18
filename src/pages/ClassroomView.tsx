@@ -85,12 +85,13 @@ const ClassroomView = () => {
   // Load the first group_id for attendance tracking
   useEffect(() => {
     if (!user || !effectiveAgencyId) return;
-    (supabase as any)
+    // classroom_groups lives on Cloud
+    cloudSupabase
       .from('classroom_groups')
       .select('group_id')
       .eq('agency_id', effectiveAgencyId)
       .limit(1)
-      .then(({ data }: any) => {
+      .then(({ data }) => {
         if (data?.[0]?.group_id) setActiveGroupId(data[0].group_id);
       });
   }, [user, effectiveAgencyId]);
