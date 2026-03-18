@@ -101,6 +101,42 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_points_ledger: {
+        Row: {
+          agency_id: string
+          created_at: string
+          id: string
+          points: number
+          reason: string | null
+          source: string
+          source_event_id: string | null
+          staff_id: string
+          student_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          id?: string
+          points: number
+          reason?: string | null
+          source?: string
+          source_event_id?: string | null
+          staff_id: string
+          student_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          id?: string
+          points?: number
+          reason?: string | null
+          source?: string
+          source_event_id?: string | null
+          staff_id?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
       behavior_categories: {
         Row: {
           client_id: string
@@ -1564,6 +1600,18 @@ export type Database = {
           source_scope_type: string | null
           supervision_reminders: boolean | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_student_points_balance: {
+        Row: {
+          agency_id: string | null
+          balance: number | null
+          last_activity: string | null
+          student_id: string | null
+          total_earned: number | null
+          total_earned_count: number | null
+          total_spent: number | null
         }
         Relationships: []
       }
