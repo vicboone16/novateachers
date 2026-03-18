@@ -2,7 +2,7 @@
  * "Today in My Classroom" — default teacher landing page.
  * Grid of student cards with inline data collection.
  */
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
