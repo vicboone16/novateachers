@@ -14,6 +14,8 @@ import { normalizeClients, displayName, displayInitials } from '@/lib/student-ut
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
+import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
+import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
