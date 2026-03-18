@@ -44,6 +44,10 @@ interface LastEvent {
   [clientId: string]: string; // ISO timestamp
 }
 
+interface PointBalances {
+  [clientId: string]: number;
+}
+
 const ClassroomView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
