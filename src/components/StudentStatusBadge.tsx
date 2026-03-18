@@ -1,10 +1,9 @@
 /**
  * StudentStatusBadge — Brightwheel-style tap-to-toggle student attendance status.
- * Compact badge that cycles through statuses on tap.
+ * Reads/writes to Core-owned `student_attendance_status` table.
  */
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,19 +67,21 @@ export function StudentStatusBadge({
 
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const { error } = await (supabase as any)
-        .from('student_attendance')
+      // Core-owned table: student_attendance_status
+      // Upsert by student + classroom + date
+      const { error } = await supabase
+        .from('student_attendance_status' as any)
         .upsert(
           {
             student_id: studentId,
-            group_id: groupId,
+            classroom_id: groupId,
             agency_id: agencyId,
             recorded_by: userId,
             recorded_date: today,
             status: newStatus,
             changed_at: new Date().toISOString(),
           },
-          { onConflict: 'student_id,group_id,recorded_date' }
+          { onConflict: 'student_id,classroom_id,recorded_date' }
         );
       if (error) console.warn('[StudentStatus] upsert failed:', error.message);
     } catch (err) {
