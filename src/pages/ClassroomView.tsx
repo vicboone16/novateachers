@@ -374,8 +374,12 @@ const ClassroomView = () => {
               count={todayCounts[client.id] || 0}
               lastEvent={lastEvents[client.id]}
               flash={flashCard === client.id}
+              pointBalance={pointBalances[client.id] || 0}
+              staffId={user?.id || ''}
+              agencyId={effectiveAgencyId}
               onBehavior={(name) => logBehavior(client.id, name)}
               onEngagement={(engaged) => logEngagement(client.id, engaged)}
+              onPointChange={handlePointChange}
               onProbe={() => navigate(`/collect?student=${client.id}`)}
               onTracker={() => navigate('/tracker')}
               onDetail={() => navigate(`/students/${client.id}`)}
