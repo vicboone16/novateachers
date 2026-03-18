@@ -19,6 +19,7 @@ import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
+import { ContingencyPanel } from '@/components/ContingencyPanel';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
