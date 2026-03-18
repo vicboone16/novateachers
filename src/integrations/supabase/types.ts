@@ -101,6 +101,45 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_classroom_templates: {
+        Row: {
+          applied_by: string
+          created_at: string
+          group_id: string
+          id: string
+          template_id: string
+        }
+        Insert: {
+          applied_by: string
+          created_at?: string
+          group_id: string
+          id?: string
+          template_id: string
+        }
+        Update: {
+          applied_by?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_classroom_templates_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+          {
+            foreignKeyName: "beacon_classroom_templates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_reinforcement_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beacon_points_ledger: {
         Row: {
           agency_id: string
@@ -137,6 +176,48 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_reinforcement_templates: {
+        Row: {
+          age_band: string
+          agency_id: string | null
+          category: string
+          config: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_preset: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          age_band?: string
+          agency_id?: string | null
+          category?: string
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_preset?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          age_band?: string
+          agency_id?: string | null
+          category?: string
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_preset?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       behavior_categories: {
         Row: {
           client_id: string
@@ -166,6 +247,56 @@ export type Database = {
           triggers?: string[] | null
         }
         Relationships: []
+      }
+      classroom_feed_posts: {
+        Row: {
+          agency_id: string
+          author_id: string
+          body: string
+          created_at: string
+          group_id: string
+          id: string
+          media_url: string | null
+          pinned: boolean
+          post_type: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          author_id: string
+          body: string
+          created_at?: string
+          group_id: string
+          id?: string
+          media_url?: string | null
+          pinned?: boolean
+          post_type?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          author_id?: string
+          body?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          media_url?: string | null
+          pinned?: boolean
+          post_type?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_feed_posts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
       }
       classroom_group_students: {
         Row: {
