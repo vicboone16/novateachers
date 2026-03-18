@@ -412,13 +412,17 @@ function StatCard({ label, value, icon: Icon, isText }: {
 }
 
 /* ── Student card with inline data entry ── */
-function StudentCard({ client, count, lastEvent, flash, onBehavior, onEngagement, onProbe, onTracker, onDetail, formatTime }: {
+function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
   client: Client;
   count: number;
   lastEvent?: string;
   flash: boolean;
+  pointBalance: number;
+  staffId: string;
+  agencyId: string;
   onBehavior: (name: string) => void;
   onEngagement: (engaged: boolean) => void;
+  onPointChange: (studentId: string, delta: number) => void;
   onProbe: () => void;
   onTracker: () => void;
   onDetail: () => void;
