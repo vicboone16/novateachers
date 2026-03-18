@@ -94,6 +94,18 @@ export const SkillProbe = ({ studentId, studentName }: Props) => {
       sourceModule: 'skill_probe',
     });
 
+    // Auto-reinforcement: correct trial = +2 Beacon Points
+    if (correct) {
+      writePointEntry({
+        studentId,
+        staffId: user.id,
+        agencyId: effectiveAgencyId,
+        points: 2,
+        reason: `Probe correct — ${skillName}`,
+        source: 'probe_success',
+      });
+    }
+
     // Core event stream RPC
     try {
       await logEvent({
