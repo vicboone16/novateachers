@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReinforcementTemplates from '@/components/ReinforcementTemplates';
+import { ReinforcerStore } from '@/components/ReinforcerStore';
 import ClassroomFeed from '@/components/ClassroomFeed';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
