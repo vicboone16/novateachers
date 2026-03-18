@@ -23,6 +23,7 @@ const navItems = [
   { to: '/tracker', label: 'Tracker', icon: Activity },
   { to: '/data-summary', label: 'Summary', icon: BarChart3 },
   { to: '/guide', label: 'Guide', icon: BookOpen },
+  { to: '/threads', label: 'Threads', icon: MessageCircle },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
 ];
 

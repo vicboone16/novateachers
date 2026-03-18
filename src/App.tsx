@@ -120,6 +120,7 @@ const App = () => (
           <Routes>
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/guest/:code" element={<GuestDataCollection />} />
+            <Route path="/board" element={<ClassroomBoard />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
