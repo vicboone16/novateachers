@@ -30,6 +30,8 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import DataCollection from "@/pages/DataCollection";
 import TeacherGuide from "@/pages/TeacherGuide";
 import ClassroomView from "@/pages/ClassroomView";
+import ClassroomBoard from "@/pages/ClassroomBoard";
+import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 
