@@ -473,7 +473,7 @@ function StatCard({ label, value, icon: Icon, isText }: {
 }
 
 /* ── Student card with inline data entry ── */
-function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
+function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, groupId, studentStatus, onStudentStatusChange, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
   client: Client;
   count: number;
   lastEvent?: string;
@@ -481,6 +481,9 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
   pointBalance: number;
   staffId: string;
   agencyId: string;
+  groupId: string;
+  studentStatus: StudentStatus;
+  onStudentStatusChange: (studentId: string, status: StudentStatus) => void;
   onBehavior: (name: string) => void;
   onEngagement: (engaged: boolean) => void;
   onPointChange: (studentId: string, delta: number) => void;
@@ -493,6 +496,7 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
     <Card className={cn(
       "border-border/50 transition-all duration-200",
       flash && "ring-2 ring-primary/40 scale-[1.01]",
+      studentStatus === 'absent' && "opacity-50",
     )}>
       <CardContent className="p-3 space-y-2.5">
         {/* Student header */}
@@ -519,6 +523,17 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
               </div>
             </div>
           </button>
+          {/* Status badge */}
+          {groupId && (
+            <StudentStatusBadge
+              studentId={client.id}
+              groupId={groupId}
+              agencyId={agencyId}
+              userId={staffId}
+              currentStatus={studentStatus}
+              onStatusChange={onStudentStatusChange}
+            />
+          )}
         </div>
 
         {/* Beacon Points */}
