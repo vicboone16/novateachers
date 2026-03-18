@@ -458,11 +458,6 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
               </div>
             </div>
           </button>
-          {count > 0 && (
-            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
-              {count} today
-            </Badge>
-          )}
         </div>
 
         {/* Beacon Points */}
