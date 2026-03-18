@@ -363,8 +363,8 @@ const ClassroomView = () => {
         )}
       </div>
 
-      {/* Daily stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* Daily stats bar + staff presence */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <StatCard label="Students" value={clients.length} icon={Users} />
         <StatCard label="Events Today" value={totalToday} icon={BarChart3} />
         <StatCard
@@ -376,6 +376,9 @@ const ClassroomView = () => {
           isText
         />
         <StatCard label="Active Students" value={Object.keys(todayCounts).length} icon={AlertTriangle} />
+        {activeGroupId && (
+          <StaffPresencePanel groupId={activeGroupId} agencyId={effectiveAgencyId} />
+        )}
       </div>
 
       {liveEvents.length > 0 && (
