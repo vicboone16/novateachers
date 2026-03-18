@@ -119,6 +119,26 @@ const ClassroomView = () => {
     setPointBalances(balances);
   };
 
+  const loadAttendance = async () => {
+    if (!user || !activeGroupId) return;
+    try {
+      const { data } = await (supabase as any)
+        .from('student_attendance')
+        .select('student_id, status')
+        .eq('group_id', activeGroupId)
+        .eq('recorded_date', today);
+      const statuses: StudentStatuses = {};
+      for (const row of data || []) {
+        statuses[row.student_id] = row.status as StudentStatus;
+      }
+      setStudentStatuses(statuses);
+    } catch { /* silent */ }
+  };
+
+  const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
+    setStudentStatuses(prev => ({ ...prev, [studentId]: status }));
+  };
+
   const handlePointChange = (studentId: string, delta: number) => {
     setPointBalances(prev => ({
       ...prev,
