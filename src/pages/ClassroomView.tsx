@@ -2,7 +2,7 @@
  * "Today in My Classroom" — default teacher landing page.
  * Grid of student cards with inline data collection.
  */
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,8 @@ import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
 import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
+import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
+import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,6 +50,10 @@ interface PointBalances {
   [clientId: string]: number;
 }
 
+interface StudentStatuses {
+  [clientId: string]: StudentStatus;
+}
+
 const ClassroomView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -63,6 +69,8 @@ const ClassroomView = () => {
   const [liveEvents, setLiveEvents] = useState<CoreBridgeEvent[]>([]);
   const [seeding, setSeeding] = useState(false);
   const [pointBalances, setPointBalances] = useState<PointBalances>({});
+  const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
@@ -72,6 +80,19 @@ const ClassroomView = () => {
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
+
+  // Load the first group_id for attendance tracking
+  useEffect(() => {
+    if (!user || !effectiveAgencyId) return;
+    (supabase as any)
+      .from('classroom_groups')
+      .select('group_id')
+      .eq('agency_id', effectiveAgencyId)
+      .limit(1)
+      .then(({ data }: any) => {
+        if (data?.[0]?.group_id) setActiveGroupId(data[0].group_id);
+      });
+  }, [user, effectiveAgencyId]);
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -83,18 +104,39 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
-  // Load today's counts + recent live events
+  // Load today's counts + recent live events + attendance
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
     loadPointBalances();
-  }, [clients, user]);
+    loadAttendance();
+  }, [clients, user, activeGroupId]);
 
   const loadPointBalances = async () => {
     if (!user) return;
     const clientIds = clients.map(c => c.id);
     const balances = await getStudentBalances(user.id, clientIds);
     setPointBalances(balances);
+  };
+
+  const loadAttendance = async () => {
+    if (!user || !activeGroupId) return;
+    try {
+      const { data } = await (supabase as any)
+        .from('student_attendance')
+        .select('student_id, status')
+        .eq('group_id', activeGroupId)
+        .eq('recorded_date', today);
+      const statuses: StudentStatuses = {};
+      for (const row of data || []) {
+        statuses[row.student_id] = row.status as StudentStatus;
+      }
+      setStudentStatuses(statuses);
+    } catch { /* silent */ }
+  };
+
+  const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
+    setStudentStatuses(prev => ({ ...prev, [studentId]: status }));
   };
 
   const handlePointChange = (studentId: string, delta: number) => {
@@ -321,8 +363,8 @@ const ClassroomView = () => {
         )}
       </div>
 
-      {/* Daily stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* Daily stats bar + staff presence */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <StatCard label="Students" value={clients.length} icon={Users} />
         <StatCard label="Events Today" value={totalToday} icon={BarChart3} />
         <StatCard
@@ -334,6 +376,9 @@ const ClassroomView = () => {
           isText
         />
         <StatCard label="Active Students" value={Object.keys(todayCounts).length} icon={AlertTriangle} />
+        {activeGroupId && (
+          <StaffPresencePanel groupId={activeGroupId} agencyId={effectiveAgencyId} />
+        )}
       </div>
 
       {liveEvents.length > 0 && (
@@ -390,6 +435,9 @@ const ClassroomView = () => {
               pointBalance={pointBalances[client.id] || 0}
               staffId={user?.id || ''}
               agencyId={effectiveAgencyId}
+              groupId={activeGroupId || ''}
+              studentStatus={studentStatuses[client.id] || 'present'}
+              onStudentStatusChange={handleStudentStatusChange}
               onBehavior={(name) => logBehavior(client.id, name)}
               onEngagement={(engaged) => logEngagement(client.id, engaged)}
               onPointChange={handlePointChange}
@@ -425,7 +473,7 @@ function StatCard({ label, value, icon: Icon, isText }: {
 }
 
 /* ── Student card with inline data entry ── */
-function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
+function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, groupId, studentStatus, onStudentStatusChange, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
   client: Client;
   count: number;
   lastEvent?: string;
@@ -433,6 +481,9 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
   pointBalance: number;
   staffId: string;
   agencyId: string;
+  groupId: string;
+  studentStatus: StudentStatus;
+  onStudentStatusChange: (studentId: string, status: StudentStatus) => void;
   onBehavior: (name: string) => void;
   onEngagement: (engaged: boolean) => void;
   onPointChange: (studentId: string, delta: number) => void;
@@ -445,6 +496,7 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
     <Card className={cn(
       "border-border/50 transition-all duration-200",
       flash && "ring-2 ring-primary/40 scale-[1.01]",
+      studentStatus === 'absent' && "opacity-50",
     )}>
       <CardContent className="p-3 space-y-2.5">
         {/* Student header */}
@@ -471,6 +523,17 @@ function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, a
               </div>
             </div>
           </button>
+          {/* Status badge */}
+          {groupId && (
+            <StudentStatusBadge
+              studentId={client.id}
+              groupId={groupId}
+              agencyId={agencyId}
+              userId={staffId}
+              currentStatus={studentStatus}
+              onStatusChange={onStudentStatusChange}
+            />
+          )}
         </div>
 
         {/* Beacon Points */}
