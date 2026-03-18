@@ -122,17 +122,18 @@ const ClassroomView = () => {
   const loadAttendance = async () => {
     if (!user || !activeGroupId) return;
     try {
-      const { data } = await (supabase as any)
-        .from('student_attendance')
+      // Core-owned table: student_attendance_status
+      const { data } = await supabase
+        .from('student_attendance_status' as any)
         .select('student_id, status')
-        .eq('group_id', activeGroupId)
+        .eq('classroom_id', activeGroupId)
         .eq('recorded_date', today);
       const statuses: StudentStatuses = {};
-      for (const row of data || []) {
+      for (const row of (data || []) as any[]) {
         statuses[row.student_id] = row.status as StudentStatus;
       }
       setStudentStatuses(statuses);
-    } catch { /* silent */ }
+    } catch { /* silent — Core table may not exist yet */ }
   };
 
   const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
