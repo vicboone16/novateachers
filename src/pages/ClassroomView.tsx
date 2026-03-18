@@ -50,6 +50,10 @@ interface PointBalances {
   [clientId: string]: number;
 }
 
+interface StudentStatuses {
+  [clientId: string]: StudentStatus;
+}
+
 const ClassroomView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
