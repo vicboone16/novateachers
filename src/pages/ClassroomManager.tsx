@@ -665,6 +665,20 @@ const ClassroomManager = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <Tabs defaultValue="roster" className="w-full">
+                    <TabsList className="w-full justify-start h-8">
+                      <TabsTrigger value="roster" className="text-xs gap-1 h-7">
+                        <Users className="h-3 w-3" /> Roster
+                      </TabsTrigger>
+                      <TabsTrigger value="templates" className="text-xs gap-1 h-7">
+                        <Sparkles className="h-3 w-3" /> Templates
+                      </TabsTrigger>
+                      <TabsTrigger value="feed" className="text-xs gap-1 h-7">
+                        <MessageSquare className="h-3 w-3" /> Feed
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="roster" className="space-y-4 mt-3">
                   {/* ── Teachers ── */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -869,6 +883,22 @@ const ClassroomManager = () => {
                       </div>
                     </div>
                   )}
+                    </TabsContent>
+
+                    <TabsContent value="templates" className="mt-3">
+                      <ReinforcementTemplates
+                        groupId={group.group_id}
+                        agencyId={currentWorkspace?.agency_id || ''}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="feed" className="mt-3">
+                      <ClassroomFeed
+                        groupId={group.group_id}
+                        agencyId={currentWorkspace?.agency_id || ''}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             );
