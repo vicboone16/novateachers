@@ -277,7 +277,7 @@ const IEPWriter = () => {
       ]);
       const c = clientRes.data;
       const { data, error } = await invokeCloudFunction('generate-iep-goals', {
-        body: { studentName: c ? `${c.first_name} ${c.last_name}` : 'Unknown', grade: c?.grade, abcLogs: logsRes.data || [], behaviorCategories: catsRes.data || [], sectionType: section.type === 'custom' ? section.title : section.type },
+        studentName: c ? `${c.first_name} ${c.last_name}` : 'Unknown', grade: c?.grade, abcLogs: logsRes.data || [], behaviorCategories: catsRes.data || [], sectionType: section.type === 'custom' ? section.title : section.type,
       });
       if (error) throw error;
       if (data?.content) { updateSection(section.id, data.content); toast({ title: 'AI content generated' }); }
