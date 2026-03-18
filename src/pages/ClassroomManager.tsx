@@ -902,6 +902,18 @@ const ClassroomManager = () => {
                         agencyId={currentWorkspace?.agency_id || ''}
                       />
                     </TabsContent>
+
+                    <TabsContent value="store" className="mt-3">
+                      <ReinforcerStore
+                        agencyId={currentWorkspace?.agency_id || ''}
+                        classroomId={group.group_id}
+                        students={group.students.map(s => ({
+                          id: s.client_id,
+                          name: s.client ? displayName(s.client) : s.client_id.slice(0, 8),
+                          balance: 0,
+                        }))}
+                      />
+                    </TabsContent>
                   </Tabs>
                 </CardContent>
               </Card>
