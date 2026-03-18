@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReinforcementTemplates from '@/components/ReinforcementTemplates';
+import { ReinforcerStore } from '@/components/ReinforcerStore';
 import ClassroomFeed from '@/components/ClassroomFeed';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -28,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy, Pencil, Sparkles, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Plus, Users, UserPlus, GraduationCap, Trash2, X, Search, LinkIcon, Copy, Pencil, Sparkles, MessageSquare, ShoppingBag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
@@ -676,6 +677,9 @@ const ClassroomManager = () => {
                       <TabsTrigger value="feed" className="text-xs gap-1 h-7">
                         <MessageSquare className="h-3 w-3" /> Feed
                       </TabsTrigger>
+                      <TabsTrigger value="store" className="text-xs gap-1 h-7">
+                        <ShoppingBag className="h-3 w-3" /> Store
+                      </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="roster" className="space-y-4 mt-3">
@@ -896,6 +900,18 @@ const ClassroomManager = () => {
                       <ClassroomFeed
                         groupId={group.group_id}
                         agencyId={currentWorkspace?.agency_id || ''}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="store" className="mt-3">
+                      <ReinforcerStore
+                        agencyId={currentWorkspace?.agency_id || ''}
+                        classroomId={group.group_id}
+                        students={group.students.map(s => ({
+                          id: s.client_id,
+                          name: s.client ? displayName(s.client) : s.client_id.slice(0, 8),
+                          balance: 0,
+                        }))}
                       />
                     </TabsContent>
                   </Tabs>

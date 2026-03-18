@@ -20,6 +20,7 @@ import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { ContingencyPanel } from '@/components/ContingencyPanel';
+import { ReinforcerStore } from '@/components/ReinforcerStore';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -388,6 +389,20 @@ const ClassroomView = () => {
       {/* Contingencies & Culture Prompts */}
       {activeGroupId && (
         <ContingencyPanel classroomId={activeGroupId} agencyId={effectiveAgencyId} />
+      )}
+
+      {/* Reward Store */}
+      {activeGroupId && user && (
+        <ReinforcerStore
+          agencyId={effectiveAgencyId}
+          classroomId={activeGroupId}
+          students={clients.map(c => ({
+            id: c.id,
+            name: displayName(c),
+            balance: pointBalances[c.id] || 0,
+          }))}
+          onRedemption={loadPointBalances}
+        />
       )}
 
       {liveEvents.length > 0 && (
