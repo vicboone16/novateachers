@@ -524,11 +524,27 @@ const ClassroomView = () => {
               onPointChange={handlePointChange}
               onProbe={() => navigate(`/collect?student=${client.id}`)}
               onTracker={() => navigate('/tracker')}
-              onDetail={() => navigate(`/students/${client.id}`)}
+              onDetail={() => setQuickActionStudent(client)}
               formatTime={formatTime}
             />
           ))}
         </div>
+      )}
+
+      {/* Quick Action Modal */}
+      {quickActionStudent && (
+        <StudentQuickActionModal
+          open={!!quickActionStudent}
+          onOpenChange={(open) => { if (!open) setQuickActionStudent(null); }}
+          studentId={quickActionStudent.id}
+          studentName={displayName(quickActionStudent)}
+          pointBalance={pointBalances[quickActionStudent.id] || 0}
+          agencyId={effectiveAgencyId}
+          responseCostEnabled
+          onBehavior={(name) => logBehavior(quickActionStudent.id, name)}
+          onEngagement={(engaged) => logEngagement(quickActionStudent.id, engaged)}
+          onPointChange={handlePointChange}
+        />
       )}
     </div>
   );
