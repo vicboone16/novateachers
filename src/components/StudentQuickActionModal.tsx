@@ -282,7 +282,47 @@ export function StudentQuickActionModal({
             </Button>
           </Section>
 
-          {/* §6 PROMPT SNOOZE */}
+          {/* §6 TOOLS: Rewards, Game, Portal, Code */}
+          <Section label="Tools">
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                onClick={() => { onOpenChange(false); navigate('/rewards'); }}>
+                <Gift className="h-3.5 w-3.5 text-amber-500" /> Rewards
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                onClick={() => { onOpenChange(false); navigate('/game-board'); }}>
+                <Gamepad2 className="h-3.5 w-3.5 text-primary" /> Game Board
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                disabled={codeLoading}
+                onClick={async () => {
+                  setCodeLoading(true);
+                  let code = await getActiveStudentCode(studentId);
+                  if (!code) code = await generateStudentLoginCode(studentId, agencyId);
+                  if (code) {
+                    setStudentCode(code.login_code);
+                    navigator.clipboard.writeText(`${window.location.origin}/portal/${code.login_code}`);
+                    toast({ title: 'Portal link copied!', description: `Code: ${code.login_code}` });
+                  } else {
+                    toast({ title: 'Could not generate code', variant: 'destructive' });
+                  }
+                  setCodeLoading(false);
+                }}>
+                <KeyRound className="h-3.5 w-3.5" /> {codeLoading ? 'Loading…' : studentCode ? `Code: ${studentCode}` : 'Get Code'}
+              </Button>
+              {studentCode && (
+                <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                  onClick={() => {
+                    const url = `${window.location.origin}/portal/${studentCode}`;
+                    window.open(url, '_blank');
+                  }}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Portal
+                </Button>
+              )}
+            </div>
+          </Section>
+
+          {/* §7 PROMPT SNOOZE */}
           <Section label="Prompt">
             <div className="flex gap-1.5">
               {[1, 3, 5].map(m => (
