@@ -10,7 +10,8 @@ export type UnifiedEventType =
   | 'abc_event'
   | 'trigger_event'
   | 'skill_probe'
-  | 'quick_add_note';
+  | 'quick_add_note'
+  | 'snooze_event';
 
 export interface UnifiedEvent {
   studentId: string;

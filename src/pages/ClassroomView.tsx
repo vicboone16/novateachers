@@ -1,6 +1,7 @@
 /**
  * "Today in My Classroom" — default teacher landing page.
- * Grid of student cards with inline data collection.
+ * Comprehensive classroom dashboard with student cards, summary bar,
+ * quick actions, and floating Mayday button.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,21 +20,20 @@ import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
-import { ContingencyPanel } from '@/components/ContingencyPanel';
-import { ReinforcerStore } from '@/components/ReinforcerStore';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
 import { MaydayButton } from '@/components/MaydayButton';
-import { TokenBoard } from '@/components/TokenBoard';
-import { SponsorRewardsPanel } from '@/components/SponsorRewardsPanel';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Check, X, Play, ExternalLink, Clock, Bell,
-  BarChart3, AlertTriangle, Users, Radio, Star,
+  BarChart3, AlertTriangle, Users, Star, Sparkles,
+  Target, BookOpen, MessageSquare, Zap, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
@@ -46,21 +46,12 @@ const BEHAVIORS = [
   { name: 'Noncompliance', icon: ShieldX, abbr: 'NC' },
 ];
 
-interface TodayCounts {
-  [clientId: string]: number;
-}
-
-interface LastEvent {
-  [clientId: string]: string; // ISO timestamp
-}
-
-interface PointBalances {
-  [clientId: string]: number;
-}
-
-interface StudentStatuses {
-  [clientId: string]: StudentStatus;
-}
+interface TodayCounts { [clientId: string]: number }
+interface LastEvent { [clientId: string]: string }
+interface PointBalances { [clientId: string]: number }
+interface StudentStatuses { [clientId: string]: StudentStatus }
+interface TokenProgress { [clientId: string]: { current: number; target: number } }
+interface EngagementData { total: number; engaged: number }
 
 const ClassroomView = () => {
   const navigate = useNavigate();
@@ -74,25 +65,28 @@ const ClassroomView = () => {
   const [todayCounts, setTodayCounts] = useState<TodayCounts>({});
   const [lastEvents, setLastEvents] = useState<LastEvent>({});
   const [totalToday, setTotalToday] = useState(0);
-  const [liveEvents, setLiveEvents] = useState<CoreBridgeEvent[]>([]);
-  const [seeding, setSeeding] = useState(false);
   const [pointBalances, setPointBalances] = useState<PointBalances>({});
   const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
+  const [tokenProgress, setTokenProgress] = useState<TokenProgress>({});
+  const [engagement, setEngagement] = useState<EngagementData>({ total: 0, engaged: 0 });
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
-  // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
+  const [missionText, setMissionText] = useState('Be Kind, Be Safe, Be Respectful');
+  const [wordOfWeek, setWordOfWeek] = useState('Perseverance');
+  const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
+  const [staffCount, setStaffCount] = useState(0);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
   const today = new Date().toISOString().slice(0, 10);
+  const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
 
-  // Load all classroom groups for switcher
   useEffect(() => {
     if (!user || !effectiveAgencyId) return;
     cloudSupabase
@@ -103,9 +97,7 @@ const ClassroomView = () => {
       .then(({ data }) => {
         const groups = data || [];
         setAllGroups(groups);
-        if (groups.length > 0 && !activeGroupId) {
-          setActiveGroupId(groups[0].group_id);
-        }
+        if (groups.length > 0 && !activeGroupId) setActiveGroupId(groups[0].group_id);
       });
   }, [user, effectiveAgencyId]);
 
@@ -119,12 +111,15 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
-  // Load today's counts + recent live events + attendance
   useEffect(() => {
     if (!user || clients.length === 0) return;
     loadTodayCounts();
     loadPointBalances();
     loadAttendance();
+    loadTokenProgress();
+    loadBoardSettings();
+    loadEngagementData();
+    loadStaffCount();
   }, [clients, user, activeGroupId]);
 
   const loadPointBalances = async () => {
@@ -138,7 +133,6 @@ const ClassroomView = () => {
   const loadAttendance = async () => {
     if (!user || !activeGroupId) return;
     try {
-      // Core-owned table: student_attendance_status
       const { data } = await supabase
         .from('student_attendance_status' as any)
         .select('student_id, status')
@@ -149,7 +143,75 @@ const ClassroomView = () => {
         statuses[row.student_id] = row.status as StudentStatus;
       }
       setStudentStatuses(statuses);
-    } catch { /* silent — Core table may not exist yet */ }
+    } catch { /* silent */ }
+  };
+
+  const loadTokenProgress = async () => {
+    if (!activeGroupId) return;
+    try {
+      const { data } = await supabase
+        .from('token_boards' as any)
+        .select('student_id, current_tokens, target_tokens')
+        .eq('classroom_id', activeGroupId)
+        .eq('is_active', true);
+      const progress: TokenProgress = {};
+      for (const row of (data || []) as any[]) {
+        progress[row.student_id] = { current: row.current_tokens || 0, target: row.target_tokens || 10 };
+      }
+      setTokenProgress(progress);
+    } catch { /* silent */ }
+  };
+
+  const loadBoardSettings = async () => {
+    if (!activeGroupId) return;
+    try {
+      const { data } = await supabase
+        .from('classroom_board_settings' as any)
+        .select('mission_text, word_of_week, class_goal_label, class_goal_target, class_goal_current')
+        .eq('classroom_id', activeGroupId)
+        .maybeSingle();
+      if (data) {
+        const d = data as any;
+        if (d.mission_text) setMissionText(d.mission_text);
+        if (d.word_of_week) setWordOfWeek(d.word_of_week);
+        setClassGoal({
+          current: d.class_goal_current || 0,
+          target: d.class_goal_target || 100,
+          label: d.class_goal_label || 'Class Goal',
+        });
+      }
+    } catch { /* silent */ }
+  };
+
+  const loadEngagementData = async () => {
+    if (!user) return;
+    try {
+      const clientIds = clients.map(c => c.id);
+      const { data } = await supabase
+        .from('teacher_data_events' as any)
+        .select('event_subtype')
+        .eq('staff_id', user.id)
+        .eq('event_type', 'engagement_sample')
+        .gte('recorded_at', today + 'T00:00:00')
+        .in('student_id', clientIds);
+      const samples = (data || []) as any[];
+      setEngagement({
+        total: samples.length,
+        engaged: samples.filter(s => s.event_subtype === 'engaged').length,
+      });
+    } catch { /* silent */ }
+  };
+
+  const loadStaffCount = async () => {
+    if (!activeGroupId) return;
+    try {
+      const { data } = await supabase
+        .from('staff_presence_status' as any)
+        .select('id')
+        .eq('classroom_id', activeGroupId)
+        .eq('status', 'in_classroom');
+      setStaffCount((data || []).length);
+    } catch { setStaffCount(0); }
   };
 
   const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
@@ -161,6 +223,7 @@ const ClassroomView = () => {
       ...prev,
       [studentId]: (prev[studentId] || 0) + delta,
     }));
+    setTotalPoints(prev => prev + delta);
   };
 
   const loadTodayCounts = async () => {
@@ -192,34 +255,26 @@ const ClassroomView = () => {
       setTotalToday(total);
 
       const recent = eventsRes.data?.events || [];
-      setLiveEvents(recent);
-
       const last: LastEvent = {};
       for (const e of recent) {
         if (!last[e.student_id]) last[e.student_id] = e.recorded_at;
       }
       setLastEvents(last);
-    } catch {
-      /* silent */
-    }
+    } catch { /* silent */ }
   };
 
   const logBehavior = async (clientId: string, behaviorName: string) => {
     if (!user) return;
     if ('vibrate' in navigator) navigator.vibrate(15);
-
-    // Flash animation
     setFlashCard(clientId);
     setTimeout(() => setFlashCard(null), 300);
-
-    // Optimistic update
     setTodayCounts(prev => ({ ...prev, [clientId]: (prev[clientId] || 0) + 1 }));
     setTotalToday(prev => prev + 1);
     const now = new Date().toISOString();
     setLastEvents(prev => ({ ...prev, [clientId]: now }));
 
     try {
-      const result = await writeWithRetry('teacher_frequency_entries', {
+      await writeWithRetry('teacher_frequency_entries', {
         agency_id: effectiveAgencyId,
         client_id: clientId,
         user_id: user.id,
@@ -227,54 +282,23 @@ const ClassroomView = () => {
         count: 1,
         logged_date: today,
       });
-
-      // Unified event stream (teacher_data_events)
       writeUnifiedEvent({
-        studentId: clientId,
-        staffId: user.id,
-        agencyId: effectiveAgencyId,
-        eventType: 'behavior_event',
-        eventSubtype: 'frequency',
+        studentId: clientId, staffId: user.id, agencyId: effectiveAgencyId,
+        eventType: 'behavior_event', eventSubtype: 'frequency',
         eventValue: { behavior: behaviorName, count: 1 },
         sourceModule: 'classroom_view',
       });
-
-      // Core event stream RPC (real-time feed for supervisors)
       try {
-        await logEvent({
-          clientId,
-          agencyId: effectiveAgencyId,
-          eventType: 'behavior',
-          eventName: behaviorName,
-          value: 1,
-          metadata: { source: 'classroom_view' },
-        });
-      } catch (e) { console.warn('[ClassroomView] logEvent failed (non-blocking):', e); }
-
-      // Escalation detection
+        await logEvent({ clientId, agencyId: effectiveAgencyId, eventType: 'behavior', eventName: behaviorName, value: 1, metadata: { source: 'classroom_view' } });
+      } catch {}
       const esc = trackBehaviorForEscalation(behaviorName);
       if (esc?.escalated) {
         try {
-          await createSignal({
-            clientId,
-            agencyId: effectiveAgencyId,
-            signalType: 'escalation',
-            severity: 'action',
-            title: 'Escalation detected',
-            message: `${esc.count} ${esc.behavior} events within 10 minutes`,
-            drivers: { behavior: esc.behavior, count: esc.count, window_minutes: 10 },
-            source: { app: 'beacon', trigger: 'escalation_rule' },
-          });
+          await createSignal({ clientId, agencyId: effectiveAgencyId, signalType: 'escalation', severity: 'action', title: 'Escalation detected', message: `${esc.count} ${esc.behavior} events within 10 minutes`, drivers: { behavior: esc.behavior, count: esc.count, window_minutes: 10 }, source: { app: 'beacon', trigger: 'escalation_rule' } });
           toast({ title: '🚨 Escalation alert sent' });
-        } catch (e) { console.warn('[ClassroomView] escalation signal failed:', e); }
+        } catch {}
       }
-
-      // Reinforcement gap tracking
       trackBehaviorForReinforcementGap(clientId);
-
-      if (!result.ok) {
-        toast({ title: `${behaviorName} queued (offline)`, variant: 'default' });
-      }
     } catch {
       toast({ title: 'Error logging behavior', variant: 'destructive' });
     }
@@ -283,73 +307,37 @@ const ClassroomView = () => {
   const logEngagement = async (clientId: string, engaged: boolean) => {
     if (!user) return;
     if ('vibrate' in navigator) navigator.vibrate(10);
-
     setFlashCard(clientId);
     setTimeout(() => setFlashCard(null), 300);
-
     toast({ title: `${engaged ? '✓ Engaged +1⭐' : '✗ Not engaged'}` });
 
-    // Auto-reinforcement: Engagement YES = +1 Beacon Point
+    setEngagement(prev => ({
+      total: prev.total + 1,
+      engaged: prev.engaged + (engaged ? 1 : 0),
+    }));
+
     if (engaged) {
       handlePointChange(clientId, 1);
       writePointEntry({
-        studentId: clientId,
-        staffId: user.id,
-        agencyId: effectiveAgencyId,
-        points: 1,
-        reason: 'Engagement sample — engaged',
-        source: 'engagement_sample',
+        studentId: clientId, staffId: user.id, agencyId: effectiveAgencyId,
+        points: 1, reason: 'Engagement sample — engaged', source: 'engagement_sample',
       });
     }
-
     writeUnifiedEvent({
-      studentId: clientId,
-      staffId: user.id,
-      agencyId: effectiveAgencyId,
-      eventType: 'engagement_sample',
-      eventSubtype: engaged ? 'engaged' : 'not_engaged',
+      studentId: clientId, staffId: user.id, agencyId: effectiveAgencyId,
+      eventType: 'engagement_sample', eventSubtype: engaged ? 'engaged' : 'not_engaged',
       eventValue: { engaged, response_time: new Date().toISOString() },
       sourceModule: 'classroom_view',
     });
-
     try {
-      await logEvent({
-        clientId,
-        agencyId: effectiveAgencyId,
-        eventType: 'context',
-        eventName: 'engagement_check',
-        value: engaged ? 1 : 0,
-        metadata: { engaged, source: 'classroom_view' },
-      });
-      loadTodayCounts();
-    } catch (e) { console.warn('[ClassroomView] logEvent engagement failed:', e); }
+      await logEvent({ clientId, agencyId: effectiveAgencyId, eventType: 'context', eventName: 'engagement_check', value: engaged ? 1 : 0, metadata: { engaged, source: 'classroom_view' } });
+    } catch {}
   };
 
-  const handleSeedTestData = async () => {
-    if (!user || !effectiveAgencyId || clients.length === 0) return;
-    setSeeding(true);
-    try {
-      const targetStudent = clients[0];
-      const { error } = await seedTeacherEvents({
-        studentId: targetStudent.id,
-        userId: user.id,
-        agencyId: effectiveAgencyId,
-        behavior: 'Aggression',
-      });
-      if (error) throw error;
-      toast({ title: 'Test events seeded' });
-      await loadTodayCounts();
-    } catch (err: any) {
-      toast({ title: 'Seed failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setSeeding(false);
-    }
-  };
+  const formatTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  };
+  const engagementPct = engagement.total > 0 ? Math.round((engagement.engaged / engagement.total) * 100) : 0;
+  const classGoalPct = classGoal.target > 0 ? Math.round((classGoal.current / classGoal.target) * 100) : 0;
 
   if (loading) {
     return (
@@ -360,144 +348,85 @@ const ClassroomView = () => {
   }
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Today in My Classroom
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+    <div className="space-y-4">
+      {/* ─── HEADER ─── */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              {allGroups.length > 1 ? (
+                <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+                  <SelectTrigger className="h-8 text-base font-bold font-heading border-none shadow-none px-0 gap-1 max-w-[200px]">
+                    <SelectValue placeholder="Select classroom…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allGroups.map(g => (
+                      <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <h2 className="text-lg font-bold tracking-tight font-heading">
+                  {activeGroup?.name || 'My Classroom'}
+                </h2>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+              {' · '}{clients.length} students
             </p>
           </div>
-          {/* Classroom Switcher */}
-          {allGroups.length > 1 && (
-            <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
-              <SelectTrigger className="h-8 w-[160px] text-xs">
-                <SelectValue placeholder="Select classroom…" />
-              </SelectTrigger>
-              <SelectContent>
-                {allGroups.map(g => (
-                  <SelectItem key={g.group_id} value={g.group_id} className="text-xs">
-                    {g.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/threads')} title="Threads">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" title="Notifications">
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          </Button>
           {activeGroupId && (
             <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
           )}
-          {user && effectiveAgencyId && clients.length > 0 && (
-            <Button size="sm" variant="outline" onClick={handleSeedTestData} disabled={seeding} className="gap-1.5">
-              <Radio className="h-3.5 w-3.5" />
-              {seeding ? 'Seeding…' : 'Seed Test Data'}
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Daily stats bar + staff presence */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-        <StatCard label="Students" value={clients.length} icon={Users} />
-        <StatCard label="Events Today" value={totalToday} icon={BarChart3} />
-        <StatCard label="Total Points" value={totalPoints} icon={Star} />
-        <StatCard
-          label="Last Activity"
-          value={Object.keys(lastEvents).length > 0
-            ? formatTime(Object.values(lastEvents).sort().reverse()[0])
-            : '—'}
-          icon={Clock}
-          isText
-        />
-        <StatCard label="Active Students" value={Object.keys(todayCounts).length} icon={AlertTriangle} />
-        {activeGroupId && (
-          <StaffPresencePanel groupId={activeGroupId} agencyId={effectiveAgencyId} />
-        )}
-      </div>
-
-      {/* Contingencies & Culture Prompts */}
-      {activeGroupId && (
-        <ContingencyPanel classroomId={activeGroupId} agencyId={effectiveAgencyId} />
-      )}
-
-      {/* Token Boards */}
-      {activeGroupId && clients.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.map(c => (
-            <TokenBoard
-              key={c.id}
-              studentId={c.id}
-              studentName={displayName(c)}
-              agencyId={effectiveAgencyId}
-              classroomId={activeGroupId}
-              balance={pointBalances[c.id] || 0}
-              onPointChange={handlePointChange}
-            />
-          ))}
+      {/* ─── SUMMARY BAR (horizontally scrollable) ─── */}
+      <ScrollArea className="w-full">
+        <div className="flex gap-2 pb-2">
+          <SummaryChip icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-500" />
+          <SummaryChip icon={Target} label="Engagement" value={engagement.total > 0 ? `${engagementPct}%` : '—'} color="text-accent" />
+          <SummaryChip icon={BarChart3} label="Events" value={String(totalToday)} color="text-primary" />
+          <SummaryChip icon={Users} label="Staff" value={String(staffCount)} color="text-muted-foreground" />
+          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 min-w-[140px]">
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{classGoal.label}</p>
+              <Progress value={classGoalPct} className="h-1.5 mt-1" />
+            </div>
+            <span className="text-xs font-bold">{classGoalPct}%</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 max-w-[160px]">
+            <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Mission</p>
+              <p className="text-[10px] font-medium truncate">{missionText}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0">
+            <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+            <div>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Word</p>
+              <p className="text-xs font-bold">{wordOfWeek}</p>
+            </div>
+          </div>
         </div>
-      )}
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
 
-      {/* Reward Store */}
-      {activeGroupId && user && (
-        <ReinforcerStore
-          agencyId={effectiveAgencyId}
-          classroomId={activeGroupId}
-          students={clients.map(c => ({
-            id: c.id,
-            name: displayName(c),
-            balance: pointBalances[c.id] || 0,
-          }))}
-          onRedemption={loadPointBalances}
-        />
-      )}
-
-      {/* Sponsor Rewards */}
-      {activeGroupId && (
-        <SponsorRewardsPanel agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-      )}
-
-      {liveEvents.length > 0 && (
-        <Card className="border-border/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-heading">Classroom Today Live Stream</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {liveEvents.map((event) => (
-              <div key={event.event_id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 px-3 py-2">
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={event.event_type === 'abc_event' ? 'destructive' : 'secondary'}>
-                      {event.event_type === 'abc_event' ? 'ABC' : 'Behavior'}
-                    </Badge>
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {event.event_type === 'abc_event'
-                        ? String(event.event_value?.behavior || event.event_subtype || 'ABC event')
-                        : String(event.event_value?.behavior || event.event_subtype || 'Behavior event')}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {event.event_type === 'abc_event'
-                      ? `${event.event_value?.antecedent || 'Antecedent'} → ${event.event_value?.consequence || 'Consequence'}`
-                      : `${event.source_module || 'classroom_view'} · count ${event.event_value?.count || 1}`}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">{formatTime(event.recorded_at)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Student grid */}
+      {/* ─── STUDENT GRID ─── */}
       {clients.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
           <CardContent className="py-12 text-center">
+            <Users className="mx-auto h-10 w-10 text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground">No students in this workspace yet.</p>
             <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate('/students')}>
               Manage Students
@@ -505,29 +434,139 @@ const ClassroomView = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.map(client => (
-            <StudentCard
-              key={client.id}
-              client={client}
-              count={todayCounts[client.id] || 0}
-              lastEvent={lastEvents[client.id]}
-              flash={flashCard === client.id}
-              pointBalance={pointBalances[client.id] || 0}
-              staffId={user?.id || ''}
-              agencyId={effectiveAgencyId}
-              groupId={activeGroupId || ''}
-              studentStatus={studentStatuses[client.id] || 'present'}
-              onStudentStatusChange={handleStudentStatusChange}
-              onBehavior={(name) => logBehavior(client.id, name)}
-              onEngagement={(engaged) => logEngagement(client.id, engaged)}
-              onPointChange={handlePointChange}
-              onProbe={() => navigate(`/collect?student=${client.id}`)}
-              onTracker={() => navigate('/tracker')}
-              onDetail={() => setQuickActionStudent(client)}
-              formatTime={formatTime}
-            />
-          ))}
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {clients.map(client => {
+            const tp = tokenProgress[client.id];
+            const tokenPct = tp ? Math.min(100, Math.round((tp.current / tp.target) * 100)) : 0;
+            const status = studentStatuses[client.id] || 'present';
+            const isAbsent = status === 'absent' || status === 'picked_up';
+
+            return (
+              <Card
+                key={client.id}
+                className={cn(
+                  'border-border/50 transition-all duration-200 overflow-hidden',
+                  flashCard === client.id && 'ring-2 ring-primary/40 scale-[1.01]',
+                  isAbsent && 'opacity-50',
+                )}
+              >
+                <CardContent className="p-0">
+                  {/* Top row: name + status */}
+                  <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
+                    <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2 group text-left min-w-0">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        {displayInitials(client)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                          {displayName(client)}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          {client.grade && <span>Gr {client.grade}</span>}
+                          {lastEvents[client.id] && (
+                            <>
+                              <span>·</span>
+                              <span className="flex items-center gap-0.5">
+                                <Clock className="h-2.5 w-2.5" />{formatTime(lastEvents[client.id])}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                    {activeGroupId && (
+                      <StudentStatusBadge
+                        studentId={client.id}
+                        groupId={activeGroupId}
+                        agencyId={effectiveAgencyId}
+                        userId={user?.id || ''}
+                        currentStatus={status}
+                        onStatusChange={handleStudentStatusChange}
+                      />
+                    )}
+                  </div>
+
+                  {/* Middle: Points + Token progress */}
+                  <div className="px-3 pb-1.5">
+                    <div className="flex items-center gap-2">
+                      <BeaconPointsControls
+                        studentId={client.id}
+                        staffId={user?.id || ''}
+                        agencyId={effectiveAgencyId}
+                        balance={pointBalances[client.id] || 0}
+                        onPointChange={handlePointChange}
+                        responseCostEnabled
+                      />
+                      {todayCounts[client.id] > 0 && (
+                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                          {todayCounts[client.id]}
+                        </Badge>
+                      )}
+                    </div>
+                    {tp && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Progress value={tokenPct} className="h-1.5 flex-1" />
+                        <span className="text-[9px] text-muted-foreground shrink-0">{tp.current}/{tp.target}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom action row */}
+                  <div className="border-t border-border/30 px-2 py-1.5 flex items-center gap-1">
+                    {BEHAVIORS.slice(0, 3).map(({ name, abbr, icon: Icon }) => (
+                      <button
+                        key={name}
+                        onClick={() => logBehavior(client.id, name)}
+                        title={name}
+                        className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                      >
+                        <Icon className="h-2.5 w-2.5" />{abbr}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => {
+                        handlePointChange(client.id, 1);
+                        if (user) writePointEntry({ studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId, points: 1, reason: 'Quick +1', source: 'quick_action' });
+                        toast({ title: '+1 ⭐' });
+                      }}
+                      className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-1.5 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-colors"
+                    >
+                      <Zap className="h-2.5 w-2.5" />+1
+                    </button>
+                    <button
+                      onClick={() => navigate(`/collect?student=${client.id}`)}
+                      className="flex items-center gap-0.5 rounded border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
+                    >
+                      <Target className="h-2.5 w-2.5" />Probe
+                    </button>
+                    <button
+                      onClick={() => navigate('/tracker')}
+                      className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-muted-foreground hover:bg-muted/40 active:scale-95 transition-colors"
+                    >
+                      ABC
+                    </button>
+                    {/* Engagement inline */}
+                    <div className="ml-auto flex gap-0.5">
+                      <button
+                        onClick={() => logEngagement(client.id, true)}
+                        title="Engaged"
+                        className="rounded border border-accent/30 bg-accent/10 p-1 text-accent hover:bg-accent/20 active:scale-90 transition-colors"
+                      >
+                        <Check className="h-2.5 w-2.5" />
+                      </button>
+                      <button
+                        onClick={() => logEngagement(client.id, false)}
+                        title="Not engaged"
+                        className="rounded border border-destructive/20 bg-destructive/5 p-1 text-destructive hover:bg-destructive/10 active:scale-90 transition-colors"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -550,155 +589,18 @@ const ClassroomView = () => {
   );
 };
 
-/* ── Stat card ── */
-function StatCard({ label, value, icon: Icon, isText }: {
-  label: string; value: string | number; icon: any; isText?: boolean;
+/* ── Summary chip for the horizontal bar ── */
+function SummaryChip({ icon: Icon, label, value, color }: {
+  icon: any; label: string; value: string; color: string;
 }) {
   return (
-    <Card className="border-border/40">
-      <CardContent className="flex items-center gap-3 py-3 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className={cn("font-semibold leading-none", isText ? "text-sm" : "text-lg")}>{value}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ── Student card with inline data entry ── */
-function StudentCard({ client, count, lastEvent, flash, pointBalance, staffId, agencyId, groupId, studentStatus, onStudentStatusChange, onBehavior, onEngagement, onPointChange, onProbe, onTracker, onDetail, formatTime }: {
-  client: Client;
-  count: number;
-  lastEvent?: string;
-  flash: boolean;
-  pointBalance: number;
-  staffId: string;
-  agencyId: string;
-  groupId: string;
-  studentStatus: StudentStatus;
-  onStudentStatusChange: (studentId: string, status: StudentStatus) => void;
-  onBehavior: (name: string) => void;
-  onEngagement: (engaged: boolean) => void;
-  onPointChange: (studentId: string, delta: number) => void;
-  onProbe: () => void;
-  onTracker: () => void;
-  onDetail: () => void;
-  formatTime: (iso: string) => string;
-}) {
-  return (
-    <Card className={cn(
-      "border-border/50 transition-all duration-200",
-      flash && "ring-2 ring-primary/40 scale-[1.01]",
-      studentStatus === 'absent' && "opacity-50",
-    )}>
-      <CardContent className="p-3 space-y-2.5">
-        {/* Student header */}
-        <div className="flex items-center justify-between">
-          <button onClick={onDetail} className="flex items-center gap-2 group text-left min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              {displayInitials(client)}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
-                {displayName(client)}
-              </p>
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                {client.grade && <span>Gr {client.grade}</span>}
-                {lastEvent && (
-                  <>
-                    <span>·</span>
-                    <span className="flex items-center gap-0.5">
-                      <Clock className="h-2.5 w-2.5" />
-                      {formatTime(lastEvent)}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </button>
-          {/* Status badge */}
-          {groupId && (
-            <StudentStatusBadge
-              studentId={client.id}
-              groupId={groupId}
-              agencyId={agencyId}
-              userId={staffId}
-              currentStatus={studentStatus}
-              onStatusChange={onStudentStatusChange}
-            />
-          )}
-        </div>
-
-        {/* Beacon Points */}
-        <div className="flex items-center justify-between">
-          <BeaconPointsControls
-            studentId={client.id}
-            staffId={staffId}
-            agencyId={agencyId}
-            balance={pointBalance}
-            onPointChange={onPointChange}
-            responseCostEnabled
-          />
-          {count > 0 && (
-            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
-              {count} events
-            </Badge>
-          )}
-        </div>
-
-        {/* Quick behavior buttons */}
-        <div className="flex flex-wrap gap-1">
-          {BEHAVIORS.map(({ name, abbr, icon: Icon }) => (
-            <button
-              key={name}
-              onClick={() => onBehavior(name)}
-              title={name}
-              className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive active:scale-95"
-            >
-              <Icon className="h-3 w-3" />
-              {abbr}
-            </button>
-          ))}
-        </div>
-
-        {/* Engagement + Probe + ABC row */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onEngagement(true)}
-            title="Engaged — Yes"
-            className="flex items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-accent/20 active:scale-95"
-          >
-            <Check className="h-3 w-3 text-accent" /> Yes
-          </button>
-          <button
-            onClick={() => onEngagement(false)}
-            title="Engaged — No"
-            className="flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1 text-[10px] font-medium text-foreground transition-colors hover:bg-destructive/10 active:scale-95"
-          >
-            <X className="h-3 w-3 text-destructive" /> No
-          </button>
-          <div className="flex-1" />
-          <button
-            onClick={onProbe}
-            title="Start Probe"
-            className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] font-medium text-primary transition-colors hover:bg-primary/10 active:scale-95"
-          >
-            <Play className="h-3 w-3" /> Probe
-          </button>
-          <button
-            onClick={onTracker}
-            title="ABC / Trigger Tracker"
-            className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 active:scale-95"
-          >
-            <ExternalLink className="h-3 w-3" /> ABC
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0">
+      <Icon className={cn('h-3.5 w-3.5', color)} />
+      <div>
+        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-bold leading-none">{value}</p>
+      </div>
+    </div>
   );
 }
 
