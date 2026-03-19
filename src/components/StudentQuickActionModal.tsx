@@ -6,6 +6,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { generateStudentLoginCode, getActiveStudentCode } from '@/lib/game-data';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
