@@ -142,6 +142,7 @@ const App = () => (
             <Route path="/portal/:token" element={<StudentPortalEnhanced />} />
             <Route path="/portal" element={<StudentPortalEnhanced />} />
             <Route path="/class/:slug/live" element={<ClassroomLive />} />
+            <Route path="/snapshot/:token" element={<ParentSnapshot />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
