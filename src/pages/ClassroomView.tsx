@@ -21,6 +21,7 @@ import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStat
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { ContingencyPanel } from '@/components/ContingencyPanel';
 import { ReinforcerStore } from '@/components/ReinforcerStore';
+import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
 import { MaydayButton } from '@/components/MaydayButton';
 import { TokenBoard } from '@/components/TokenBoard';
 import { SponsorRewardsPanel } from '@/components/SponsorRewardsPanel';
