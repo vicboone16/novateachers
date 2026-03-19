@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Hash, Clock, Target, Zap, Bell, BellOff, HelpCircle, BookOpen } from 'lucide-react';
+import { Hash, Clock, Target, Zap, Bell, BellOff, HelpCircle, BookOpen, Star, Gift, Shield, MessageCircle, Camera } from 'lucide-react';
 
 const sections = [
   {
