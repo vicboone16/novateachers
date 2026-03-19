@@ -129,6 +129,7 @@ const ClassroomView = () => {
     const clientIds = clients.map(c => c.id);
     const balances = await getStudentBalances(user.id, clientIds);
     setPointBalances(balances);
+    setTotalPoints(Object.values(balances).reduce((s, v) => s + v, 0));
   };
 
   const loadAttendance = async () => {
