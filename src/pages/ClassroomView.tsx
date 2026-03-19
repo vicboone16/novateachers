@@ -494,7 +494,7 @@ const ClassroomView = () => {
                     )}
                   </div>
 
-                  {/* Middle: Points + Token progress */}
+                  {/* Middle: Points + Race progress hint */}
                   <div className="px-3 pb-1.5">
                     <div className="flex items-center gap-2">
                       <BeaconPointsControls
@@ -511,12 +511,13 @@ const ClassroomView = () => {
                         </Badge>
                       )}
                     </div>
-                    {tp && (
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <Progress value={tokenPct} className="h-1.5 flex-1" />
-                        <span className="text-[9px] text-muted-foreground shrink-0">{tp.current}/{tp.target}</span>
-                      </div>
-                    )}
+                    {/* Race progress mini-bar */}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Progress value={Math.min(100, ((pointBalances[client.id] || 0) / 100) * 100)} className="h-1.5 flex-1" />
+                      <span className="text-[9px] text-muted-foreground shrink-0 tabular-nums">
+                        {Math.floor(Math.min(pointBalances[client.id] || 0, 100) / 20)}cp
+                      </span>
+                    </div>
                   </div>
 
                   {/* Point award row */}
