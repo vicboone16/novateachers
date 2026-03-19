@@ -89,17 +89,20 @@ const ClassroomView = () => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
 
-  // Load the first group_id for attendance tracking
+  // Load all classroom groups for switcher
   useEffect(() => {
     if (!user || !effectiveAgencyId) return;
-    // classroom_groups lives on Cloud
     cloudSupabase
       .from('classroom_groups')
-      .select('group_id')
+      .select('group_id, name')
       .eq('agency_id', effectiveAgencyId)
-      .limit(1)
+      .order('name')
       .then(({ data }) => {
-        if (data?.[0]?.group_id) setActiveGroupId(data[0].group_id);
+        const groups = data || [];
+        setAllGroups(groups);
+        if (groups.length > 0 && !activeGroupId) {
+          setActiveGroupId(groups[0].group_id);
+        }
       });
   }, [user, effectiveAgencyId]);
 
