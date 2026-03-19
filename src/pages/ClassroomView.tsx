@@ -427,7 +427,7 @@ const ClassroomView = () => {
       {/* Token Boards */}
       {activeGroupId && clients.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.slice(0, 6).map(c => (
+          {clients.map(c => (
             <TokenBoard
               key={c.id}
               studentId={c.id}
