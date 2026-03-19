@@ -58,6 +58,8 @@ export function StudentQuickActionModal({
   const { toast } = useToast();
   const navigate = useNavigate();
   const [customPoints, setCustomPoints] = useState('');
+  const [studentCode, setStudentCode] = useState<string | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
 
   // Duration timer state
   const [timerRunning, setTimerRunning] = useState(false);
