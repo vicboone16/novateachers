@@ -323,6 +323,7 @@ export function StudentQuickActionModal({
                 onClick={() => { onOpenChange(false); navigate('/parent-reports'); }}>
                 <Camera className="h-3.5 w-3.5 text-primary" /> Parent Snapshot
               </Button>
+            </div>
           </Section>
 
           {/* §7 PROMPT SNOOZE */}
