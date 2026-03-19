@@ -449,11 +449,15 @@ const ClassroomView = () => {
               <Card
                 key={client.id}
                 className={cn(
-                  'border-border/50 transition-all duration-200 overflow-hidden',
-                  flashCard === client.id && 'ring-2 ring-primary/40 scale-[1.01]',
+                  'border-border/50 transition-all duration-300 overflow-hidden relative',
+                  flashCard === client.id && 'ring-2 ring-amber-400/60 scale-[1.02] shadow-lg shadow-amber-200/30 dark:shadow-amber-900/20',
                   isAbsent && 'opacity-50',
                 )}
               >
+                {/* Celebration flash overlay */}
+                {flashCard === client.id && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400/10 via-amber-200/20 to-amber-400/10 animate-pulse pointer-events-none z-10 rounded-lg" />
+                )}
                 <CardContent className="p-0">
                   {/* Top row: name + status */}
                   <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
