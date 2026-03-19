@@ -22,6 +22,7 @@ import {
   Star, Plus, Minus, Check, X, Play, ExternalLink,
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Timer, Clock, Pause, Square,
+  Gift, KeyRound, Copy, Gamepad2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
