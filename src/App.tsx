@@ -34,6 +34,7 @@ import ClassroomBoard from "@/pages/ClassroomBoard";
 import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
+import StudentPortal from "@/pages/StudentPortal";
 
 const queryClient = new QueryClient();
 
