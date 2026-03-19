@@ -2,12 +2,13 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAppAccess } from '@/contexts/AppAccessContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare, Trash2, Brain } from 'lucide-react';
+import { ArrowLeft, User, Activity, FileText, TrendingUp, Hash, AlertTriangle, MessageSquare, Trash2, Brain, Camera, HelpCircle } from 'lucide-react';
 import { normalizeClient, displayName } from '@/lib/student-utils';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { DataCollectionSession } from '@/components/DataCollectionSession';
@@ -17,6 +18,8 @@ import { BCBASummary } from '@/components/BCBASummary';
 import { TeacherSummaries } from '@/components/TeacherSummaries';
 import { EngagementSampler } from '@/components/EngagementSampler';
 import { SkillProbe } from '@/components/SkillProbe';
+import { ParentSnapshotPanel } from '@/components/ParentSnapshotPanel';
+import { ParentQuestionsPanel } from '@/components/ParentQuestionsPanel';
 import StudentInfoEditor from '@/components/StudentInfoEditor';
 import FBABIPPanel from '@/components/FBABIPPanel';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +29,7 @@ const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isSoloMode, permissions, currentWorkspace } = useWorkspace();
+  const { agencyId } = useAppAccess();
   const { user } = useAuth();
   const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
@@ -185,6 +189,9 @@ const StudentDetail = () => {
             </TabsTrigger>
             <TabsTrigger value="fba-bip" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
               <Brain className="h-3.5 w-3.5" /> FBA/BIP
+            </TabsTrigger>
+            <TabsTrigger value="parent" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+              <Camera className="h-3.5 w-3.5" /> Parent
             </TabsTrigger>
           </TabsList>
         </div>
@@ -422,6 +429,21 @@ const StudentDetail = () => {
         {/* ── FBA/BIP ── */}
         <TabsContent value="fba-bip" className="animate-in fade-in-50 duration-300">
           <FBABIPPanel client={client} />
+        </TabsContent>
+
+        {/* ── PARENT ── */}
+        <TabsContent value="parent" className="animate-in fade-in-50 duration-300">
+          <div className="space-y-6">
+            <ParentSnapshotPanel
+              studentId={client.id}
+              studentName={displayName(client)}
+              agencyId={agencyId || currentWorkspace?.agency_id || ''}
+            />
+            <ParentQuestionsPanel
+              studentId={client.id}
+              agencyId={agencyId || currentWorkspace?.agency_id || ''}
+            />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

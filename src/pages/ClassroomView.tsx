@@ -27,11 +27,12 @@ import { SponsorRewardsPanel } from '@/components/SponsorRewardsPanel';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Check, X, Play, ExternalLink, Clock, Bell,
-  BarChart3, AlertTriangle, Users, Radio,
+  BarChart3, AlertTriangle, Users, Radio, Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
@@ -77,6 +78,8 @@ const ClassroomView = () => {
   const [pointBalances, setPointBalances] = useState<PointBalances>({});
   const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const [totalPoints, setTotalPoints] = useState(0);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
@@ -87,17 +90,20 @@ const ClassroomView = () => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
 
-  // Load the first group_id for attendance tracking
+  // Load all classroom groups for switcher
   useEffect(() => {
     if (!user || !effectiveAgencyId) return;
-    // classroom_groups lives on Cloud
     cloudSupabase
       .from('classroom_groups')
-      .select('group_id')
+      .select('group_id, name')
       .eq('agency_id', effectiveAgencyId)
-      .limit(1)
+      .order('name')
       .then(({ data }) => {
-        if (data?.[0]?.group_id) setActiveGroupId(data[0].group_id);
+        const groups = data || [];
+        setAllGroups(groups);
+        if (groups.length > 0 && !activeGroupId) {
+          setActiveGroupId(groups[0].group_id);
+        }
       });
   }, [user, effectiveAgencyId]);
 
@@ -124,6 +130,7 @@ const ClassroomView = () => {
     const clientIds = clients.map(c => c.id);
     const balances = await getStudentBalances(user.id, clientIds);
     setPointBalances(balances);
+    setTotalPoints(Object.values(balances).reduce((s, v) => s + v, 0));
   };
 
   const loadAttendance = async () => {
@@ -353,15 +360,32 @@ const ClassroomView = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            Today in My Classroom
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Today in My Classroom
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          {/* Classroom Switcher */}
+          {allGroups.length > 1 && (
+            <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+              <SelectTrigger className="h-8 w-[160px] text-xs">
+                <SelectValue placeholder="Select classroom…" />
+              </SelectTrigger>
+              <SelectContent>
+                {allGroups.map(g => (
+                  <SelectItem key={g.group_id} value={g.group_id} className="text-xs">
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {activeGroupId && (
@@ -377,9 +401,10 @@ const ClassroomView = () => {
       </div>
 
       {/* Daily stats bar + staff presence */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
         <StatCard label="Students" value={clients.length} icon={Users} />
         <StatCard label="Events Today" value={totalToday} icon={BarChart3} />
+        <StatCard label="Total Points" value={totalPoints} icon={Star} />
         <StatCard
           label="Last Activity"
           value={Object.keys(lastEvents).length > 0
@@ -402,7 +427,7 @@ const ClassroomView = () => {
       {/* Token Boards */}
       {activeGroupId && clients.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.slice(0, 6).map(c => (
+          {clients.map(c => (
             <TokenBoard
               key={c.id}
               studentId={c.id}
