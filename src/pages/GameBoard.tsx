@@ -1,7 +1,7 @@
 /**
  * GameBoard — Race Track game board for classroom display.
  * Shows student avatars moving along a track based on points.
- * Reads from Core Phase 5 tables.
+ * Reads from Core Phase 5 tables + Cloud beacon_points_ledger for realtime.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import {
   getClassroomGameProgress,
   getTeamScores,
 } from '@/lib/game-data';
+import { getStudentBalances } from '@/lib/beacon-points';
 import { POINT_SKINS, type ClassroomGameSettings, type StudentGameProgress, type TeamScore } from '@/lib/game-types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,50 +37,95 @@ const GameBoard = () => {
   const [students, setStudents] = useState<StudentGameProgress[]>([]);
   const [teams, setTeams] = useState<TeamScore[]>([]);
   const [loading, setLoading] = useState(true);
-  const [flash, setFlash] = useState<string | null>(null); // student_id that just moved
+  const [flash, setFlash] = useState<string | null>(null);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [liveBalances, setLiveBalances] = useState<Record<string, number>>({});
 
-  const groupId = currentWorkspace?.id || '';
+  const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
+
+  // Load classroom groups to get the right groupId
+  useEffect(() => {
+    if (!effectiveAgencyId) return;
+    cloudSupabase
+      .from('classroom_groups')
+      .select('group_id')
+      .eq('agency_id', effectiveAgencyId)
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.length) setActiveGroupId(data[0].group_id);
+      });
+  }, [effectiveAgencyId]);
 
   useEffect(() => {
-    if (groupId) loadBoard();
-  }, [groupId]);
+    if (activeGroupId) loadBoard();
+  }, [activeGroupId]);
 
   const loadBoard = async () => {
+    if (!activeGroupId || !user) return;
     setLoading(true);
     try {
       const [s, prog, t] = await Promise.all([
-        getClassroomGameSettings(groupId),
-        getClassroomGameProgress(groupId),
-        getTeamScores(groupId),
+        getClassroomGameSettings(activeGroupId),
+        getClassroomGameProgress(activeGroupId),
+        getTeamScores(activeGroupId),
       ]);
       setSettings(s);
       setStudents(prog);
       setTeams(t);
+
+      // Also load live balances from Cloud ledger as fallback
+      if (prog.length > 0) {
+        const ids = prog.map(p => p.student_id);
+        const bals = await getStudentBalances(user.id, ids);
+        setLiveBalances(bals);
+      }
     } catch (e) {
       console.warn('[GameBoard] load error:', e);
     }
     setLoading(false);
   };
 
-  // Listen for realtime point events to trigger animation
+  // Listen for realtime point events on Cloud ledger for immediate movement
   useEffect(() => {
-    if (!groupId) return;
-    const channel = supabase
-      .channel(`game-board-${groupId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'beacon_points_ledger' }, (payload: any) => {
+    if (!user) return;
+    const channel = cloudSupabase
+      .channel('game-board-live')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'beacon_points_ledger',
+        filter: `staff_id=eq.${user.id}`,
+      }, (payload: any) => {
         const sid = payload.new?.student_id;
+        const pts = payload.new?.points || 0;
         if (sid) {
+          // Immediate optimistic update
+          setLiveBalances(prev => ({ ...prev, [sid]: (prev[sid] || 0) + pts }));
           setFlash(sid);
           setTimeout(() => setFlash(null), 1200);
-          loadBoard(); // refresh positions
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [groupId]);
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [user]);
 
   const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
-  const totalClassPoints = students.reduce((sum, s) => sum + (s.points_balance || 0), 0);
+
+  // Merge Core progress with live Cloud balances for immediate position
+  const getEffectivePosition = (s: StudentGameProgress) => {
+    const liveBalance = liveBalances[s.student_id];
+    if (liveBalance !== undefined && liveBalance > (s.points_balance || 0)) {
+      // Use live balance for position calculation
+      return Math.min(liveBalance, TRACK_LENGTH);
+    }
+    return Math.min(s.track_position || 0, TRACK_LENGTH);
+  };
+
+  const getEffectiveBalance = (s: StudentGameProgress) => {
+    return liveBalances[s.student_id] ?? s.points_balance ?? 0;
+  };
+
+  const totalClassPoints = students.reduce((sum, s) => sum + getEffectiveBalance(s), 0);
 
   const getDisplayName = (s: StudentGameProgress) => {
     const mode = settings?.privacy_mode || 'first_names';
@@ -97,6 +143,9 @@ const GameBoard = () => {
   }
 
   const checkpoints = Array.from({ length: TRACK_LENGTH / CHECKPOINT_INTERVAL }, (_, i) => (i + 1) * CHECKPOINT_INTERVAL);
+
+  // Sort students by effective position for standings
+  const sortedStudents = [...students].sort((a, b) => getEffectiveBalance(b) - getEffectiveBalance(a));
 
   return (
     <div className="space-y-4">
@@ -181,10 +230,9 @@ const GameBoard = () => {
             {/* Student avatars on track */}
             <div className="relative" style={{ minHeight: students.length > 6 ? '200px' : '120px' }}>
               {students.map((s, idx) => {
-                const pos = Math.min(s.track_position || 0, TRACK_LENGTH);
+                const pos = getEffectivePosition(s);
                 const pct = (pos / TRACK_LENGTH) * 100;
                 const isFlashing = flash === s.student_id;
-                // Stagger vertically to avoid overlap
                 const yOffset = (idx % 3) * 40 + 10;
 
                 return (
@@ -199,7 +247,6 @@ const GameBoard = () => {
                       top: `${yOffset}px`,
                     }}
                   >
-                    {/* Glow effect */}
                     {isFlashing && (
                       <div className="absolute inset-0 -m-2 rounded-full bg-accent/30 animate-ping" />
                     )}
@@ -217,7 +264,7 @@ const GameBoard = () => {
       </Card>
 
       {/* Standings */}
-      {settings?.leaderboard_enabled && (
+      {settings?.leaderboard_enabled !== false && (
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -225,8 +272,11 @@ const GameBoard = () => {
               <p className="text-sm font-bold">Standings</p>
             </div>
             <div className="space-y-2">
-              {students.slice(0, 10).map((s, i) => (
-                <div key={s.student_id} className="flex items-center gap-3">
+              {sortedStudents.slice(0, 10).map((s, i) => (
+                <div key={s.student_id} className={cn(
+                  "flex items-center gap-3 transition-all duration-300",
+                  flash === s.student_id && "bg-amber-50/50 dark:bg-amber-900/10 rounded-lg px-2 py-1"
+                )}>
                   <span className={cn(
                     "text-sm font-bold w-6 text-center",
                     i === 0 && "text-amber-500",
@@ -238,10 +288,10 @@ const GameBoard = () => {
                   <span className="text-lg">{s.avatar_emoji || '👤'}</span>
                   <span className="flex-1 text-sm font-medium">{getDisplayName(s)}</span>
                   <Badge variant="outline" className="text-xs tabular-nums gap-1">
-                    {skin.icon} {s.points_balance}
+                    {skin.icon} {getEffectiveBalance(s)}
                   </Badge>
                   <div className="w-20">
-                    <Progress value={(s.track_position / TRACK_LENGTH) * 100} className="h-2" />
+                    <Progress value={(getEffectivePosition(s) / TRACK_LENGTH) * 100} className="h-2" />
                   </div>
                 </div>
               ))}

@@ -1,19 +1,19 @@
 /**
- * ReinforcerStore — Reward catalog and point redemption UI.
+ * ReinforcerStore — Reward catalog with full CRUD + redemption.
  * Reads rewards from Core (beacon_rewards), writes redemptions to Core (beacon_reward_redemptions),
  * and deducts points from Cloud (beacon_points_ledger).
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -22,7 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Gift, Star, Plus, ShoppingBag, Sparkles, Check, AlertCircle, Package, Trophy, Loader2,
+  Gift, Star, Plus, ShoppingBag, Check, AlertCircle, Package, Trophy, Loader2, Pencil, Power,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,68 +55,121 @@ interface Props {
   classroomId?: string;
   students: StudentOption[];
   onRedemption?: () => void;
+  showInactive?: boolean;
 }
 
-export function ReinforcerStore({ agencyId, classroomId, students, onRedemption }: Props) {
+export function ReinforcerStore({ agencyId, classroomId, students, onRedemption, showInactive }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [redeemOpen, setRedeemOpen] = useState(false);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [redeeming, setRedeeming] = useState(false);
 
-  // Create form
-  const [newName, setNewName] = useState('');
-  const [newCost, setNewCost] = useState('10');
-  const [newCategory, setNewCategory] = useState('privilege');
-  const [newEmoji, setNewEmoji] = useState('🎁');
-  const [newDescription, setNewDescription] = useState('');
+  // Create/Edit form
+  const [formName, setFormName] = useState('');
+  const [formCost, setFormCost] = useState('10');
+  const [formCategory, setFormCategory] = useState('privilege');
+  const [formEmoji, setFormEmoji] = useState('🎁');
+  const [formDescription, setFormDescription] = useState('');
 
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
+      let q = supabase
         .from('beacon_rewards' as any)
         .select('*')
         .eq('agency_id', agencyId)
-        .eq('is_active', true)
         .order('point_cost', { ascending: true });
+      if (!showInactive) q = q.eq('is_active', true);
+      const { data } = await q;
       setRewards((data || []) as any as Reward[]);
     } catch { /* silent */ }
     setLoading(false);
-  }, [agencyId]);
+  }, [agencyId, showInactive]);
 
   useEffect(() => { loadRewards(); }, [loadRewards]);
 
+  const resetForm = () => {
+    setFormName('');
+    setFormCost('10');
+    setFormCategory('privilege');
+    setFormEmoji('🎁');
+    setFormDescription('');
+  };
+
   const createReward = async () => {
-    if (!newName.trim() || !user) return;
+    if (!formName.trim() || !user) return;
     try {
       const { error } = await supabase
         .from('beacon_rewards' as any)
         .insert({
           agency_id: agencyId,
           classroom_id: classroomId || null,
-          name: newName.trim(),
-          description: newDescription.trim() || null,
-          point_cost: parseInt(newCost) || 10,
-          category: newCategory,
-          emoji: newEmoji || '🎁',
+          name: formName.trim(),
+          description: formDescription.trim() || null,
+          point_cost: parseInt(formCost) || 10,
+          category: formCategory,
+          emoji: formEmoji || '🎁',
           created_by: user.id,
         });
       if (error) throw error;
       setCreateOpen(false);
-      setNewName('');
-      setNewCost('10');
-      setNewDescription('');
+      resetForm();
       loadRewards();
       toast({ title: 'Reward added to store' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
+  };
+
+  const openEdit = (reward: Reward) => {
+    setSelectedReward(reward);
+    setFormName(reward.name);
+    setFormCost(String(reward.point_cost));
+    setFormCategory(reward.category);
+    setFormEmoji(reward.emoji);
+    setFormDescription(reward.description || '');
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!selectedReward || !formName.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('beacon_rewards' as any)
+        .update({
+          name: formName.trim(),
+          description: formDescription.trim() || null,
+          point_cost: parseInt(formCost) || 10,
+          category: formCategory,
+          emoji: formEmoji || '🎁',
+        })
+        .eq('id', selectedReward.id);
+      if (error) throw error;
+      setEditOpen(false);
+      resetForm();
+      loadRewards();
+      toast({ title: 'Reward updated' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleActive = async (reward: Reward) => {
+    try {
+      await supabase
+        .from('beacon_rewards' as any)
+        .update({ is_active: !reward.is_active })
+        .eq('id', reward.id);
+      loadRewards();
+      toast({ title: reward.is_active ? 'Reward deactivated' : 'Reward activated' });
+    } catch { /* silent */ }
   };
 
   const startRedeem = (reward: Reward) => {
@@ -137,7 +190,6 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
 
     setRedeeming(true);
     try {
-      // 1) Record redemption on Core
       const { error: redeemErr } = await supabase
         .from('beacon_reward_redemptions' as any)
         .insert({
@@ -149,7 +201,6 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
         });
       if (redeemErr) throw redeemErr;
 
-      // 2) Deduct points on Cloud ledger
       await writePointEntry({
         studentId: selectedStudentId,
         staffId: user.id,
@@ -159,7 +210,6 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
         source: 'reward_redeem',
       });
 
-      // 3) Decrease stock if limited
       if (selectedReward.stock !== null) {
         await supabase
           .from('beacon_rewards' as any)
@@ -193,7 +243,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
           <ShoppingBag className="h-4 w-4 text-primary" />
           Reward Store
         </h3>
-        <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)} className="gap-1 text-xs">
+        <Button size="sm" variant="outline" onClick={() => { resetForm(); setCreateOpen(true); }} className="gap-1 text-xs">
           <Plus className="h-3 w-3" /> Add Reward
         </Button>
       </div>
@@ -214,14 +264,24 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
           {rewards.map(reward => {
             const catConfig = CATEGORIES.find(c => c.value === reward.category);
             const outOfStock = reward.stock !== null && reward.stock <= 0;
+            // Show "X points away" for each student with lowest distance
+            const closestStudent = students.length > 0
+              ? students.reduce((best, s) => {
+                  const away = reward.point_cost - s.balance;
+                  const bestAway = reward.point_cost - best.balance;
+                  return away < bestAway ? s : best;
+                })
+              : null;
+            const pointsAway = closestStudent ? Math.max(0, reward.point_cost - closestStudent.balance) : 0;
+
             return (
               <Card
                 key={reward.id}
                 className={cn(
-                  'transition-all cursor-pointer hover:shadow-md border-border/40',
-                  outOfStock && 'opacity-50'
+                  'transition-all border-border/40',
+                  outOfStock && 'opacity-50',
+                  !reward.is_active && 'opacity-40 border-dashed',
                 )}
-                onClick={() => !outOfStock && startRedeem(reward)}
               >
                 <CardContent className="p-3">
                   <div className="flex items-start gap-3">
@@ -231,7 +291,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
                       {reward.description && (
                         <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{reward.description}</p>
                       )}
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <Badge className="gap-1 text-[10px] bg-primary/10 text-primary border-primary/20">
                           <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
                           {reward.point_cost}
@@ -246,7 +306,23 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
                           </Badge>
                         )}
                       </div>
+                      {closestStudent && pointsAway > 0 && pointsAway <= reward.point_cost && (
+                        <p className="text-[10px] text-primary font-medium mt-1">
+                          {closestStudent.name}: {pointsAway} pts away
+                        </p>
+                      )}
                     </div>
+                  </div>
+                  <div className="flex gap-1 mt-2">
+                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={() => !outOfStock && reward.is_active && startRedeem(reward)} disabled={outOfStock || !reward.is_active}>
+                      <Gift className="h-3 w-3 mr-1" /> Redeem
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(reward)} title="Edit">
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className={cn("h-7 w-7 p-0", !reward.is_active && "text-muted-foreground")} onClick={() => toggleActive(reward)} title={reward.is_active ? 'Deactivate' : 'Activate'}>
+                      <Power className="h-3 w-3" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -264,42 +340,38 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
               Add Reward
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex gap-3">
-              <div className="space-y-1 flex-1">
-                <Label className="text-xs">Name</Label>
-                <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Extra Recess" />
-              </div>
-              <div className="space-y-1 w-16">
-                <Label className="text-xs">Emoji</Label>
-                <Input value={newEmoji} onChange={e => setNewEmoji(e.target.value)} className="text-center text-lg" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Point Cost</Label>
-                <Input type="number" value={newCost} onChange={e => setNewCost(e.target.value)} min="1" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Category</Label>
-                <Select value={newCategory} onValueChange={setNewCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map(c => (
-                      <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Description (optional)</Label>
-              <Input value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Short description…" />
-            </div>
-            <Button onClick={createReward} disabled={!newName.trim()} className="w-full gap-1.5">
-              <Plus className="h-4 w-4" /> Add to Store
-            </Button>
-          </div>
+          <RewardForm
+            name={formName} onNameChange={setFormName}
+            cost={formCost} onCostChange={setFormCost}
+            category={formCategory} onCategoryChange={setFormCategory}
+            emoji={formEmoji} onEmojiChange={setFormEmoji}
+            description={formDescription} onDescriptionChange={setFormDescription}
+            onSubmit={createReward}
+            submitLabel="Add to Store"
+            disabled={!formName.trim()}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Reward Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Edit Reward
+            </DialogTitle>
+          </DialogHeader>
+          <RewardForm
+            name={formName} onNameChange={setFormName}
+            cost={formCost} onCostChange={setFormCost}
+            category={formCategory} onCategoryChange={setFormCategory}
+            emoji={formEmoji} onEmojiChange={setFormEmoji}
+            description={formDescription} onDescriptionChange={setFormDescription}
+            onSubmit={saveEdit}
+            submitLabel="Save Changes"
+            disabled={!formName.trim()}
+          />
         </DialogContent>
       </Dialog>
 
@@ -330,20 +402,26 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
                 <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
                   <SelectTrigger><SelectValue placeholder="Choose a student…" /></SelectTrigger>
                   <SelectContent>
-                    {students.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{s.name}</span>
-                          <Badge variant="outline" className="text-[9px] gap-0.5">
-                            <Star className="h-2 w-2 fill-amber-500 text-amber-500" />
-                            {s.balance}
-                          </Badge>
-                          {s.balance < selectedReward.point_cost && (
-                            <AlertCircle className="h-3 w-3 text-destructive" />
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {students.map(s => {
+                      const away = Math.max(0, selectedReward.point_cost - s.balance);
+                      return (
+                        <SelectItem key={s.id} value={s.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{s.name}</span>
+                            <Badge variant="outline" className="text-[9px] gap-0.5">
+                              <Star className="h-2 w-2 fill-amber-500 text-amber-500" />
+                              {s.balance}
+                            </Badge>
+                            {away > 0 && (
+                              <span className="text-[9px] text-muted-foreground">{away} away</span>
+                            )}
+                            {s.balance < selectedReward.point_cost && (
+                              <AlertCircle className="h-3 w-3 text-destructive" />
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -367,7 +445,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
                   {!canAfford && (
                     <p className="text-xs text-destructive flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
-                      Not enough points
+                      Not enough points ({selectedReward.point_cost - selectedStudent.balance} more needed)
                     </p>
                   )}
                 </div>
@@ -388,6 +466,55 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption 
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/* Shared form for create/edit */
+function RewardForm({ name, onNameChange, cost, onCostChange, category, onCategoryChange, emoji, onEmojiChange, description, onDescriptionChange, onSubmit, submitLabel, disabled }: {
+  name: string; onNameChange: (v: string) => void;
+  cost: string; onCostChange: (v: string) => void;
+  category: string; onCategoryChange: (v: string) => void;
+  emoji: string; onEmojiChange: (v: string) => void;
+  description: string; onDescriptionChange: (v: string) => void;
+  onSubmit: () => void; submitLabel: string; disabled: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-3">
+        <div className="space-y-1 flex-1">
+          <Label className="text-xs">Name</Label>
+          <Input value={name} onChange={e => onNameChange(e.target.value)} placeholder="e.g. Extra Recess" />
+        </div>
+        <div className="space-y-1 w-16">
+          <Label className="text-xs">Emoji</Label>
+          <Input value={emoji} onChange={e => onEmojiChange(e.target.value)} className="text-center text-lg" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Point Cost</Label>
+          <Input type="number" value={cost} onChange={e => onCostChange(e.target.value)} min="1" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Category</Label>
+          <Select value={category} onValueChange={onCategoryChange}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map(c => (
+                <SelectItem key={c.value} value={c.value}>{c.emoji} {c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Description (optional)</Label>
+        <Input value={description} onChange={e => onDescriptionChange(e.target.value)} placeholder="Short description…" />
+      </div>
+      <Button onClick={onSubmit} disabled={disabled} className="w-full gap-1.5">
+        {submitLabel}
+      </Button>
     </div>
   );
 }

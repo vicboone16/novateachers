@@ -449,11 +449,15 @@ const ClassroomView = () => {
               <Card
                 key={client.id}
                 className={cn(
-                  'border-border/50 transition-all duration-200 overflow-hidden',
-                  flashCard === client.id && 'ring-2 ring-primary/40 scale-[1.01]',
+                  'border-border/50 transition-all duration-300 overflow-hidden relative',
+                  flashCard === client.id && 'ring-2 ring-amber-400/60 scale-[1.02] shadow-lg shadow-amber-200/30 dark:shadow-amber-900/20',
                   isAbsent && 'opacity-50',
                 )}
               >
+                {/* Celebration flash overlay */}
+                {flashCard === client.id && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400/10 via-amber-200/20 to-amber-400/10 animate-pulse pointer-events-none z-10 rounded-lg" />
+                )}
                 <CardContent className="p-0">
                   {/* Top row: name + status */}
                   <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
@@ -522,11 +526,13 @@ const ClassroomView = () => {
                         key={n}
                         onClick={() => {
                           handlePointChange(client.id, n);
+                          setFlashCard(client.id);
+                          setTimeout(() => setFlashCard(null), 800);
                           if (user) writePointEntry({ studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId, points: n, reason: `Quick +${n}`, source: 'quick_action' });
-                          toast({ title: `+${n} ⭐` });
+                          toast({ title: `+${n} ⭐ ${displayName(client)}` });
                           if ('vibrate' in navigator) navigator.vibrate(10);
                         }}
-                        className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-colors"
+                        className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
                       >
                         <Star className="h-2.5 w-2.5" />+{n}
                       </button>
