@@ -34,6 +34,7 @@ import {
   Check, X, Play, ExternalLink, Clock, Bell,
   BarChart3, AlertTriangle, Users, Star, Sparkles,
   Target, BookOpen, MessageSquare, Zap, ChevronDown,
+  Gamepad2, Gift, KeyRound, Copy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
