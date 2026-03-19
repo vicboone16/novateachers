@@ -1,5 +1,5 @@
 /**
- * MaydayButton — Emergency alert button with recipient selection and multi-channel delivery.
+ * MaydayButton — Emergency alert with lifecycle: active → acknowledged → resolved.
  * Writes to Core: mayday_alerts, mayday_recipients.
  */
 import { useState, useCallback, useEffect } from 'react';
@@ -17,13 +17,15 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { AlertTriangle, Send, Loader2, Shield, Users } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface Recipient {
-  user_id: string;
-  display_name: string;
-  role: string;
+interface Recipient { user_id: string; display_name: string; role: string; }
+interface MaydayAlert {
+  id: string; alert_type: string; urgency: string; message: string;
+  status: string; created_at: string; acknowledged_at?: string; resolved_at?: string;
+  acknowledged_by?: string; resolved_by?: string;
 }
 
 interface Props {
@@ -56,207 +58,159 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
   const [sending, setSending] = useState(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
-
+  const [activeAlerts, setActiveAlerts] = useState<MaydayAlert[]>([]);
   const [urgency, setUrgency] = useState('high');
   const [alertType, setAlertType] = useState('safety');
   const [message, setMessage] = useState('');
+  const [tab, setTab] = useState('send');
 
-  // Load potential recipients (agency staff)
   const loadRecipients = useCallback(async () => {
     try {
-      const { data } = await supabase
-        .from('agency_memberships' as any)
-        .select('user_id, role')
-        .eq('agency_id', agencyId);
-
+      const { data } = await supabase.from('agency_memberships' as any).select('user_id, role').eq('agency_id', agencyId);
       if (!data) return;
-
-      // Filter out current user and map
-      const staff = (data as any[])
-        .filter(m => m.user_id !== user?.id)
-        .map(m => ({
-          user_id: m.user_id,
-          display_name: m.user_id.slice(0, 8) + '…',
-          role: m.role || 'staff',
-        }));
-
+      const staff = (data as any[]).filter(m => m.user_id !== user?.id).map(m => ({ user_id: m.user_id, display_name: m.user_id.slice(0, 8) + '…', role: m.role || 'staff' }));
       setRecipients(staff);
-      // Auto-select admins
       const admins = staff.filter(s => s.role === 'admin' || s.role === 'bcba' || s.role === 'supervisor');
       setSelectedRecipients(new Set(admins.map(a => a.user_id)));
     } catch { /* silent */ }
   }, [agencyId, user]);
 
+  const loadActiveAlerts = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.from('mayday_alerts' as any).select('*').eq('agency_id', agencyId).in('status', ['active', 'acknowledged']).order('created_at', { ascending: false }).limit(10);
+      setActiveAlerts((data || []) as any as MaydayAlert[]);
+    } catch { /* silent */ }
+  }, [agencyId, user]);
+
   useEffect(() => {
-    if (open) loadRecipients();
-  }, [open, loadRecipients]);
+    if (open) { loadRecipients(); loadActiveAlerts(); }
+  }, [open, loadRecipients, loadActiveAlerts]);
 
   const toggleRecipient = (userId: string) => {
-    setSelectedRecipients(prev => {
-      const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return next;
-    });
+    setSelectedRecipients(prev => { const next = new Set(prev); if (next.has(userId)) next.delete(userId); else next.add(userId); return next; });
   };
 
   const sendAlert = async () => {
     if (!user || selectedRecipients.size === 0) return;
     setSending(true);
-
     try {
-      // 1) Create the alert
-      const { data: alert, error: alertErr } = await supabase
-        .from('mayday_alerts' as any)
-        .insert({
-          agency_id: agencyId,
-          classroom_id: classroomId || null,
-          student_id: studentId || null,
-          triggered_by: user.id,
-          alert_type: alertType,
-          urgency,
-          message: message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`,
-          status: 'active',
-        })
-        .select('id')
-        .single();
-
+      const { data: alert, error: alertErr } = await supabase.from('mayday_alerts' as any).insert({
+        agency_id: agencyId, classroom_id: classroomId || null, student_id: studentId || null,
+        triggered_by: user.id, alert_type: alertType, urgency,
+        message: message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`,
+        status: 'active',
+      }).select('id').single();
       if (alertErr) throw alertErr;
-
-      // 2) Insert recipients
-      const recipientRows = Array.from(selectedRecipients).map(userId => ({
-        alert_id: (alert as any).id,
-        user_id: userId,
-        delivery_channel: 'in_app',
-        status: 'pending',
-      }));
-
-      await supabase
-        .from('mayday_recipients' as any)
-        .insert(recipientRows);
-
-      toast({
-        title: '🚨 MAYDAY Alert Sent!',
-        description: `${selectedRecipients.size} recipient(s) notified`,
-      });
-
-      setOpen(false);
-      setMessage('');
-      setUrgency('high');
-      setAlertType('safety');
-    } catch (err: any) {
-      toast({ title: 'Alert failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setSending(false);
-    }
+      const recipientRows = Array.from(selectedRecipients).map(userId => ({ alert_id: (alert as any).id, user_id: userId, delivery_channel: 'in_app', status: 'pending' }));
+      await supabase.from('mayday_recipients' as any).insert(recipientRows);
+      toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selectedRecipients.size} recipient(s) notified` });
+      setMessage(''); setUrgency('high'); setAlertType('safety');
+      loadActiveAlerts();
+      setTab('active');
+    } catch (err: any) { toast({ title: 'Alert failed', description: err.message, variant: 'destructive' }); }
+    finally { setSending(false); }
   };
+
+  const updateAlertStatus = async (alertId: string, newStatus: 'acknowledged' | 'resolved') => {
+    if (!user) return;
+    try {
+      const updateFields: any = { status: newStatus };
+      if (newStatus === 'acknowledged') { updateFields.acknowledged_at = new Date().toISOString(); updateFields.acknowledged_by = user.id; }
+      if (newStatus === 'resolved') { updateFields.resolved_at = new Date().toISOString(); updateFields.resolved_by = user.id; }
+      await supabase.from('mayday_alerts' as any).update(updateFields).eq('id', alertId);
+      toast({ title: newStatus === 'acknowledged' ? '✓ Alert acknowledged' : '✓ Alert resolved' });
+      loadActiveAlerts();
+    } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
+  };
+
+  const activeCount = activeAlerts.filter(a => a.status === 'active').length;
 
   return (
     <>
-      <Button
-        variant="destructive"
-        size="sm"
-        className="gap-1.5 font-bold animate-pulse hover:animate-none"
-        onClick={() => setOpen(true)}
-      >
-        <AlertTriangle className="h-4 w-4" />
-        MAYDAY
+      <Button variant="destructive" size="sm" className={cn("gap-1.5 font-bold relative", activeCount > 0 && "animate-pulse hover:animate-none")} onClick={() => setOpen(true)}>
+        <AlertTriangle className="h-4 w-4" /> MAYDAY
+        {activeCount > 0 && <Badge className="absolute -top-1.5 -right-1.5 h-4 min-w-4 text-[9px] bg-background text-destructive border border-destructive px-1">{activeCount}</Badge>}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading flex items-center gap-2 text-destructive">
-              <Shield className="h-5 w-5" />
-              Emergency Alert
-            </DialogTitle>
+            <DialogTitle className="font-heading flex items-center gap-2 text-destructive"><Shield className="h-5 w-5" /> Emergency Alert</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {studentName && (
-              <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3">
-                <p className="text-sm font-medium">Student: <strong>{studentName}</strong></p>
-              </div>
-            )}
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList className="w-full">
+              <TabsTrigger value="send" className="flex-1 gap-1 text-xs"><Send className="h-3 w-3" /> Send</TabsTrigger>
+              <TabsTrigger value="active" className="flex-1 gap-1 text-xs relative">
+                <Bell className="h-3 w-3" /> Active
+                {activeCount > 0 && <Badge variant="destructive" className="h-4 min-w-4 text-[9px] ml-1 px-1">{activeCount}</Badge>}
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Alert Type */}
-            <div className="space-y-1">
-              <Label className="text-xs">Alert Type</Label>
-              <Select value={alertType} onValueChange={setAlertType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ALERT_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+            <TabsContent value="send" className="space-y-4 mt-3">
+              {studentName && <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3"><p className="text-sm font-medium">Student: <strong>{studentName}</strong></p></div>}
+              <div className="space-y-1">
+                <Label className="text-xs">Alert Type</Label>
+                <Select value={alertType} onValueChange={setAlertType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ALERT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Urgency</Label>
+                <div className="flex gap-1.5">
+                  {URGENCY_LEVELS.map(level => (
+                    <button key={level.value} onClick={() => setUrgency(level.value)} className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-colors', urgency === level.value ? level.color + ' border-current' : 'bg-muted border-border')}>{level.label}</button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                </div>
+              </div>
+              <div className="space-y-1"><Label className="text-xs">Details (optional)</Label><Textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the situation…" rows={2} /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1"><Users className="h-3 w-3" /> Notify ({selectedRecipients.size})</Label>
+                <div className="max-h-32 overflow-y-auto space-y-1 rounded-lg border border-border p-2">
+                  {recipients.length === 0 ? <p className="text-xs text-muted-foreground text-center py-2">No staff found</p> : recipients.map(r => (
+                    <label key={r.user_id} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/50 cursor-pointer">
+                      <Checkbox checked={selectedRecipients.has(r.user_id)} onCheckedChange={() => toggleRecipient(r.user_id)} />
+                      <span className="text-xs">{r.display_name}</span>
+                      <Badge variant="outline" className="text-[9px] ml-auto">{r.role}</Badge>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <Button onClick={sendAlert} disabled={sending || selectedRecipients.size === 0} variant="destructive" className="w-full gap-1.5 font-bold">
+                {sending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</> : <><Send className="h-4 w-4" /> Send MAYDAY Alert</>}
+              </Button>
+            </TabsContent>
 
-            {/* Urgency */}
-            <div className="space-y-1">
-              <Label className="text-xs">Urgency</Label>
-              <div className="flex gap-1.5">
-                {URGENCY_LEVELS.map(level => (
-                  <button
-                    key={level.value}
-                    onClick={() => setUrgency(level.value)}
-                    className={cn(
-                      'rounded-full px-3 py-1 text-xs font-medium border transition-colors',
-                      urgency === level.value ? level.color + ' border-current' : 'bg-muted border-border'
+            <TabsContent value="active" className="mt-3 space-y-2">
+              {activeAlerts.length === 0 ? (
+                <div className="text-center py-8"><CheckCircle className="h-8 w-8 mx-auto text-accent mb-2" /><p className="text-sm text-muted-foreground">No active alerts</p></div>
+              ) : activeAlerts.map(alert => (
+                <div key={alert.id} className={cn("rounded-lg border p-3 space-y-2", alert.status === 'active' ? 'border-destructive/40 bg-destructive/5' : 'border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/10')}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={alert.status === 'active' ? 'destructive' : 'outline'} className="text-[9px]">{alert.status === 'active' ? '🔴 Active' : '🟡 Acknowledged'}</Badge>
+                        <Badge variant="outline" className="text-[9px]">{URGENCY_LEVELS.find(u => u.value === alert.urgency)?.label}</Badge>
+                      </div>
+                      <p className="text-sm font-medium mt-1">{ALERT_TYPES.find(t => t.value === alert.alert_type)?.label}</p>
+                      {alert.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{alert.message}</p>}
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{new Date(alert.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                      {alert.acknowledged_at && <p className="text-[10px] text-muted-foreground">Acknowledged {new Date(alert.acknowledged_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {alert.status === 'active' && (
+                      <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-amber-300 text-amber-700 dark:text-amber-300" onClick={() => updateAlertStatus(alert.id, 'acknowledged')}>
+                        <CheckCircle className="h-3 w-3" /> Acknowledge
+                      </Button>
                     )}
-                  >
-                    {level.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Message */}
-            <div className="space-y-1">
-              <Label className="text-xs">Details (optional)</Label>
-              <Textarea
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                placeholder="Describe the situation…"
-                rows={2}
-              />
-            </div>
-
-            {/* Recipients */}
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                Notify ({selectedRecipients.size})
-              </Label>
-              <div className="max-h-32 overflow-y-auto space-y-1 rounded-lg border border-border p-2">
-                {recipients.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-2">No staff found</p>
-                ) : recipients.map(r => (
-                  <label key={r.user_id} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/50 cursor-pointer">
-                    <Checkbox
-                      checked={selectedRecipients.has(r.user_id)}
-                      onCheckedChange={() => toggleRecipient(r.user_id)}
-                    />
-                    <span className="text-xs">{r.display_name}</span>
-                    <Badge variant="outline" className="text-[9px] ml-auto">{r.role}</Badge>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <Button
-              onClick={sendAlert}
-              disabled={sending || selectedRecipients.size === 0}
-              variant="destructive"
-              className="w-full gap-1.5 font-bold"
-            >
-              {sending ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-              ) : (
-                <><Send className="h-4 w-4" /> Send MAYDAY Alert</>
-              )}
-            </Button>
-          </div>
+                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-accent text-accent-foreground" onClick={() => updateAlertStatus(alert.id, 'resolved')}>
+                      <XCircle className="h-3 w-3" /> Resolve
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </>
