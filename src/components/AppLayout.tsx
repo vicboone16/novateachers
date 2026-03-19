@@ -178,6 +178,8 @@ export const AppLayout = () => {
 
           {/* IEP dropdown */}
           <IEPNavDropdown />
+          {/* More pages dropdown */}
+          <MoreNavDropdown />
         </div>
       </nav>
 

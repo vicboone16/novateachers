@@ -35,6 +35,10 @@ import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
+import RewardsPage from "@/pages/RewardsPage";
+import ClassroomFeed from "@/pages/ClassroomFeed";
+import BoardConfig from "@/pages/BoardConfig";
+import ParentReports from "@/pages/ParentReports";
 
 const queryClient = new QueryClient();
 
