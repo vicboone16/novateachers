@@ -106,7 +106,7 @@ const WorkspaceRoutes = () => {
         <Route path="/feed" element={<ClassroomFeed />} />
         <Route path="/board-config" element={<BoardConfig />} />
         <Route path="/parent-reports" element={<ParentReports />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/threads" element={<Threads />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/notifications" element={<NotificationSettings />} />
