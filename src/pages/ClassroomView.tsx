@@ -21,6 +21,9 @@ import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStat
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { ContingencyPanel } from '@/components/ContingencyPanel';
 import { ReinforcerStore } from '@/components/ReinforcerStore';
+import { MaydayButton } from '@/components/MaydayButton';
+import { TokenBoard } from '@/components/TokenBoard';
+import { SponsorRewardsPanel } from '@/components/SponsorRewardsPanel';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
