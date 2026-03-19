@@ -360,15 +360,32 @@ const ClassroomView = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            Today in My Classroom
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Today in My Classroom
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          {/* Classroom Switcher */}
+          {allGroups.length > 1 && (
+            <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+              <SelectTrigger className="h-8 w-[160px] text-xs">
+                <SelectValue placeholder="Select classroom…" />
+              </SelectTrigger>
+              <SelectContent>
+                {allGroups.map(g => (
+                  <SelectItem key={g.group_id} value={g.group_id} className="text-xs">
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {activeGroupId && (
@@ -384,9 +401,10 @@ const ClassroomView = () => {
       </div>
 
       {/* Daily stats bar + staff presence */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
         <StatCard label="Students" value={clients.length} icon={Users} />
         <StatCard label="Events Today" value={totalToday} icon={BarChart3} />
+        <StatCard label="Total Points" value={totalPoints} icon={Star} />
         <StatCard
           label="Last Activity"
           value={Object.keys(lastEvents).length > 0
