@@ -35,10 +35,15 @@ import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
+import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
 import RewardsPage from "@/pages/RewardsPage";
 import ClassroomFeed from "@/pages/ClassroomFeed";
 import BoardConfig from "@/pages/BoardConfig";
 import ParentReports from "@/pages/ParentReports";
+import GameBoardPage from "@/pages/GameBoard";
+import GameSettings from "@/pages/GameSettings";
+import ClassroomLive from "@/pages/ClassroomLive";
+import AvatarUnlocks from "@/pages/AvatarUnlocks";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +95,9 @@ const WorkspaceRoutes = () => {
       {/* Main app routes */}
       <Route element={<AppLayout />}>
         <Route path="/classroom" element={<ClassroomView />} />
+        <Route path="/game-board" element={<GameBoardPage />} />
+        <Route path="/game-settings" element={<GameSettings />} />
+        <Route path="/avatar-unlocks" element={<AvatarUnlocks />} />
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
@@ -130,7 +138,9 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/guest/:code" element={<GuestDataCollection />} />
             <Route path="/board" element={<ClassroomBoard />} />
-            <Route path="/portal/:token" element={<StudentPortal />} />
+            <Route path="/portal/:token" element={<StudentPortalEnhanced />} />
+            <Route path="/portal" element={<StudentPortalEnhanced />} />
+            <Route path="/class/:slug/live" element={<ClassroomLive />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
