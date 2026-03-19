@@ -35,10 +35,15 @@ import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
+import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
 import RewardsPage from "@/pages/RewardsPage";
 import ClassroomFeed from "@/pages/ClassroomFeed";
 import BoardConfig from "@/pages/BoardConfig";
 import ParentReports from "@/pages/ParentReports";
+import GameBoardPage from "@/pages/GameBoard";
+import GameSettings from "@/pages/GameSettings";
+import ClassroomLive from "@/pages/ClassroomLive";
+import AvatarUnlocks from "@/pages/AvatarUnlocks";
 
 const queryClient = new QueryClient();
 
