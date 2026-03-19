@@ -363,12 +363,17 @@ const ClassroomView = () => {
             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        {user && effectiveAgencyId && clients.length > 0 && (
-          <Button size="sm" variant="outline" onClick={handleSeedTestData} disabled={seeding} className="gap-1.5">
-            <Radio className="h-3.5 w-3.5" />
-            {seeding ? 'Seeding…' : 'Seed Test Data'}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {activeGroupId && (
+            <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+          )}
+          {user && effectiveAgencyId && clients.length > 0 && (
+            <Button size="sm" variant="outline" onClick={handleSeedTestData} disabled={seeding} className="gap-1.5">
+              <Radio className="h-3.5 w-3.5" />
+              {seeding ? 'Seeding…' : 'Seed Test Data'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Daily stats bar + staff presence */}
