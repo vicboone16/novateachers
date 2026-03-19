@@ -378,12 +378,15 @@ const ClassroomView = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/game-board')}>
+            <Gamepad2 className="h-3.5 w-3.5" /> Game
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/rewards')}>
+            <Gift className="h-3.5 w-3.5" /> Rewards
+          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/threads')} title="Threads">
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" title="Notifications">
-            <Bell className="h-4 w-4 text-muted-foreground" />
           </Button>
           {activeGroupId && (
             <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
