@@ -36,6 +36,7 @@ import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
 import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
+import ParentSnapshot from "@/pages/ParentSnapshot";
 import RewardsPage from "@/pages/RewardsPage";
 import ClassroomFeed from "@/pages/ClassroomFeed";
 import BoardConfig from "@/pages/BoardConfig";
