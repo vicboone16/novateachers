@@ -515,8 +515,40 @@ const ClassroomView = () => {
                     )}
                   </div>
 
-                  {/* Bottom action row */}
+                  {/* Point award row */}
                   <div className="border-t border-border/30 px-2 py-1.5 flex items-center gap-1">
+                    {[1, 5, 10].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => {
+                          handlePointChange(client.id, n);
+                          if (user) writePointEntry({ studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId, points: n, reason: `Quick +${n}`, source: 'quick_action' });
+                          toast({ title: `+${n} ⭐` });
+                          if ('vibrate' in navigator) navigator.vibrate(10);
+                        }}
+                        className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-colors"
+                      >
+                        <Star className="h-2.5 w-2.5" />+{n}
+                      </button>
+                    ))}
+                    <div className="ml-auto flex gap-1">
+                      <button onClick={() => navigate('/rewards')} title="Rewards"
+                        className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gift className="h-3 w-3" />
+                      </button>
+                      <button onClick={() => navigate('/game-board')} title="Game Board"
+                        className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gamepad2 className="h-3 w-3" />
+                      </button>
+                      <button onClick={() => setQuickActionStudent(client)} title="Student code & more"
+                        className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <KeyRound className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Behavior + engagement row */}
+                  <div className="border-t border-border/30 px-2 py-1 flex items-center gap-1">
                     {BEHAVIORS.slice(0, 3).map(({ name, abbr, icon: Icon }) => (
                       <button
                         key={name}
@@ -528,41 +560,18 @@ const ClassroomView = () => {
                       </button>
                     ))}
                     <button
-                      onClick={() => {
-                        handlePointChange(client.id, 1);
-                        if (user) writePointEntry({ studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId, points: 1, reason: 'Quick +1', source: 'quick_action' });
-                        toast({ title: '+1 ⭐' });
-                      }}
-                      className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-1.5 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-colors"
-                    >
-                      <Zap className="h-2.5 w-2.5" />+1
-                    </button>
-                    <button
                       onClick={() => navigate(`/collect?student=${client.id}`)}
                       className="flex items-center gap-0.5 rounded border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
                     >
                       <Target className="h-2.5 w-2.5" />Probe
                     </button>
-                    <button
-                      onClick={() => navigate('/tracker')}
-                      className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-muted-foreground hover:bg-muted/40 active:scale-95 transition-colors"
-                    >
-                      ABC
-                    </button>
-                    {/* Engagement inline */}
                     <div className="ml-auto flex gap-0.5">
-                      <button
-                        onClick={() => logEngagement(client.id, true)}
-                        title="Engaged"
-                        className="rounded border border-accent/30 bg-accent/10 p-1 text-accent hover:bg-accent/20 active:scale-90 transition-colors"
-                      >
+                      <button onClick={() => logEngagement(client.id, true)} title="Engaged"
+                        className="rounded border border-accent/30 bg-accent/10 p-1 text-accent hover:bg-accent/20 active:scale-90 transition-colors">
                         <Check className="h-2.5 w-2.5" />
                       </button>
-                      <button
-                        onClick={() => logEngagement(client.id, false)}
-                        title="Not engaged"
-                        className="rounded border border-destructive/20 bg-destructive/5 p-1 text-destructive hover:bg-destructive/10 active:scale-90 transition-colors"
-                      >
+                      <button onClick={() => logEngagement(client.id, false)} title="Not engaged"
+                        className="rounded border border-destructive/20 bg-destructive/5 p-1 text-destructive hover:bg-destructive/10 active:scale-90 transition-colors">
                         <X className="h-2.5 w-2.5" />
                       </button>
                     </div>
