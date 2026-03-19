@@ -399,6 +399,23 @@ const ClassroomView = () => {
         <ContingencyPanel classroomId={activeGroupId} agencyId={effectiveAgencyId} />
       )}
 
+      {/* Token Boards */}
+      {activeGroupId && clients.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {clients.slice(0, 6).map(c => (
+            <TokenBoard
+              key={c.id}
+              studentId={c.id}
+              studentName={displayName(c)}
+              agencyId={effectiveAgencyId}
+              classroomId={activeGroupId}
+              balance={pointBalances[c.id] || 0}
+              onPointChange={handlePointChange}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Reward Store */}
       {activeGroupId && user && (
         <ReinforcerStore
@@ -411,6 +428,11 @@ const ClassroomView = () => {
           }))}
           onRedemption={loadPointBalances}
         />
+      )}
+
+      {/* Sponsor Rewards */}
+      {activeGroupId && (
+        <SponsorRewardsPanel agencyId={effectiveAgencyId} classroomId={activeGroupId} />
       )}
 
       {liveEvents.length > 0 && (
