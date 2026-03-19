@@ -32,7 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Check, X, Play, ExternalLink, Clock, Bell,
-  BarChart3, AlertTriangle, Users, Radio,
+  BarChart3, AlertTriangle, Users, Radio, Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
