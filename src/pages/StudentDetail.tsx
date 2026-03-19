@@ -29,6 +29,7 @@ const StudentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isSoloMode, permissions, currentWorkspace } = useWorkspace();
+  const { agencyId } = useAppAccess();
   const { user } = useAuth();
   const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
