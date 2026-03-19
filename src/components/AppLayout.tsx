@@ -227,3 +227,47 @@ function IEPNavDropdown() {
     </DropdownMenu>
   );
 }
+
+/* ── More Nav Dropdown ── */
+function MoreNavDropdown() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const moreRoutes = ['/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config'];
+  const isActive = moreRoutes.includes(pathname);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={cn(
+            'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
+            isActive
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          More
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={() => navigate('/tracker')} className="gap-2">
+          <Activity className="h-3.5 w-3.5" /> Tracker
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/data-summary')} className="gap-2">
+          <BarChart3 className="h-3.5 w-3.5" /> Summary
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/guide')} className="gap-2">
+          <BookOpen className="h-3.5 w-3.5" /> Guide
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/parent-reports')} className="gap-2">
+          <UserCheck className="h-3.5 w-3.5" /> Parent Reports
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/board-config')} className="gap-2">
+          <Monitor className="h-3.5 w-3.5" /> Board Settings
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
