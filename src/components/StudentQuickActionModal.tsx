@@ -319,7 +319,10 @@ export function StudentQuickActionModal({
                   <ExternalLink className="h-3.5 w-3.5" /> Open Portal
                 </Button>
               )}
-            </div>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                onClick={() => { onOpenChange(false); navigate('/parent-reports'); }}>
+                <Camera className="h-3.5 w-3.5 text-primary" /> Parent Snapshot
+              </Button>
           </Section>
 
           {/* §7 PROMPT SNOOZE */}
