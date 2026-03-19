@@ -36,6 +36,7 @@ import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
 import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
+import ParentSnapshot from "@/pages/ParentSnapshot";
 import RewardsPage from "@/pages/RewardsPage";
 import ClassroomFeed from "@/pages/ClassroomFeed";
 import BoardConfig from "@/pages/BoardConfig";
@@ -141,6 +142,7 @@ const App = () => (
             <Route path="/portal/:token" element={<StudentPortalEnhanced />} />
             <Route path="/portal" element={<StudentPortalEnhanced />} />
             <Route path="/class/:slug/live" element={<ClassroomLive />} />
+            <Route path="/snapshot/:token" element={<ParentSnapshot />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

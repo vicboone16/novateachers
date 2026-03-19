@@ -1,19 +1,23 @@
 /**
  * StudentPortalEnhanced — Read-only student view (Hybrid v1).
- * Shows: avatar, points, race progress, rewards with "X points away", mission/word.
+ * Shows: avatar, points, race progress, rewards with "X points away", mission/word, streaks.
  * Does NOT show: staff notes, ABC logs, behavior detail, teacher comms, XP/levels/unlocks.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { validateStudentPortalAccess, getStudentGameProfile } from '@/lib/game-data';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Star, Lock, Flame, Gift, Flag, Sparkles } from 'lucide-react';
+import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const TRACK_LENGTH = 100;
+const CHECKPOINT_INTERVAL = 20;
 
 interface RewardItem {
   id: string;
@@ -30,7 +34,6 @@ export default function StudentPortalEnhanced() {
   const [avatarEmoji, setAvatarEmoji] = useState('👤');
   const [balance, setBalance] = useState(0);
   const [rewards, setRewards] = useState<RewardItem[]>([]);
-  const [trackPosition, setTrackPosition] = useState(0);
   const [missionOfDay, setMissionOfDay] = useState('');
   const [wordOfWeek, setWordOfWeek] = useState('');
   const [streakCount, setStreakCount] = useState(0);
@@ -109,7 +112,6 @@ export default function StudentPortalEnhanced() {
 
   const loadStudentData = async (sid: string) => {
     try {
-      // Load profile, balance, rewards, game state, settings in parallel
       const [profileData] = await Promise.all([
         getStudentGameProfile(sid),
       ]);
@@ -118,24 +120,15 @@ export default function StudentPortalEnhanced() {
         setAvatarEmoji(profileData.avatar_emoji || '👤');
       }
 
-      // Load balance from ledger
-      const { data: ledger } = await supabase
-        .from('beacon_points_ledger' as any)
+      // Load balance from Cloud ledger (immediate/current)
+      const { data: ledger } = await cloudSupabase
+        .from('beacon_points_ledger')
         .select('points')
         .eq('student_id', sid);
       const total = (ledger || []).reduce((sum: number, r: any) => sum + (r.points || 0), 0);
       setBalance(total);
 
-      // Load game state for race position
-      const { data: gameState } = await supabase
-        .from('student_game_state' as any)
-        .select('track_position')
-        .eq('student_id', sid)
-        .maybeSingle();
-      if (gameState) setTrackPosition((gameState as any).track_position || 0);
-      else setTrackPosition(Math.min(total, 100)); // fallback: use balance as position
-
-      // Load rewards catalog
+      // Load rewards catalog from Core
       const { data: rewardData } = await supabase
         .from('beacon_rewards' as any)
         .select('id, name, emoji, point_cost')
@@ -163,7 +156,7 @@ export default function StudentPortalEnhanced() {
         setWordOfWeek((gameSettings as any).word_of_the_week || '');
       }
 
-      // Load student name
+      // Load student name from Core
       const { data: client } = await supabase
         .from('clients' as any)
         .select('first_name')
@@ -179,21 +172,24 @@ export default function StudentPortalEnhanced() {
   if (needsCode && !studentId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 to-background">
-        <div className="text-center space-y-4 px-6 max-w-sm">
-          <span className="text-6xl">🎮</span>
+        <div className="text-center space-y-5 px-6 max-w-sm">
+          <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <span className="text-4xl">🎮</span>
+          </div>
           <h1 className="text-2xl font-bold font-heading">Student Portal</h1>
-          <p className="text-sm text-muted-foreground">Enter your access code</p>
+          <p className="text-sm text-muted-foreground">Enter your access code to see your progress</p>
           <Input
             value={codeInput}
             onChange={e => setCodeInput(e.target.value)}
             placeholder="Enter 4-digit code"
-            className="text-center text-2xl tracking-[0.5em] font-bold"
+            className="text-center text-2xl tracking-[0.5em] font-bold h-14"
             maxLength={6}
             onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
+            autoFocus
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button onClick={handleCodeSubmit} className="w-full" disabled={loading}>
-            {loading ? 'Checking…' : 'Enter'}
+          <Button onClick={handleCodeSubmit} className="w-full h-11" disabled={loading}>
+            {loading ? 'Checking…' : 'Enter Portal'}
           </Button>
         </div>
       </div>
@@ -220,28 +216,35 @@ export default function StudentPortalEnhanced() {
     );
   }
 
-  const effectiveTrack = trackPosition || Math.min(balance, 100);
+  // Deterministic race position: balance capped at TRACK_LENGTH
+  const racePosition = Math.min(balance, TRACK_LENGTH);
+  const racePct = (racePosition / TRACK_LENGTH) * 100;
+  const checkpointsReached = Math.floor(racePosition / CHECKPOINT_INTERVAL);
+  const nextCheckpoint = (checkpointsReached + 1) * CHECKPOINT_INTERVAL;
+  const toNextCheckpoint = Math.max(0, nextCheckpoint - racePosition);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-accent/5">
       <div className="mx-auto max-w-md px-4 py-6 space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">
-          <span className="text-7xl">{avatarEmoji}</span>
+          <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shadow-lg">
+            <span className="text-6xl">{avatarEmoji}</span>
+          </div>
           <h1 className="text-2xl font-bold font-heading">{displayName}</h1>
           {streakCount > 0 && (
-            <Badge variant="outline" className="text-xs gap-1">
+            <Badge variant="outline" className="text-xs gap-1 border-orange-300 dark:border-orange-700">
               <Flame className="h-3 w-3 text-orange-500" /> {streakCount} day streak
             </Badge>
           )}
         </div>
 
         {/* Balance — big and prominent */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-5 text-center bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Star className="h-6 w-6 fill-amber-400 text-amber-400" />
-              <span className="text-4xl font-bold tabular-nums">{balance}</span>
+        <Card className="overflow-hidden border-0 shadow-lg">
+          <CardContent className="p-6 text-center bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
+            <div className="flex items-center justify-center gap-3 mb-1">
+              <Star className="h-7 w-7 fill-amber-400 text-amber-400" />
+              <span className="text-5xl font-bold tabular-nums">{balance}</span>
             </div>
             <p className="text-sm text-muted-foreground font-medium">Beacon Points</p>
           </CardContent>
@@ -251,7 +254,7 @@ export default function StudentPortalEnhanced() {
         {(missionOfDay || wordOfWeek) && (
           <div className="flex gap-3">
             {missionOfDay && (
-              <Card className="flex-1">
+              <Card className="flex-1 border-border/40">
                 <CardContent className="p-3 text-center">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mission</p>
                   <p className="text-xs font-semibold mt-1">🎯 {missionOfDay}</p>
@@ -259,7 +262,7 @@ export default function StudentPortalEnhanced() {
               </Card>
             )}
             {wordOfWeek && (
-              <Card className="flex-1">
+              <Card className="flex-1 border-border/40">
                 <CardContent className="p-3 text-center">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Word</p>
                   <p className="text-xs font-semibold mt-1">📖 {wordOfWeek}</p>
@@ -270,14 +273,46 @@ export default function StudentPortalEnhanced() {
         )}
 
         {/* Race Progress */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Flag className="h-4 w-4 text-accent" />
-              <p className="text-sm font-bold">Race Progress</p>
+        <Card className="border-border/40">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flag className="h-4 w-4 text-accent" />
+                <p className="text-sm font-bold">Race Progress</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <Trophy className="h-2.5 w-2.5" />
+                {checkpointsReached} checkpoints
+              </Badge>
             </div>
-            <Progress value={effectiveTrack} className="h-3" />
-            <p className="text-[10px] text-muted-foreground mt-1 text-right">{effectiveTrack}% complete</p>
+
+            {/* Mini track */}
+            <div className="relative">
+              <Progress value={racePct} className="h-4 rounded-full" />
+              {/* Checkpoint markers */}
+              {Array.from({ length: TRACK_LENGTH / CHECKPOINT_INTERVAL }, (_, i) => (i + 1) * CHECKPOINT_INTERVAL).map(cp => (
+                <div
+                  key={cp}
+                  className={cn(
+                    "absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2",
+                    racePosition >= cp
+                      ? "bg-accent border-accent"
+                      : "bg-background border-muted-foreground/30"
+                  )}
+                  style={{ left: `${(cp / TRACK_LENGTH) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                />
+              ))}
+            </div>
+
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{racePosition} / {TRACK_LENGTH}</span>
+              {toNextCheckpoint > 0 && racePosition < TRACK_LENGTH && (
+                <span className="text-primary font-medium">{toNextCheckpoint} pts to next checkpoint</span>
+              )}
+              {racePosition >= TRACK_LENGTH && (
+                <span className="text-accent font-bold">🏁 Finished!</span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -292,7 +327,10 @@ export default function StudentPortalEnhanced() {
               const canAfford = pointsAway === 0;
               const pct = Math.min(100, Math.round((balance / r.point_cost) * 100));
               return (
-                <Card key={r.id} className={cn('border-border/40', canAfford && 'border-accent/50 bg-accent/5')}>
+                <Card key={r.id} className={cn(
+                  'border-border/40 transition-all',
+                  canAfford && 'border-accent/50 bg-accent/5 shadow-sm'
+                )}>
                   <CardContent className="p-3">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-2xl">{r.emoji}</span>
@@ -304,11 +342,11 @@ export default function StudentPortalEnhanced() {
                         </div>
                       </div>
                       {canAfford ? (
-                        <Badge className="bg-accent/20 text-accent-foreground text-[10px] gap-0.5">
+                        <Badge className="bg-accent/20 text-accent-foreground text-[10px] gap-0.5 border-accent/30">
                           ✨ Available!
                         </Badge>
                       ) : (
-                        <span className="text-xs font-bold text-primary">{pointsAway} away</span>
+                        <span className="text-xs font-bold text-primary tabular-nums">{pointsAway} away</span>
                       )}
                     </div>
                     <Progress value={pct} className="h-2" />
@@ -320,7 +358,7 @@ export default function StudentPortalEnhanced() {
         )}
 
         {/* Footer */}
-        <p className="text-center text-[10px] text-muted-foreground pt-4">
+        <p className="text-center text-[10px] text-muted-foreground pt-4 pb-8">
           <Sparkles className="h-3 w-3 inline mr-1" />
           Powered by Beacon Points™
         </p>

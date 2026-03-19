@@ -3,7 +3,7 @@
  * Sections: Behavior, Engagement, Points, Probe, ABC, Prompt Status.
  * All writes go to Core-owned tables. Auto-save on action.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { generateStudentLoginCode, getActiveStudentCode } from '@/lib/game-data';
@@ -22,7 +22,7 @@ import {
   Star, Plus, Minus, Check, X, Play, ExternalLink,
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Timer, Clock, Pause, Square,
-  Gift, KeyRound, Copy, Gamepad2,
+  Gift, KeyRound, Copy, Gamepad2, Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -319,6 +319,10 @@ export function StudentQuickActionModal({
                   <ExternalLink className="h-3.5 w-3.5" /> Open Portal
                 </Button>
               )}
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
+                onClick={() => { onOpenChange(false); navigate('/parent-reports'); }}>
+                <Camera className="h-3.5 w-3.5 text-primary" /> Parent Snapshot
+              </Button>
             </div>
           </Section>
 
