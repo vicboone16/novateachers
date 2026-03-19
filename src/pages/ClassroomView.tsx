@@ -83,6 +83,7 @@ const ClassroomView = () => {
   const [totalPoints, setTotalPoints] = useState(0);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
+  const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
   const today = new Date().toISOString().slice(0, 10);
