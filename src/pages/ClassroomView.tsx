@@ -77,6 +77,8 @@ const ClassroomView = () => {
   const [pointBalances, setPointBalances] = useState<PointBalances>({});
   const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const [totalPoints, setTotalPoints] = useState(0);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
 
