@@ -173,6 +173,7 @@ const RewardsPage = () => {
             classroomId={activeGroupId || undefined}
             students={studentOptions}
             onRedemption={loadData}
+            showInactive
           />
         </TabsContent>
 
