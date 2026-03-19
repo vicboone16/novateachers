@@ -35,6 +35,10 @@ import Threads from "@/pages/Threads";
 import CoreDiagnostics from "@/pages/CoreDiagnostics";
 import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
+import RewardsPage from "@/pages/RewardsPage";
+import ClassroomFeed from "@/pages/ClassroomFeed";
+import BoardConfig from "@/pages/BoardConfig";
+import ParentReports from "@/pages/ParentReports";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +102,10 @@ const WorkspaceRoutes = () => {
         <Route path="/join" element={<JoinInvite />} />
         <Route path="/invites" element={<GenerateInvite />} />
         <Route path="/inbox" element={<Inbox />} />
+        <Route path="/rewards" element={<RewardsPage />} />
+        <Route path="/feed" element={<ClassroomFeed />} />
+        <Route path="/board-config" element={<BoardConfig />} />
+        <Route path="/parent-reports" element={<ParentReports />} />
         <Route path="/threads" element={<Threads />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />

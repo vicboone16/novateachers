@@ -21,6 +21,7 @@ import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStat
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { ContingencyPanel } from '@/components/ContingencyPanel';
 import { ReinforcerStore } from '@/components/ReinforcerStore';
+import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
 import { MaydayButton } from '@/components/MaydayButton';
 import { TokenBoard } from '@/components/TokenBoard';
 import { SponsorRewardsPanel } from '@/components/SponsorRewardsPanel';
@@ -82,6 +83,7 @@ const ClassroomView = () => {
   const [totalPoints, setTotalPoints] = useState(0);
   // Per-card flash animation
   const [flashCard, setFlashCard] = useState<string | null>(null);
+  const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
   const today = new Date().toISOString().slice(0, 10);
@@ -522,11 +524,27 @@ const ClassroomView = () => {
               onPointChange={handlePointChange}
               onProbe={() => navigate(`/collect?student=${client.id}`)}
               onTracker={() => navigate('/tracker')}
-              onDetail={() => navigate(`/students/${client.id}`)}
+              onDetail={() => setQuickActionStudent(client)}
               formatTime={formatTime}
             />
           ))}
         </div>
+      )}
+
+      {/* Quick Action Modal */}
+      {quickActionStudent && (
+        <StudentQuickActionModal
+          open={!!quickActionStudent}
+          onOpenChange={(open) => { if (!open) setQuickActionStudent(null); }}
+          studentId={quickActionStudent.id}
+          studentName={displayName(quickActionStudent)}
+          pointBalance={pointBalances[quickActionStudent.id] || 0}
+          agencyId={effectiveAgencyId}
+          responseCostEnabled
+          onBehavior={(name) => logBehavior(quickActionStudent.id, name)}
+          onEngagement={(engaged) => logEngagement(quickActionStudent.id, engaged)}
+          onPointChange={handlePointChange}
+        />
       )}
     </div>
   );

@@ -11,7 +11,8 @@ export type PointSource =
   | 'dro_interval'
   | 'probe_success'
   | 'response_cost'
-  | 'reward_redeem';
+  | 'reward_redeem'
+  | 'quick_action';
 
 export interface PointEntry {
   studentId: string;
