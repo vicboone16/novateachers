@@ -190,6 +190,9 @@ const StudentDetail = () => {
             <TabsTrigger value="fba-bip" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
               <Brain className="h-3.5 w-3.5" /> FBA/BIP
             </TabsTrigger>
+            <TabsTrigger value="parent" className="gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-sm transition-all text-xs sm:text-sm">
+              <Camera className="h-3.5 w-3.5" /> Parent
+            </TabsTrigger>
           </TabsList>
         </div>
 
