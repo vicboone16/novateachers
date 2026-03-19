@@ -95,6 +95,9 @@ const WorkspaceRoutes = () => {
       {/* Main app routes */}
       <Route element={<AppLayout />}>
         <Route path="/classroom" element={<ClassroomView />} />
+        <Route path="/game-board" element={<GameBoardPage />} />
+        <Route path="/game-settings" element={<GameSettings />} />
+        <Route path="/avatar-unlocks" element={<AvatarUnlocks />} />
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentDetail />} />
         <Route path="/tracker" element={<TriggerTracker />} />
