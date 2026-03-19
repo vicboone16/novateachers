@@ -430,6 +430,21 @@ const StudentDetail = () => {
         <TabsContent value="fba-bip" className="animate-in fade-in-50 duration-300">
           <FBABIPPanel client={client} />
         </TabsContent>
+
+        {/* ── PARENT ── */}
+        <TabsContent value="parent" className="animate-in fade-in-50 duration-300">
+          <div className="space-y-6">
+            <ParentSnapshotPanel
+              studentId={client.id}
+              studentName={displayName(client)}
+              agencyId={agencyId || currentWorkspace?.agency_id || ''}
+            />
+            <ParentQuestionsPanel
+              studentId={client.id}
+              agencyId={agencyId || currentWorkspace?.agency_id || ''}
+            />
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
