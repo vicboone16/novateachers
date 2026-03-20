@@ -1,13 +1,13 @@
 /**
  * Beacon Points inline controls for student cards.
- * Shows balance + quick award/remove buttons.
+ * Shows balance + quick award/remove buttons with undo support.
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { writePointEntry, type PointSource } from '@/lib/beacon-points';
-import { Star, Plus, Minus, History } from 'lucide-react';
+import { Star, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -16,6 +16,12 @@ interface Props {
   agencyId: string;
   balance: number;
   onPointChange: (studentId: string, delta: number) => void;
+  /** Called after a point action with info for undo */
+  onPointAction?: (info: {
+    ledgerRowId?: string;
+    points: number;
+    label: string;
+  }) => void;
   responseCostEnabled?: boolean;
 }
 
@@ -38,6 +44,7 @@ export const BeaconPointsControls = ({
   agencyId,
   balance,
   onPointChange,
+  onPointAction,
   responseCostEnabled = true,
 }: Props) => {
   const [awarding, setAwarding] = useState(false);
@@ -53,14 +60,24 @@ export const BeaconPointsControls = ({
     // Haptic feedback
     if ('vibrate' in navigator) navigator.vibrate(points > 0 ? 10 : [10, 30, 10]);
 
-    await writePointEntry({
+    const result = await writePointEntry({
       studentId,
       staffId,
       agencyId,
       points,
       reason: reason || (points > 0 ? 'Teacher award' : 'Response cost'),
       source,
+      entryKind: source === 'response_cost' ? 'response_cost' : 'manual',
     });
+
+    // Notify parent for undo
+    if (result.ok && onPointAction) {
+      onPointAction({
+        ledgerRowId: result.id,
+        points,
+        label: reason || (points > 0 ? `Award ${points > 0 ? '+' : ''}${points}` : 'Response cost'),
+      });
+    }
 
     setTimeout(() => {
       setFlash(null);
