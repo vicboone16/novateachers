@@ -12,7 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    const PINGRAM_API_KEY = Deno.env.get("PINGRAM_API_KEY");
+    if (!PINGRAM_API_KEY) {
+      throw new Error("PINGRAM_API_KEY is not configured");
+    }
 
     const {
       alert_type, urgency, message, classroom_name, student_name,
@@ -40,63 +43,79 @@ serve(async (req) => {
       </div>
     `;
 
+    const smsBody = `🚨 MAYDAY: ${(alert_type || "").toUpperCase()} (${urgency})${classroom_name ? ` - ${classroom_name}` : ""}${student_name ? ` - ${student_name}` : ""}${message ? `: ${message}` : ""}. Triggered by ${triggered_by_name || "Staff"}.`;
+
     let emailsSent = 0;
     let smsSent = 0;
     const errors: string[] = [];
 
-    // Send emails via Resend
-    if (RESEND_API_KEY && recipient_emails?.length > 0) {
+    // Send emails via Pingram
+    if (recipient_emails?.length > 0) {
       for (const email of recipient_emails) {
         try {
-          const res = await fetch("https://api.resend.com/emails", {
+          const res = await fetch("https://api.pingram.io/sender", {
             method: "POST",
-            headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+            headers: {
+              Authorization: `Bearer ${PINGRAM_API_KEY}`,
+              "Content-Type": "application/json",
+            },
             body: JSON.stringify({
-              from: "Beacon Alerts <noreply@novabehavior.com>",
-              to: [email],
-              subject,
-              html: htmlBody,
+              type: "mayday_alert_email",
+              to: {
+                id: email,
+                email: email,
+              },
+              forceChannels: ["EMAIL"],
+              email: {
+                subject,
+                html: htmlBody,
+                senderName: "Beacon Alerts",
+                senderEmail: "noreply@novabehavior.com",
+              },
             }),
           });
           if (res.ok) emailsSent++;
-          else errors.push(`email:${email}:${res.status}`);
+          else {
+            const errBody = await res.text();
+            errors.push(`email:${email}:${res.status}:${errBody}`);
+          }
         } catch (e) {
           errors.push(`email:${email}:${(e as Error).message}`);
         }
       }
     }
 
-    // Send SMS via Twilio gateway (if configured)
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const TWILIO_API_KEY = Deno.env.get("TWILIO_API_KEY");
-    const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER");
-
-    if (LOVABLE_API_KEY && TWILIO_API_KEY && TWILIO_FROM_NUMBER && recipient_phones?.length > 0) {
-      const smsBody = `🚨 MAYDAY: ${(alert_type || "").toUpperCase()} (${urgency})${classroom_name ? ` - ${classroom_name}` : ""}${student_name ? ` - ${student_name}` : ""}${message ? `: ${message}` : ""}. Triggered by ${triggered_by_name || "Staff"}.`;
-
+    // Send SMS via Pingram
+    if (recipient_phones?.length > 0) {
       for (const phone of recipient_phones) {
         try {
-          const res = await fetch("https://connector-gateway.lovable.dev/twilio/Messages.json", {
+          const res = await fetch("https://api.pingram.io/sender", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "X-Connection-Api-Key": TWILIO_API_KEY,
-              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Bearer ${PINGRAM_API_KEY}`,
+              "Content-Type": "application/json",
             },
-            body: new URLSearchParams({
-              To: phone,
-              From: TWILIO_FROM_NUMBER,
-              Body: smsBody.slice(0, 1600),
+            body: JSON.stringify({
+              type: "mayday_alert_sms",
+              to: {
+                id: phone,
+                number: phone,
+              },
+              forceChannels: ["SMS"],
+              sms: {
+                message: smsBody.slice(0, 1600),
+              },
             }),
           });
           if (res.ok) smsSent++;
-          else errors.push(`sms:${phone}:${res.status}`);
+          else {
+            const errBody = await res.text();
+            errors.push(`sms:${phone}:${res.status}:${errBody}`);
+          }
         } catch (e) {
           errors.push(`sms:${phone}:${(e as Error).message}`);
         }
       }
-    } else if (recipient_phones?.length > 0) {
-      errors.push("sms:not_configured");
     }
 
     return new Response(JSON.stringify({ ok: true, emails_sent: emailsSent, sms_sent: smsSent, errors }), {
