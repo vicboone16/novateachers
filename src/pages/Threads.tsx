@@ -83,22 +83,59 @@ const Threads = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState('team');
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
+  const [useLocalMode, setUseLocalMode] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
+
+  // Import cloud client for local fallback
+  const cloudSupabase = (await import('@/integrations/supabase/client')).supabase;
 
   // ── Load threads ──
   const loadThreads = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('threads' as any)
         .select('*')
         .eq('agency_id', agencyId)
         .order('updated_at', { ascending: false });
+      if (error) throw error;
       setThreads((data || []) as any as Thread[]);
-    } catch { /* silent */ }
+    } catch {
+      // Fallback: use teacher_messages as thread source
+      console.log('[Threads] Core threads unavailable, using local message threads');
+      setUseLocalMode(true);
+      try {
+        const { data: msgs } = await cloudSupabase
+          .from('teacher_messages')
+          .select('*')
+          .eq('agency_id', agencyId)
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        // Group messages by thread_id or subject into virtual threads
+        const threadMap = new Map<string, Thread>();
+        for (const m of (msgs || []) as any[]) {
+          const tid = m.thread_id || m.id;
+          if (!threadMap.has(tid)) {
+            threadMap.set(tid, {
+              id: tid,
+              agency_id: agencyId,
+              classroom_id: null,
+              thread_type: 'team',
+              title: m.subject || 'Conversation',
+              is_private: false,
+              created_by: m.sender_id,
+              created_at: m.created_at,
+              updated_at: m.created_at,
+            });
+          }
+        }
+        setThreads(Array.from(threadMap.values()));
+      } catch { setThreads([]); }
+    }
     setLoading(false);
   }, [user, agencyId]);
 
