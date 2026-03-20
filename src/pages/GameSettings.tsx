@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
 import { useToast } from '@/hooks/use-toast';
@@ -51,6 +52,7 @@ const GameSettings = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
+  const { groupId: sharedGroupId, loading: classroomLoading } = useActiveClassroom();
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<Partial<ClassroomGameSettings>>({});
@@ -62,7 +64,7 @@ const GameSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const groupId = currentWorkspace?.id || '';
+  const groupId = sharedGroupId || '';
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
   useEffect(() => {
@@ -152,10 +154,22 @@ const GameSettings = () => {
     setSettings(prev => ({ ...prev, [key]: val }));
   };
 
-  if (loading) {
+  if (classroomLoading || loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!groupId) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center space-y-3">
+          <Gamepad2 className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">No classroom found. Create a classroom group first.</p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>Go to Admin</Button>
+        </div>
       </div>
     );
   }

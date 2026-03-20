@@ -233,7 +233,7 @@ function IEPNavDropdown() {
 function MoreNavDropdown() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const moreRoutes = ['/classrooms', '/admin', '/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config'];
+  const moreRoutes = ['/classrooms', '/admin', '/point-rules', '/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config'];
   const isActive = moreRoutes.includes(pathname);
 
   return (
@@ -257,6 +257,9 @@ function MoreNavDropdown() {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2">
           <ShieldCheck className="h-3.5 w-3.5" /> Admin
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/point-rules')} className="gap-2">
+          <Star className="h-3.5 w-3.5" /> Point Rules
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/tracker')} className="gap-2">
