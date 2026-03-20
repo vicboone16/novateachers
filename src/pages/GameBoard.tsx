@@ -184,6 +184,26 @@ const GameBoard = () => {
 
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
 
+  if (loadError) return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="text-center space-y-3">
+        <AlertTriangle className="h-10 w-10 mx-auto text-destructive/60" />
+        <p className="text-sm font-medium text-destructive">{loadError}</p>
+        <Button variant="outline" size="sm" onClick={() => loadBoard()}>Retry</Button>
+      </div>
+    </div>
+  );
+
+  if (!activeGroupId) return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="text-center space-y-3">
+        <Flag className="h-10 w-10 mx-auto text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground">No classroom found. Create a classroom group first.</p>
+        <Button variant="outline" size="sm" onClick={() => navigate('/classroom')}>Go to Classroom</Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       {/* Header */}
