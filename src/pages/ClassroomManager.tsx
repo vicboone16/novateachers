@@ -164,7 +164,7 @@ const ClassroomManager = () => {
       try {
         const teachersRes = await cloudSupabase
           .from('classroom_group_teachers')
-          .select('id, group_id, user_id')
+          .select('id, group_id, user_id, staff_role')
           .in('group_id', groupIds);
         if (teachersRes.error) {
           if (import.meta.env.DEV) console.warn('[Classroom] Teacher query error (RLS?):', teachersRes.error.message);
