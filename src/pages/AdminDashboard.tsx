@@ -729,6 +729,13 @@ const AdminDashboard = () => {
             ))}
           </TabsContent>
 
+          {/* ═══════════════ MAYDAY CONTACTS ═══════════════ */}
+          <TabsContent value="mayday" className="space-y-4 mt-4">
+            {currentWorkspace && (
+              <MaydayContactsManager agencyId={currentWorkspace.agency_id} />
+            )}
+          </TabsContent>
+
           {/* ═══════════════ DEBUG ═══════════════ */}
           <TabsContent value="debug" className="space-y-4 mt-4">
             {/* System State */}
