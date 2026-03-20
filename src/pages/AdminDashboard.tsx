@@ -26,6 +26,7 @@ import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import { NOTIFICATION_LABELS } from '@/lib/notifications';
+import { MaydayContactsManager } from '@/components/MaydayContactsManager';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
@@ -399,6 +400,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="classrooms" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Building2 className="h-3.5 w-3.5" /> Classrooms</TabsTrigger>
               <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
               <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
+              <TabsTrigger value="mayday" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 text-destructive" /> Mayday</TabsTrigger>
               <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
             </TabsList>
           </div>
@@ -725,6 +727,13 @@ const AdminDashboard = () => {
                 </CardContent>
               </Card>
             ))}
+          </TabsContent>
+
+          {/* ═══════════════ MAYDAY CONTACTS ═══════════════ */}
+          <TabsContent value="mayday" className="space-y-4 mt-4">
+            {currentWorkspace && (
+              <MaydayContactsManager agencyId={currentWorkspace.agency_id} />
+            )}
           </TabsContent>
 
           {/* ═══════════════ DEBUG ═══════════════ */}

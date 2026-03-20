@@ -1,7 +1,7 @@
 /**
  * MaydayButton — Emergency alert with lifecycle: active → acknowledged → resolved.
- * Writes to Core: mayday_alerts, mayday_recipients.
- * Sends email notifications via send-mayday-alert edge function.
+ * Senders pick which contacts to notify from mayday_contacts + agency_memberships.
+ * Recipients can have opt-out days; admin override bypasses opt-out.
  */
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -20,10 +20,24 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell, Mail } from 'lucide-react';
+import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell, Mail, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface Recipient { user_id: string; display_name: string; role: string; email?: string; }
+interface MaydayContact {
+  id: string;
+  contact_name: string;
+  email: string | null;
+  phone: string | null;
+  role_label: string;
+  notify_email: boolean;
+  notify_sms: boolean;
+  notify_in_app: boolean;
+  opt_out_days: number[];
+  admin_override: boolean;
+  is_active: boolean;
+  user_id: string | null;
+}
+
 interface MaydayAlert {
   id: string; alert_type: string; urgency: string; message: string;
   status: string; created_at: string; acknowledged_at?: string; resolved_at?: string;
@@ -53,14 +67,16 @@ const ALERT_TYPES = [
   { value: 'other', label: '📢 Other' },
 ];
 
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 export function MaydayButton({ agencyId, classroomId, classroomName, studentId, studentName }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
+  const [contacts, setContacts] = useState<MaydayContact[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [activeAlerts, setActiveAlerts] = useState<MaydayAlert[]>([]);
   const [allAlerts, setAllAlerts] = useState<MaydayAlert[]>([]);
   const [urgency, setUrgency] = useState('high');
@@ -68,19 +84,24 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   const [message, setMessage] = useState('');
   const [tab, setTab] = useState('send');
 
-  const loadRecipients = useCallback(async () => {
+  const todayDay = new Date().getDay(); // 0=Sun
+
+  const loadContacts = useCallback(async () => {
     try {
-      const { data } = await supabase.from('agency_memberships' as any).select('user_id, role, email').eq('agency_id', agencyId);
-      if (!data) return;
-      const staff = (data as any[]).filter(m => m.user_id !== user?.id).map(m => ({
-        user_id: m.user_id, display_name: m.email?.split('@')[0] || m.user_id.slice(0, 8) + '…',
-        role: m.role || 'staff', email: m.email || null,
-      }));
-      setRecipients(staff);
-      const admins = staff.filter(s => s.role === 'admin' || s.role === 'bcba' || s.role === 'supervisor');
-      setSelectedRecipients(new Set(admins.length > 0 ? admins.map(a => a.user_id) : staff.map(s => s.user_id)));
+      const { data } = await cloudSupabase
+        .from('mayday_contacts' as any)
+        .select('*')
+        .eq('agency_id', agencyId)
+        .eq('is_active', true);
+      const allContacts = (data || []) as any as MaydayContact[];
+      setContacts(allContacts);
+      // Auto-select contacts that are available today (not opted out, or admin override)
+      const available = allContacts.filter(c =>
+        c.admin_override || !(c.opt_out_days || []).includes(todayDay)
+      );
+      setSelectedContacts(new Set(available.map(c => c.id)));
     } catch { /* silent */ }
-  }, [agencyId, user]);
+  }, [agencyId, todayDay]);
 
   const loadAlerts = useCallback(async () => {
     if (!user) return;
@@ -93,18 +114,20 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   }, [agencyId, user]);
 
   useEffect(() => {
-    if (open) { loadRecipients(); loadAlerts(); }
-  }, [open, loadRecipients, loadAlerts]);
+    if (open) { loadContacts(); loadAlerts(); }
+  }, [open, loadContacts, loadAlerts]);
 
-  const toggleRecipient = (userId: string) => {
-    setSelectedRecipients(prev => { const next = new Set(prev); if (next.has(userId)) next.delete(userId); else next.add(userId); return next; });
+  const toggleContact = (id: string) => {
+    setSelectedContacts(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   };
 
   const sendAlert = async () => {
-    if (!user || selectedRecipients.size === 0) return;
+    if (!user || selectedContacts.size === 0) return;
     setSending(true);
     try {
       const alertMsg = message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`;
+
+      // Create alert in Core
       const { data: alert, error: alertErr } = await supabase.from('mayday_alerts' as any).insert({
         agency_id: agencyId, classroom_id: classroomId || null, student_id: studentId || null,
         triggered_by: user.id, alert_type: alertType, urgency,
@@ -112,17 +135,23 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       }).select('id').single();
       if (alertErr) throw alertErr;
 
-      const recipientRows = Array.from(selectedRecipients).map(userId => ({
-        alert_id: (alert as any).id, user_id: userId, delivery_channel: 'in_app', status: 'pending',
-      }));
-      await supabase.from('mayday_recipients' as any).insert(recipientRows);
+      // Gather selected contacts
+      const selected = contacts.filter(c => selectedContacts.has(c.id));
+      const recipientEmails = selected.filter(c => c.notify_email && c.email).map(c => c.email!);
+      const recipientPhones = selected.filter(c => c.notify_sms && c.phone).map(c => c.phone!);
 
-      // Send email notifications via edge function
-      const recipientEmails = recipients
-        .filter(r => selectedRecipients.has(r.user_id) && r.email)
-        .map(r => r.email);
+      // Log recipients
+      const recipientRows = selected
+        .filter(c => c.user_id)
+        .map(c => ({
+          alert_id: (alert as any).id, user_id: c.user_id, delivery_channel: 'in_app', status: 'pending',
+        }));
+      if (recipientRows.length > 0) {
+        await supabase.from('mayday_recipients' as any).insert(recipientRows);
+      }
 
-      if (recipientEmails.length > 0) {
+      // Send via edge function (email + SMS phone numbers)
+      if (recipientEmails.length > 0 || recipientPhones.length > 0) {
         try {
           await cloudSupabase.functions.invoke('send-mayday-alert', {
             body: {
@@ -130,17 +159,13 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
               classroom_name: classroomName || null, student_name: studentName || null,
               triggered_by_name: user.email?.split('@')[0] || 'Staff',
               recipient_emails: recipientEmails,
+              recipient_phones: recipientPhones,
             },
           });
-        } catch (e) { console.warn('[Mayday] email send failed:', e); }
+        } catch (e) { console.warn('[Mayday] notification send failed:', e); }
       }
 
-      // Update recipient delivery status
-      await supabase.from('mayday_recipients' as any)
-        .update({ status: 'sent', delivered_at: new Date().toISOString() } as any)
-        .eq('alert_id', (alert as any).id);
-
-      toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selectedRecipients.size} recipient(s) notified${recipientEmails.length > 0 ? ` (${recipientEmails.length} emails sent)` : ''}` });
+      toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selected.length} contact(s) notified` });
       setMessage(''); setUrgency('high'); setAlertType('safety');
       loadAlerts();
       setTab('active');
@@ -200,20 +225,40 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
                 </div>
               </div>
               <div className="space-y-1"><Label className="text-xs">Details (optional)</Label><Textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the situation…" rows={2} /></div>
+
+              {/* Recipient picker */}
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1"><Users className="h-3 w-3" /> Notify ({selectedRecipients.size})</Label>
-                <div className="max-h-32 overflow-y-auto space-y-1 rounded-lg border border-border p-2">
-                  {recipients.length === 0 ? <p className="text-xs text-muted-foreground text-center py-2">No staff found</p> : recipients.map(r => (
-                    <label key={r.user_id} className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/50 cursor-pointer">
-                      <Checkbox checked={selectedRecipients.has(r.user_id)} onCheckedChange={() => toggleRecipient(r.user_id)} />
-                      <span className="text-xs">{r.display_name}</span>
-                      <Badge variant="outline" className="text-[9px] ml-auto">{r.role}</Badge>
-                      {r.email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
-                    </label>
-                  ))}
+                <Label className="text-xs flex items-center gap-1"><Users className="h-3 w-3" /> Notify ({selectedContacts.size} of {contacts.length})</Label>
+                <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border p-2">
+                  {contacts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No mayday contacts configured. Add them in Admin → Mayday Contacts.</p>
+                  ) : contacts.map(c => {
+                    const isOptedOut = !c.admin_override && (c.opt_out_days || []).includes(todayDay);
+                    return (
+                      <label key={c.id} className={cn(
+                        "flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer",
+                        isOptedOut ? "opacity-50 bg-muted/30" : "hover:bg-muted/50"
+                      )}>
+                        <Checkbox
+                          checked={selectedContacts.has(c.id)}
+                          onCheckedChange={() => toggleContact(c.id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium">{c.contact_name}</span>
+                          {isOptedOut && <span className="text-[9px] text-amber-600 ml-1">(off {DAYS[todayDay]})</span>}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge variant="outline" className="text-[9px]">{c.role_label}</Badge>
+                          {c.email && c.notify_email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
+                          {c.phone && c.notify_sms && <Phone className="h-2.5 w-2.5 text-muted-foreground" />}
+                          {c.admin_override && <Shield className="h-2.5 w-2.5 text-destructive" />}
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
-              <Button onClick={sendAlert} disabled={sending || selectedRecipients.size === 0} variant="destructive" className="w-full gap-1.5 font-bold">
+              <Button onClick={sendAlert} disabled={sending || selectedContacts.size === 0} variant="destructive" className="w-full gap-1.5 font-bold">
                 {sending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</> : <><Send className="h-4 w-4" /> Send MAYDAY Alert</>}
               </Button>
             </TabsContent>
@@ -278,5 +323,3 @@ function AlertCard({ alert, onAcknowledge, onResolve }: { alert: MaydayAlert; on
     </div>
   );
 }
-
-const URGENCY_LEVELS_EXPORT = URGENCY_LEVELS;
