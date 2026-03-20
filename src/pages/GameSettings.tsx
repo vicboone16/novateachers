@@ -52,6 +52,7 @@ const GameSettings = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
+  const { groupId: sharedGroupId, loading: classroomLoading } = useActiveClassroom();
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<Partial<ClassroomGameSettings>>({});
@@ -63,7 +64,7 @@ const GameSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const groupId = currentWorkspace?.id || '';
+  const groupId = sharedGroupId || '';
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
   useEffect(() => {
