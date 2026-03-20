@@ -400,6 +400,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="classrooms" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Building2 className="h-3.5 w-3.5" /> Classrooms</TabsTrigger>
               <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
               <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
+              <TabsTrigger value="mayday" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 text-destructive" /> Mayday</TabsTrigger>
               <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
             </TabsList>
           </div>
