@@ -688,8 +688,9 @@ const ClassroomManager = () => {
                   {/* ── Teachers ── */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <UserPlus className="h-3 w-3" /> Teachers
+                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <UserPlus className="h-3 w-3" /> Staff
+                        <Badge variant="outline" className="text-[10px] ml-1">{group.teachers.length}</Badge>
                       </p>
                       <Dialog open={assignTeacherGroupId === group.group_id} onOpenChange={(o) => { if (!o) setAssignTeacherGroupId(null); }}>
                         <DialogTrigger asChild>
