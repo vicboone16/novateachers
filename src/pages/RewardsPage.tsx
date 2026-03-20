@@ -7,6 +7,7 @@ import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
+import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { getStudentBalances } from '@/lib/beacon-points';
@@ -38,7 +39,7 @@ const RewardsPage = () => {
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<PointHistory[]>([]);
   const [redemptions, setRedemptions] = useState<RedemptionRecord[]>([]);
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const { groupId: activeGroupId } = useActiveClassroom();
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
@@ -75,8 +76,7 @@ const RewardsPage = () => {
       }
       setRedemptions(recs);
 
-      const { data: groups } = await cloudSupabase.from('classroom_groups').select('group_id').eq('agency_id', effectiveAgencyId).limit(1);
-      if (groups?.length) setActiveGroupId(groups[0].group_id);
+      // activeGroupId now comes from shared context — no need to resolve here
     } catch { /* silent */ }
     setLoading(false);
   };

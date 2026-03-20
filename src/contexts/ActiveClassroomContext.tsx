@@ -46,11 +46,9 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
 
     setLoading(true);
     setError(null);
+    console.log('[ActiveClassroom] Resolving for user', user.id, 'agency', appAgencyId);
 
-    // 1) Check URL param (handled by setGroupId from consuming pages)
-    // Skip here — consuming pages call setGroupId directly for URL params
-
-    // 2) classroom_group_teachers for this user
+    // 1) classroom_group_teachers for this user
     try {
       const { data } = await cloudSupabase
         .from('classroom_group_teachers')
@@ -61,9 +59,9 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
         await applyGroup(data[0].group_id, 'teacher_membership');
         return;
       }
-    } catch { /* continue */ }
+    } catch (e) { console.warn('[ActiveClassroom] teacher lookup failed:', e); }
 
-    // 3) First classroom group matching app agency
+    // 2) First classroom group matching app agency
     if (appAgencyId) {
       try {
         const { data } = await cloudSupabase
@@ -73,25 +71,25 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
           .limit(1);
         if (data?.[0]) {
           await applyGroup(data[0].group_id, 'agency_match');
-          // Auto-link teacher to this group
           autoLinkTeacher(data[0].group_id);
           return;
         }
-      } catch { /* continue */ }
+      } catch (e) { console.warn('[ActiveClassroom] agency match failed:', e); }
     }
 
-    // 4) Any classroom group at all (for dev/demo)
+    // 3) Any classroom group at all (dev/demo fallback)
     try {
       const { data } = await cloudSupabase
         .from('classroom_groups')
         .select('group_id, name, agency_id')
         .limit(1);
       if (data?.[0]) {
+        console.log('[ActiveClassroom] Using first_available fallback:', data[0].group_id);
         await applyGroup(data[0].group_id, 'first_available');
         autoLinkTeacher(data[0].group_id);
         return;
       }
-    } catch { /* continue */ }
+    } catch (e) { console.warn('[ActiveClassroom] first_available failed:', e); }
 
     setLoading(false);
     setError('No classroom groups found. Create one from the Classroom page.');

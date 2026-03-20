@@ -11,6 +11,7 @@ import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
+import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
@@ -74,7 +75,16 @@ const ClassroomView = () => {
   const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
   const [tokenProgress, setTokenProgress] = useState<TokenProgress>({});
   const [engagement, setEngagement] = useState<EngagementData>({ total: 0, engaged: 0 });
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const { groupId: sharedGroupId, setGroupId: setSharedGroupId } = useActiveClassroom();
+  const [activeGroupId, setActiveGroupIdLocal] = useState<string | null>(sharedGroupId);
+  const setActiveGroupId = useCallback((id: string | null) => {
+    setActiveGroupIdLocal(id);
+    if (id) setSharedGroupId(id);
+  }, [setSharedGroupId]);
+  // Sync from shared context on mount
+  useEffect(() => {
+    if (sharedGroupId && !activeGroupId) setActiveGroupIdLocal(sharedGroupId);
+  }, [sharedGroupId]);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [flashCard, setFlashCard] = useState<string | null>(null);

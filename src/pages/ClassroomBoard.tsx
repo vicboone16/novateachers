@@ -93,7 +93,7 @@ export default function ClassroomBoard() {
   const [topRewards, setTopRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   const [resolveState, setResolveState] = useState<'loading' | 'resolved' | 'empty'>('loading');
 
-  // Simplified resolution: URL param → direct query fallbacks
+  // Resolution: URL param → teacher membership → any group
   useEffect(() => {
     if (classroomParam) {
       setClassroomId(classroomParam);
@@ -103,26 +103,45 @@ export default function ClassroomBoard() {
 
     let cancelled = false;
     const resolve = async () => {
-      // 1) Try classroom_group_teachers for logged-in user
+      console.log('[Board] Resolving classroom, user:', user?.id || 'none');
+
+      // 1) Try teacher membership
       if (user) {
         try {
           const { data } = await cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1);
-          if (!cancelled && data?.[0]) { setClassroomId(data[0].group_id); setResolveState('resolved'); return; }
+          if (!cancelled && data?.[0]) {
+            console.log('[Board] Resolved via teacher_membership:', data[0].group_id);
+            setClassroomId(data[0].group_id);
+            setResolveState('resolved');
+            return;
+          }
         } catch { /* continue */ }
       }
 
-      // 2) Any classroom group (broad fallback for board/projector use)
+      // 2) Any classroom group (broad fallback — board is kid-facing, no auth required)
       try {
         const { data: groups } = await cloudSupabase.from('classroom_groups').select('group_id').limit(1);
-        if (!cancelled && groups?.[0]) { setClassroomId(groups[0].group_id); setResolveState('resolved'); return; }
-      } catch { /* continue */ }
+        if (!cancelled && groups?.[0]) {
+          console.log('[Board] Resolved via first_available:', groups[0].group_id);
+          setClassroomId(groups[0].group_id);
+          setResolveState('resolved');
+          return;
+        }
+      } catch (e) {
+        console.warn('[Board] classroom_groups query failed:', e);
+      }
 
-      if (!cancelled) setResolveState('empty');
+      if (!cancelled) {
+        console.warn('[Board] No classroom found at all');
+        setResolveState('empty');
+      }
     };
 
-    // Small delay to let auth settle
-    const delay = setTimeout(() => resolve(), 500);
-    const timeout = setTimeout(() => { if (!cancelled && !classroomId) setResolveState('empty'); }, 8000);
+    // Wait for auth to settle, then resolve
+    const delay = setTimeout(resolve, user ? 100 : 1500);
+    const timeout = setTimeout(() => {
+      if (!cancelled && resolveState === 'loading') setResolveState('empty');
+    }, 10000);
     return () => { cancelled = true; clearTimeout(delay); clearTimeout(timeout); };
   }, [classroomParam, user]);
 
