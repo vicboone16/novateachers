@@ -108,25 +108,7 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
     console.log(`[ActiveClassroom] Resolved group=${gid} via ${source}`);
   };
 
-  const autoLinkTeacher = async (gid: string) => {
-    if (!user) return;
-    try {
-      // Check if already linked
-      const { data: existing } = await cloudSupabase
-        .from('classroom_group_teachers')
-        .select('id')
-        .eq('group_id', gid)
-        .eq('user_id', user.id)
-        .limit(1);
-      if (existing && existing.length > 0) return;
-
-      // Auto-link
-      await cloudSupabase.from('classroom_group_teachers').insert({ group_id: gid, user_id: user.id });
-      console.log(`[ActiveClassroom] Auto-linked teacher ${user.id} to group ${gid}`);
-    } catch (e) {
-      console.warn('[ActiveClassroom] Failed to auto-link teacher:', e);
-    }
-  };
+  // autoLinkTeacher removed — staff must be explicitly assigned via Classroom Manager
 
   const setGroupId = useCallback(async (id: string) => {
     await applyGroup(id, 'explicit');
