@@ -206,28 +206,40 @@ export default function ClassroomBoard() {
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
 
-  // Auto-refresh every 10s + realtime
+  // Fallback polling every 15s + reconnect on tab wake
   useEffect(() => {
-    const timer = setInterval(loadBoard, 10_000);
-    return () => clearInterval(timer);
+    const timer = setInterval(loadBoard, 15_000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') loadBoard(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); };
   }, [loadBoard]);
 
-  // Realtime point updates
+  // Realtime: points + feed posts
   useEffect(() => {
-    const channel = cloudSupabase.channel('board-live').on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'beacon_points_ledger',
-    }, (payload: any) => {
-      const sid = payload.new?.student_id;
-      const pts = payload.new?.points || 0;
-      if (sid) {
-        setStudents(prev => {
-          const updated = prev.map(s => s.student_id === sid ? { ...s, balance: s.balance + pts } : s);
-          return updated.sort((a, b) => b.balance - a.balance);
-        });
-        setRecentFlash(sid);
-        setTimeout(() => setRecentFlash(null), 2000);
-      }
-    }).subscribe();
+    const channel = cloudSupabase.channel('board-live')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'beacon_points_ledger',
+      }, (payload: any) => {
+        const sid = payload.new?.student_id;
+        const pts = payload.new?.points || 0;
+        if (sid) {
+          setStudents(prev => {
+            const updated = prev.map(s => s.student_id === sid ? { ...s, balance: s.balance + pts } : s);
+            return updated.sort((a, b) => b.balance - a.balance);
+          });
+          setRecentFlash(sid);
+          setTimeout(() => setRecentFlash(null), 2000);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'classroom_feed_posts',
+      }, (payload: any) => {
+        const post = payload.new;
+        if (post && ['celebration', 'announcement', 'positive'].includes(post.post_type)) {
+          setFeedPosts(prev => [{ id: post.id, body: post.body, post_type: post.post_type, title: post.title, created_at: post.created_at }, ...prev].slice(0, 5));
+        }
+      })
+      .subscribe();
     return () => { cloudSupabase.removeChannel(channel); };
   }, []);
 
