@@ -891,8 +891,7 @@ function CelebrationFeedStrip({ groupId }: { groupId: string | null }) {
       .in('post_type', ['celebration', 'announcement', 'positive'])
       .order('created_at', { ascending: false })
       .limit(4)
-      .then(({ data }) => setPosts((data || []) as any[]))
-      .catch(() => {});
+      .then(({ data }: any) => setPosts((data || []) as any[]));
   }, [groupId]);
 
   if (posts.length === 0) return <p className="text-xs text-muted-foreground">No celebrations yet today. 🎉</p>;
