@@ -42,6 +42,7 @@ const GameBoard = () => {
   const [students, setStudents] = useState<StudentGameProgress[]>([]);
   const [teams, setTeams] = useState<TeamScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [liveBalances, setLiveBalances] = useState<Record<string, number>>({});
@@ -61,15 +62,70 @@ const GameBoard = () => {
   const loadBoard = async () => {
     if (!activeGroupId || !user) return;
     setLoading(true);
+    setLoadError(null);
     try {
+      // Try Core game views first
       const [s, prog, t] = await Promise.all([getClassroomGameSettings(activeGroupId), getClassroomGameProgress(activeGroupId), getTeamScores(activeGroupId)]);
-      setSettings(s); setStudents(prog); setTeams(t);
-      if (prog.length > 0) {
+      if (prog && prog.length > 0) {
+        setSettings(s); setStudents(prog); setTeams(t);
         const bals = await getStudentBalances(user.id, prog.map(p => p.student_id));
         setLiveBalances(bals);
+      } else {
+        // Fallback: load from Cloud roster + ledger
+        await loadBoardFallback();
       }
-    } catch (e) { console.warn('[GameBoard] load error:', e); }
+    } catch (e) {
+      console.warn('[GameBoard] Core load error, using fallback:', e);
+      await loadBoardFallback();
+    }
     setLoading(false);
+  };
+
+  const loadBoardFallback = async () => {
+    if (!activeGroupId || !user) return;
+    try {
+      // Load students from classroom_group_students
+      const { data: groupStudents } = await cloudSupabase.from('classroom_group_students').select('client_id').eq('group_id', activeGroupId);
+      const studentIds = (groupStudents || []).map((s: any) => s.client_id);
+      if (studentIds.length === 0) { setStudents([]); return; }
+
+      // Load balances
+      const bals = await getStudentBalances(user.id, studentIds);
+      setLiveBalances(bals);
+
+      // Load names from Core
+      let nameMap = new Map<string, { first_name: string; last_name: string }>();
+      try {
+        const { data: clients } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', studentIds);
+        for (const c of (clients || []) as any[]) nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+      } catch { /* silent */ }
+
+      // Load avatars
+      let avatarMap = new Map<string, string>();
+      try {
+        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', studentIds);
+        for (const p of (profiles || []) as any[]) avatarMap.set(p.student_id, p.avatar_emoji || '');
+      } catch { /* silent */ }
+
+      const fallbackStudents: StudentGameProgress[] = studentIds.map(sid => {
+        const names = nameMap.get(sid);
+        return {
+          student_id: sid,
+          first_name: names?.first_name || '',
+          last_name: names?.last_name || '',
+          avatar_emoji: avatarMap.get(sid) || '👤',
+          points_balance: bals[sid] || 0,
+          track_position: Math.min(bals[sid] || 0, TRACK_LENGTH),
+          team_name: undefined,
+          team_color: undefined,
+          team_icon: undefined,
+        } as any;
+      });
+      setStudents(fallbackStudents);
+    } catch (err: any) {
+      console.error('[GameBoard] Fallback load also failed:', err);
+      setLoadError('Could not load game data. Please try again.');
+    }
   };
 
   // Realtime subscription using a ref-stable callback
