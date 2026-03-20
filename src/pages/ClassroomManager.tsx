@@ -699,28 +699,48 @@ const ClassroomManager = () => {
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
-                          <DialogHeader><DialogTitle>Assign Teacher</DialogTitle></DialogHeader>
-                          <p className="text-xs text-muted-foreground">Showing existing staff members from your agency. Teachers are synced automatically.</p>
+                          <DialogHeader><DialogTitle>Assign Staff</DialogTitle></DialogHeader>
+                          <p className="text-xs text-muted-foreground">Select a team member and their role. The same person can be assigned multiple roles.</p>
                           <div className="space-y-4 pt-2">
-                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a team member…" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableTeachers.map(m => (
-                                  <SelectItem key={m.user_id} value={m.user_id}>
-                                    <span className="flex items-center gap-2">
-                                      {m.display_name}
-                                      <span className="text-muted-foreground text-xs">({m.role})</span>
-                                      <Badge variant="outline" className="text-[9px] h-4 px-1">Staff ✓</Badge>
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                                {availableTeachers.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-muted-foreground">All members assigned</div>
-                                )}
-                              </SelectContent>
-                            </Select>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Team Member</Label>
+                              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a team member…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableTeachers.map(m => (
+                                    <SelectItem key={m.user_id} value={m.user_id}>
+                                      <span className="flex items-center gap-2">
+                                        {m.display_name}
+                                        <span className="text-muted-foreground text-xs">({m.role})</span>
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                  {availableTeachers.length === 0 && (
+                                    <div className="px-3 py-2 text-xs text-muted-foreground">No team members available</div>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Classroom Role</Label>
+                              <Select value={selectedStaffRole} onValueChange={setSelectedStaffRole}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="teacher">Teacher</SelectItem>
+                                  <SelectItem value="bi">BI (Behavior Interventionist)</SelectItem>
+                                  <SelectItem value="aide">Aide / Paraprofessional</SelectItem>
+                                  <SelectItem value="bcba">BCBA / Supervisor</SelectItem>
+                                  <SelectItem value="sped">SPED Teacher</SelectItem>
+                                  <SelectItem value="slp">SLP</SelectItem>
+                                  <SelectItem value="ot">OT</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <Button onClick={handleAssignTeacher} disabled={!selectedUserId} className="w-full">Assign</Button>
                           </div>
                         </DialogContent>
