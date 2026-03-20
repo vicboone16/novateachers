@@ -18,6 +18,8 @@ import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
 import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
+import { useUndoAction } from '@/hooks/useUndoAction';
+import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
@@ -79,7 +81,16 @@ const ClassroomView = () => {
   const [wordOfWeek, setWordOfWeek] = useState('Perseverance');
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
   const [staffCount, setStaffCount] = useState(0);
+  const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
 
+  const handleUndoComplete = async () => {
+    const ok = await undoAction();
+    if (ok && pendingAction) {
+      handlePointChange(pendingAction.studentId, -pendingAction.points);
+      toast({ title: '↩ Undone' });
+    }
+    return ok;
+  };
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
   const today = new Date().toISOString().slice(0, 10);
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
@@ -525,13 +536,28 @@ const ClassroomView = () => {
                     {[1, 5, 10].map(n => (
                       <button
                         key={n}
-                        onClick={() => {
+                        onClick={async () => {
                           handlePointChange(client.id, n);
                           setFlashCard(client.id);
                           setTimeout(() => setFlashCard(null), 800);
-                          if (user) writePointEntry({ studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId, points: n, reason: `Quick +${n}`, source: 'quick_action' });
-                          toast({ title: `+${n} ⭐ ${displayName(client)}` });
                           if ('vibrate' in navigator) navigator.vibrate(10);
+                          if (user) {
+                            const { data } = await cloudSupabase.from('beacon_points_ledger').insert({
+                              student_id: client.id, staff_id: user.id, agency_id: effectiveAgencyId,
+                              points: n, reason: `Quick +${n}`, source: 'quick_action', entry_kind: 'manual',
+                            } as any).select('id').single();
+                            pushAction({
+                              id: data?.id || crypto.randomUUID(),
+                              label: `Quick +${n}`,
+                              studentId: client.id,
+                              studentName: displayName(client),
+                              ledgerRowId: data?.id,
+                              points: n,
+                              agencyId: effectiveAgencyId,
+                              staffId: user.id,
+                            });
+                          }
+                          toast({ title: `+${n} ⭐ ${displayName(client)}` });
                         }}
                         className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
                       >
@@ -605,6 +631,9 @@ const ClassroomView = () => {
           onPointChange={handlePointChange}
         />
       )}
+
+      {/* Undo Toast */}
+      <UndoToast action={pendingAction} onUndo={handleUndoComplete} onDismiss={dismissAction} />
     </div>
   );
 };

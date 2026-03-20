@@ -142,37 +142,64 @@ export type Database = {
       }
       beacon_points_ledger: {
         Row: {
+          abc_log_id: string | null
           agency_id: string
           created_at: string
+          entry_kind: string | null
           id: string
+          is_reversal: boolean
+          manual_reason_category: string | null
+          point_rule_id: string | null
           points: number
           reason: string | null
+          reversal_of_ledger_id: string | null
           source: string
           source_event_id: string | null
           staff_id: string
           student_id: string
+          teacher_data_event_id: string | null
+          teacher_duration_entry_id: string | null
+          teacher_frequency_entry_id: string | null
         }
         Insert: {
+          abc_log_id?: string | null
           agency_id: string
           created_at?: string
+          entry_kind?: string | null
           id?: string
+          is_reversal?: boolean
+          manual_reason_category?: string | null
+          point_rule_id?: string | null
           points: number
           reason?: string | null
+          reversal_of_ledger_id?: string | null
           source?: string
           source_event_id?: string | null
           staff_id: string
           student_id: string
+          teacher_data_event_id?: string | null
+          teacher_duration_entry_id?: string | null
+          teacher_frequency_entry_id?: string | null
         }
         Update: {
+          abc_log_id?: string | null
           agency_id?: string
           created_at?: string
+          entry_kind?: string | null
           id?: string
+          is_reversal?: boolean
+          manual_reason_category?: string | null
+          point_rule_id?: string | null
           points?: number
           reason?: string | null
+          reversal_of_ledger_id?: string | null
           source?: string
           source_event_id?: string | null
           staff_id?: string
           student_id?: string
+          teacher_data_event_id?: string | null
+          teacher_duration_entry_id?: string | null
+          teacher_frequency_entry_id?: string | null
         }
         Relationships: []
       }
@@ -1359,6 +1386,125 @@ export type Database = {
           },
         ]
       }
+      teacher_point_actions: {
+        Row: {
+          action_group: string | null
+          action_icon: string | null
+          action_label: string
+          active: boolean
+          agency_id: string
+          created_at: string
+          default_behavior_category: string | null
+          default_behavior_name: string | null
+          default_event_subtype: string | null
+          default_event_type: string | null
+          id: string
+          manual_points: number | null
+          manual_rule_type: string | null
+          mapped_rule_id: string | null
+          sort_order: number
+          source_table: string
+        }
+        Insert: {
+          action_group?: string | null
+          action_icon?: string | null
+          action_label: string
+          active?: boolean
+          agency_id: string
+          created_at?: string
+          default_behavior_category?: string | null
+          default_behavior_name?: string | null
+          default_event_subtype?: string | null
+          default_event_type?: string | null
+          id?: string
+          manual_points?: number | null
+          manual_rule_type?: string | null
+          mapped_rule_id?: string | null
+          sort_order?: number
+          source_table?: string
+        }
+        Update: {
+          action_group?: string | null
+          action_icon?: string | null
+          action_label?: string
+          active?: boolean
+          agency_id?: string
+          created_at?: string
+          default_behavior_category?: string | null
+          default_behavior_name?: string | null
+          default_event_subtype?: string | null
+          default_event_type?: string | null
+          id?: string
+          manual_points?: number | null
+          manual_rule_type?: string | null
+          mapped_rule_id?: string | null
+          sort_order?: number
+          source_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_point_actions_mapped_rule_id_fkey"
+            columns: ["mapped_rule_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_point_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_point_rules: {
+        Row: {
+          active: boolean
+          agency_id: string
+          applies_when_json: Json
+          auto_apply: boolean
+          behavior_category: string | null
+          behavior_name: string | null
+          created_at: string
+          event_subtype: string | null
+          event_type: string | null
+          id: string
+          points: number
+          rule_name: string
+          rule_type: string
+          source_table: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          agency_id: string
+          applies_when_json?: Json
+          auto_apply?: boolean
+          behavior_category?: string | null
+          behavior_name?: string | null
+          created_at?: string
+          event_subtype?: string | null
+          event_type?: string | null
+          id?: string
+          points: number
+          rule_name: string
+          rule_type?: string
+          source_table: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          agency_id?: string
+          applies_when_json?: Json
+          auto_apply?: boolean
+          behavior_category?: string | null
+          behavior_name?: string | null
+          created_at?: string
+          event_subtype?: string | null
+          event_type?: string | null
+          id?: string
+          points?: number
+          rule_name?: string
+          rule_type?: string
+          source_table?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       teacher_quick_notes: {
         Row: {
           agency_id: string
@@ -1734,6 +1880,30 @@ export type Database = {
         }
         Relationships: []
       }
+      v_beacon_points_audit: {
+        Row: {
+          abc_log_id: string | null
+          agency_id: string | null
+          created_at: string | null
+          entry_kind: string | null
+          id: string | null
+          is_reversal: boolean | null
+          manual_reason_category: string | null
+          point_rule_id: string | null
+          points: number | null
+          reason: string | null
+          reversal_of_ledger_id: string | null
+          rule_name: string | null
+          rule_type: string | null
+          source: string | null
+          staff_id: string | null
+          student_id: string | null
+          teacher_data_event_id: string | null
+          teacher_duration_entry_id: string | null
+          teacher_frequency_entry_id: string | null
+        }
+        Relationships: []
+      }
       v_student_points_balance: {
         Row: {
           agency_id: string | null
@@ -1792,6 +1962,108 @@ export type Database = {
             }
             Returns: string
           }
+      get_matching_teacher_point_rule: {
+        Args: {
+          p_agency_id: string
+          p_behavior_category?: string
+          p_behavior_name?: string
+          p_event_subtype?: string
+          p_event_type?: string
+          p_source_table: string
+        }
+        Returns: {
+          active: boolean
+          agency_id: string
+          applies_when_json: Json
+          auto_apply: boolean
+          behavior_category: string | null
+          behavior_name: string | null
+          created_at: string
+          event_subtype: string | null
+          event_type: string | null
+          id: string
+          points: number
+          rule_name: string
+          rule_type: string
+          source_table: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "teacher_point_rules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      log_abc_with_points: {
+        Args: {
+          p_agency_id?: string
+          p_allow_no_rule?: boolean
+          p_antecedent: string
+          p_behavior: string
+          p_behavior_category?: string
+          p_consequence: string
+          p_intensity?: number
+          p_logged_at?: string
+          p_notes?: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      log_manual_points: {
+        Args: {
+          p_agency_id: string
+          p_manual_reason_category?: string
+          p_points: number
+          p_reason: string
+          p_source?: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      log_teacher_data_event_with_points: {
+        Args: {
+          p_agency_id: string
+          p_allow_no_rule?: boolean
+          p_classroom_id: string
+          p_event_subtype?: string
+          p_event_type: string
+          p_event_value?: Json
+          p_recorded_at?: string
+          p_source_module?: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      log_teacher_duration_with_points: {
+        Args: {
+          p_agency_id: string
+          p_allow_no_rule?: boolean
+          p_behavior_name: string
+          p_duration_seconds: number
+          p_logged_date?: string
+          p_notes?: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      log_teacher_frequency_with_points: {
+        Args: {
+          p_agency_id: string
+          p_allow_no_rule?: boolean
+          p_behavior_name: string
+          p_count?: number
+          p_logged_date?: string
+          p_notes?: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       redeem_invite_code: {
         Args: {
           p_code: string
