@@ -181,7 +181,11 @@ const BoardConfig = () => {
               </SelectContent>
             </Select>
           )}
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => window.open('/board', '_blank')}>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => {
+            const g = groups.find(g => g.group_id === activeGroupId);
+            const slug = g?.board_slug;
+            window.open(slug ? `/board/${slug}` : `/board?classroom=${activeGroupId}`, '_blank');
+          }}>
             <ExternalLink className="h-3.5 w-3.5" /> Open Board
           </Button>
         </div>
