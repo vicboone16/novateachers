@@ -13,6 +13,7 @@ import { getClassroomGameSettings, getClassroomGameProgress, getTeamScores } fro
 import { getStudentBalances } from '@/lib/beacon-points';
 import { POINT_SKINS, type ClassroomGameSettings, type StudentGameProgress, type TeamScore } from '@/lib/game-types';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
