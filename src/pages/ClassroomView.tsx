@@ -536,13 +536,28 @@ const ClassroomView = () => {
                     {[1, 5, 10].map(n => (
                       <button
                         key={n}
-                        onClick={() => {
+                        onClick={async () => {
                           handlePointChange(client.id, n);
                           setFlashCard(client.id);
                           setTimeout(() => setFlashCard(null), 800);
-                          if (user) writePointEntry({ studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId, points: n, reason: `Quick +${n}`, source: 'quick_action' });
-                          toast({ title: `+${n} ⭐ ${displayName(client)}` });
                           if ('vibrate' in navigator) navigator.vibrate(10);
+                          if (user) {
+                            const { data } = await cloudSupabase.from('beacon_points_ledger').insert({
+                              student_id: client.id, staff_id: user.id, agency_id: effectiveAgencyId,
+                              points: n, reason: `Quick +${n}`, source: 'quick_action', entry_kind: 'manual',
+                            } as any).select('id').single();
+                            pushAction({
+                              id: data?.id || crypto.randomUUID(),
+                              label: `Quick +${n}`,
+                              studentId: client.id,
+                              studentName: displayName(client),
+                              ledgerRowId: data?.id,
+                              points: n,
+                              agencyId: effectiveAgencyId,
+                              staffId: user.id,
+                            });
+                          }
+                          toast({ title: `+${n} ⭐ ${displayName(client)}` });
                         }}
                         className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
                       >
