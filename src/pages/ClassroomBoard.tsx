@@ -91,19 +91,48 @@ export default function ClassroomBoard() {
   const [classroomName, setClassroomName] = useState('');
   const [recentFlash, setRecentFlash] = useState<string | null>(null);
   const [topRewards, setTopRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
+  const [resolveState, setResolveState] = useState<'loading' | 'resolved' | 'empty'>('loading');
 
-  // Auto-discover classroom if not in URL
+  // Auto-discover classroom with cascading fallbacks + timeout
   useEffect(() => {
     if (classroomParam) {
       setClassroomId(classroomParam);
+      setResolveState('resolved');
       return;
     }
-    // Try to find first group for current user
-    if (!user) return;
-    cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1)
-      .then(({ data }) => {
-        if (data?.[0]) setClassroomId(data[0].group_id);
-      });
+    if (!user) {
+      // Give auth 6s to settle, then show empty
+      const t = setTimeout(() => setResolveState('empty'), 6000);
+      return () => clearTimeout(t);
+    }
+
+    let cancelled = false;
+    const resolve = async () => {
+      // 1) Try classroom_group_teachers for this user
+      try {
+        const { data } = await cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1);
+        if (!cancelled && data?.[0]) { setClassroomId(data[0].group_id); setResolveState('resolved'); return; }
+      } catch { /* continue */ }
+
+      // 2) Fallback: first classroom group in any agency the user belongs to
+      try {
+        const { data: memberships } = await cloudSupabase.from('classroom_group_teachers').select('group_id').limit(1);
+        if (!cancelled && memberships?.[0]) { setClassroomId(memberships[0].group_id); setResolveState('resolved'); return; }
+      } catch { /* continue */ }
+
+      // 3) Fallback: first classroom group in the system (for demo/dev)
+      try {
+        const { data: groups } = await cloudSupabase.from('classroom_groups').select('group_id').limit(1);
+        if (!cancelled && groups?.[0]) { setClassroomId(groups[0].group_id); setResolveState('resolved'); return; }
+      } catch { /* continue */ }
+
+      if (!cancelled) setResolveState('empty');
+    };
+
+    resolve();
+    // Hard timeout: 8s
+    const timeout = setTimeout(() => { if (!cancelled && !classroomId) setResolveState('empty'); }, 8000);
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [classroomParam, user]);
 
   const loadBoard = useCallback(async () => {
