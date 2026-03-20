@@ -76,8 +76,7 @@ const RewardsPage = () => {
       }
       setRedemptions(recs);
 
-      const { data: groups } = await cloudSupabase.from('classroom_groups').select('group_id').eq('agency_id', effectiveAgencyId).limit(1);
-      if (groups?.length) setActiveGroupId(groups[0].group_id);
+      // activeGroupId now comes from shared context — no need to resolve here
     } catch { /* silent */ }
     setLoading(false);
   };
