@@ -18,6 +18,8 @@ import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
 import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
+import { useUndoAction } from '@/hooks/useUndoAction';
+import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
