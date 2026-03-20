@@ -21,7 +21,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Sparkles, Users, Flag, Star, Zap, PartyPopper, CheckCircle, RotateCcw, Settings } from 'lucide-react';
+import { ArrowLeft, Trophy, Sparkles, Users, Flag, Star, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
