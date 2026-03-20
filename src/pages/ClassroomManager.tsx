@@ -80,9 +80,10 @@ const ClassroomManager = () => {
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Assign teacher dialog
+  // Assign staff dialog
   const [assignTeacherGroupId, setAssignTeacherGroupId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedStaffRole, setSelectedStaffRole] = useState('teacher');
 
   // Bulk-assign students dialog
   const [bulkAssignGroupId, setBulkAssignGroupId] = useState<string | null>(null);
