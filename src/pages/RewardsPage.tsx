@@ -39,7 +39,7 @@ const RewardsPage = () => {
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [history, setHistory] = useState<PointHistory[]>([]);
   const [redemptions, setRedemptions] = useState<RedemptionRecord[]>([]);
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const { groupId: activeGroupId } = useActiveClassroom();
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
