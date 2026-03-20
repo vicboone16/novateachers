@@ -262,23 +262,41 @@ const Threads = () => {
   const handleCreateThread = async () => {
     if (!newTitle.trim() || !user) return;
     try {
-      const { data, error } = await supabase
-        .from('threads' as any)
-        .insert({
-          agency_id: agencyId,
-          thread_type: newType,
-          title: newTitle.trim(),
-          is_private: newType === 'teacher_only' || newType === 'one_to_one',
-          created_by: user.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+      if (useLocalMode) {
+        // Create a "thread" via teacher_messages with a thread_id = new uuid
+        const threadId = crypto.randomUUID();
+        const { error } = await cloudSupabase
+          .from('teacher_messages')
+          .insert({
+            id: threadId,
+            agency_id: agencyId,
+            sender_id: user.id,
+            recipient_id: user.id,
+            body: `Thread created: ${newTitle.trim()}`,
+            thread_id: threadId,
+            message_type: 'note',
+            subject: newTitle.trim(),
+            metadata: { app_source: 'beacon_thread', thread_type: newType },
+          });
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('threads' as any)
+          .insert({
+            agency_id: agencyId,
+            thread_type: newType,
+            title: newTitle.trim(),
+            is_private: newType === 'teacher_only' || newType === 'one_to_one',
+            created_by: user.id,
+          })
+          .select()
+          .single();
+        if (error) throw error;
 
-      // Add creator as member
-      await supabase
-        .from('thread_members' as any)
-        .insert({ thread_id: (data as any).id, user_id: user.id, role: 'admin' });
+        await supabase
+          .from('thread_members' as any)
+          .insert({ thread_id: (data as any).id, user_id: user.id, role: 'admin' });
+      }
 
       setCreateOpen(false);
       setNewTitle('');
