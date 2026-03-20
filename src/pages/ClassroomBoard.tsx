@@ -93,34 +93,25 @@ export default function ClassroomBoard() {
   const [topRewards, setTopRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   const [resolveState, setResolveState] = useState<'loading' | 'resolved' | 'empty'>('loading');
 
-  // Auto-discover classroom with cascading fallbacks + timeout
+  // Simplified resolution: URL param → direct query fallbacks
   useEffect(() => {
     if (classroomParam) {
       setClassroomId(classroomParam);
       setResolveState('resolved');
       return;
     }
-    if (!user) {
-      // Give auth 6s to settle, then show empty
-      const t = setTimeout(() => setResolveState('empty'), 6000);
-      return () => clearTimeout(t);
-    }
 
     let cancelled = false;
     const resolve = async () => {
-      // 1) Try classroom_group_teachers for this user
-      try {
-        const { data } = await cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1);
-        if (!cancelled && data?.[0]) { setClassroomId(data[0].group_id); setResolveState('resolved'); return; }
-      } catch { /* continue */ }
+      // 1) Try classroom_group_teachers for logged-in user
+      if (user) {
+        try {
+          const { data } = await cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1);
+          if (!cancelled && data?.[0]) { setClassroomId(data[0].group_id); setResolveState('resolved'); return; }
+        } catch { /* continue */ }
+      }
 
-      // 2) Fallback: first classroom group in any agency the user belongs to
-      try {
-        const { data: memberships } = await cloudSupabase.from('classroom_group_teachers').select('group_id').limit(1);
-        if (!cancelled && memberships?.[0]) { setClassroomId(memberships[0].group_id); setResolveState('resolved'); return; }
-      } catch { /* continue */ }
-
-      // 3) Fallback: first classroom group in the system (for demo/dev)
+      // 2) Any classroom group (broad fallback for board/projector use)
       try {
         const { data: groups } = await cloudSupabase.from('classroom_groups').select('group_id').limit(1);
         if (!cancelled && groups?.[0]) { setClassroomId(groups[0].group_id); setResolveState('resolved'); return; }
@@ -129,10 +120,10 @@ export default function ClassroomBoard() {
       if (!cancelled) setResolveState('empty');
     };
 
-    resolve();
-    // Hard timeout: 8s
+    // Small delay to let auth settle
+    const delay = setTimeout(() => resolve(), 500);
     const timeout = setTimeout(() => { if (!cancelled && !classroomId) setResolveState('empty'); }, 8000);
-    return () => { cancelled = true; clearTimeout(timeout); };
+    return () => { cancelled = true; clearTimeout(delay); clearTimeout(timeout); };
   }, [classroomParam, user]);
 
   const loadBoard = useCallback(async () => {
