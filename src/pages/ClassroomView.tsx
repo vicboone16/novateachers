@@ -81,7 +81,16 @@ const ClassroomView = () => {
   const [wordOfWeek, setWordOfWeek] = useState('Perseverance');
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
   const [staffCount, setStaffCount] = useState(0);
+  const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
 
+  const handleUndoComplete = async () => {
+    const ok = await undoAction();
+    if (ok && pendingAction) {
+      handlePointChange(pendingAction.studentId, -pendingAction.points);
+      toast({ title: '↩ Undone' });
+    }
+    return ok;
+  };
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
   const today = new Date().toISOString().slice(0, 10);
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
