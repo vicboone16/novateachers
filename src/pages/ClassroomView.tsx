@@ -631,6 +631,9 @@ const ClassroomView = () => {
           onPointChange={handlePointChange}
         />
       )}
+
+      {/* Undo Toast */}
+      <UndoToast action={pendingAction} onUndo={handleUndoComplete} onDismiss={dismissAction} />
     </div>
   );
 };
