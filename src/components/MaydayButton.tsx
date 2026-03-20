@@ -1,9 +1,11 @@
 /**
  * MaydayButton — Emergency alert with lifecycle: active → acknowledged → resolved.
  * Writes to Core: mayday_alerts, mayday_recipients.
+ * Sends email notifications via send-mayday-alert edge function.
  */
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -18,10 +20,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell } from 'lucide-react';
+import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface Recipient { user_id: string; display_name: string; role: string; }
+interface Recipient { user_id: string; display_name: string; role: string; email?: string; }
 interface MaydayAlert {
   id: string; alert_type: string; urgency: string; message: string;
   status: string; created_at: string; acknowledged_at?: string; resolved_at?: string;
@@ -31,6 +33,7 @@ interface MaydayAlert {
 interface Props {
   agencyId: string;
   classroomId?: string;
+  classroomName?: string;
   studentId?: string;
   studentName?: string;
 }
@@ -50,7 +53,7 @@ const ALERT_TYPES = [
   { value: 'other', label: '📢 Other' },
 ];
 
-export function MaydayButton({ agencyId, classroomId, studentId, studentName }: Props) {
+export function MaydayButton({ agencyId, classroomId, classroomName, studentId, studentName }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -59,6 +62,7 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
   const [activeAlerts, setActiveAlerts] = useState<MaydayAlert[]>([]);
+  const [allAlerts, setAllAlerts] = useState<MaydayAlert[]>([]);
   const [urgency, setUrgency] = useState('high');
   const [alertType, setAlertType] = useState('safety');
   const [message, setMessage] = useState('');
@@ -66,26 +70,31 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
 
   const loadRecipients = useCallback(async () => {
     try {
-      const { data } = await supabase.from('agency_memberships' as any).select('user_id, role').eq('agency_id', agencyId);
+      const { data } = await supabase.from('agency_memberships' as any).select('user_id, role, email').eq('agency_id', agencyId);
       if (!data) return;
-      const staff = (data as any[]).filter(m => m.user_id !== user?.id).map(m => ({ user_id: m.user_id, display_name: m.user_id.slice(0, 8) + '…', role: m.role || 'staff' }));
+      const staff = (data as any[]).filter(m => m.user_id !== user?.id).map(m => ({
+        user_id: m.user_id, display_name: m.email?.split('@')[0] || m.user_id.slice(0, 8) + '…',
+        role: m.role || 'staff', email: m.email || null,
+      }));
       setRecipients(staff);
       const admins = staff.filter(s => s.role === 'admin' || s.role === 'bcba' || s.role === 'supervisor');
-      setSelectedRecipients(new Set(admins.map(a => a.user_id)));
+      setSelectedRecipients(new Set(admins.length > 0 ? admins.map(a => a.user_id) : staff.map(s => s.user_id)));
     } catch { /* silent */ }
   }, [agencyId, user]);
 
-  const loadActiveAlerts = useCallback(async () => {
+  const loadAlerts = useCallback(async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('mayday_alerts' as any).select('*').eq('agency_id', agencyId).in('status', ['active', 'acknowledged']).order('created_at', { ascending: false }).limit(10);
-      setActiveAlerts((data || []) as any as MaydayAlert[]);
+      const { data } = await supabase.from('mayday_alerts' as any).select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20);
+      const alerts = (data || []) as any as MaydayAlert[];
+      setActiveAlerts(alerts.filter(a => a.status === 'active' || a.status === 'acknowledged'));
+      setAllAlerts(alerts);
     } catch { /* silent */ }
   }, [agencyId, user]);
 
   useEffect(() => {
-    if (open) { loadRecipients(); loadActiveAlerts(); }
-  }, [open, loadRecipients, loadActiveAlerts]);
+    if (open) { loadRecipients(); loadAlerts(); }
+  }, [open, loadRecipients, loadAlerts]);
 
   const toggleRecipient = (userId: string) => {
     setSelectedRecipients(prev => { const next = new Set(prev); if (next.has(userId)) next.delete(userId); else next.add(userId); return next; });
@@ -95,18 +104,45 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
     if (!user || selectedRecipients.size === 0) return;
     setSending(true);
     try {
+      const alertMsg = message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`;
       const { data: alert, error: alertErr } = await supabase.from('mayday_alerts' as any).insert({
         agency_id: agencyId, classroom_id: classroomId || null, student_id: studentId || null,
         triggered_by: user.id, alert_type: alertType, urgency,
-        message: message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`,
-        status: 'active',
+        message: alertMsg, status: 'active',
       }).select('id').single();
       if (alertErr) throw alertErr;
-      const recipientRows = Array.from(selectedRecipients).map(userId => ({ alert_id: (alert as any).id, user_id: userId, delivery_channel: 'in_app', status: 'pending' }));
+
+      const recipientRows = Array.from(selectedRecipients).map(userId => ({
+        alert_id: (alert as any).id, user_id: userId, delivery_channel: 'in_app', status: 'pending',
+      }));
       await supabase.from('mayday_recipients' as any).insert(recipientRows);
-      toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selectedRecipients.size} recipient(s) notified` });
+
+      // Send email notifications via edge function
+      const recipientEmails = recipients
+        .filter(r => selectedRecipients.has(r.user_id) && r.email)
+        .map(r => r.email);
+
+      if (recipientEmails.length > 0) {
+        try {
+          await cloudSupabase.functions.invoke('send-mayday-alert', {
+            body: {
+              alert_type: alertType, urgency, message: alertMsg,
+              classroom_name: classroomName || null, student_name: studentName || null,
+              triggered_by_name: user.email?.split('@')[0] || 'Staff',
+              recipient_emails: recipientEmails,
+            },
+          });
+        } catch (e) { console.warn('[Mayday] email send failed:', e); }
+      }
+
+      // Update recipient delivery status
+      await supabase.from('mayday_recipients' as any)
+        .update({ status: 'sent', delivered_at: new Date().toISOString() } as any)
+        .eq('alert_id', (alert as any).id);
+
+      toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selectedRecipients.size} recipient(s) notified${recipientEmails.length > 0 ? ` (${recipientEmails.length} emails sent)` : ''}` });
       setMessage(''); setUrgency('high'); setAlertType('safety');
-      loadActiveAlerts();
+      loadAlerts();
       setTab('active');
     } catch (err: any) { toast({ title: 'Alert failed', description: err.message, variant: 'destructive' }); }
     finally { setSending(false); }
@@ -120,7 +156,7 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
       if (newStatus === 'resolved') { updateFields.resolved_at = new Date().toISOString(); updateFields.resolved_by = user.id; }
       await supabase.from('mayday_alerts' as any).update(updateFields).eq('id', alertId);
       toast({ title: newStatus === 'acknowledged' ? '✓ Alert acknowledged' : '✓ Alert resolved' });
-      loadActiveAlerts();
+      loadAlerts();
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
   };
 
@@ -146,6 +182,7 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
                 <Bell className="h-3 w-3" /> Active
                 {activeCount > 0 && <Badge variant="destructive" className="h-4 min-w-4 text-[9px] ml-1 px-1">{activeCount}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="history" className="flex-1 gap-1 text-xs"><Clock className="h-3 w-3" /> History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="send" className="space-y-4 mt-3">
@@ -171,6 +208,7 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
                       <Checkbox checked={selectedRecipients.has(r.user_id)} onCheckedChange={() => toggleRecipient(r.user_id)} />
                       <span className="text-xs">{r.display_name}</span>
                       <Badge variant="outline" className="text-[9px] ml-auto">{r.role}</Badge>
+                      {r.email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
                     </label>
                   ))}
                 </div>
@@ -184,28 +222,23 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
               {activeAlerts.length === 0 ? (
                 <div className="text-center py-8"><CheckCircle className="h-8 w-8 mx-auto text-accent mb-2" /><p className="text-sm text-muted-foreground">No active alerts</p></div>
               ) : activeAlerts.map(alert => (
-                <div key={alert.id} className={cn("rounded-lg border p-3 space-y-2", alert.status === 'active' ? 'border-destructive/40 bg-destructive/5' : 'border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/10')}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant={alert.status === 'active' ? 'destructive' : 'outline'} className="text-[9px]">{alert.status === 'active' ? '🔴 Active' : '🟡 Acknowledged'}</Badge>
-                        <Badge variant="outline" className="text-[9px]">{URGENCY_LEVELS.find(u => u.value === alert.urgency)?.label}</Badge>
-                      </div>
-                      <p className="text-sm font-medium mt-1">{ALERT_TYPES.find(t => t.value === alert.alert_type)?.label}</p>
-                      {alert.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{alert.message}</p>}
-                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{new Date(alert.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
-                      {alert.acknowledged_at && <p className="text-[10px] text-muted-foreground">Acknowledged {new Date(alert.acknowledged_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
-                    </div>
+                <AlertCard key={alert.id} alert={alert} onAcknowledge={() => updateAlertStatus(alert.id, 'acknowledged')} onResolve={() => updateAlertStatus(alert.id, 'resolved')} />
+              ))}
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-3 space-y-2">
+              {allAlerts.filter(a => a.status === 'resolved').length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-6">No resolved alerts yet</p>
+              ) : allAlerts.filter(a => a.status === 'resolved').map(alert => (
+                <div key={alert.id} className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[9px] gap-0.5"><CheckCircle className="h-2 w-2 text-accent" />Resolved</Badge>
+                    <Badge variant="outline" className="text-[9px]">{ALERT_TYPES.find(t => t.value === alert.alert_type)?.label}</Badge>
                   </div>
-                  <div className="flex gap-1.5">
-                    {alert.status === 'active' && (
-                      <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-amber-300 text-amber-700 dark:text-amber-300" onClick={() => updateAlertStatus(alert.id, 'acknowledged')}>
-                        <CheckCircle className="h-3 w-3" /> Acknowledge
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-accent text-accent-foreground" onClick={() => updateAlertStatus(alert.id, 'resolved')}>
-                      <XCircle className="h-3 w-3" /> Resolve
-                    </Button>
+                  {alert.message && <p className="text-xs text-muted-foreground line-clamp-1">{alert.message}</p>}
+                  <div className="flex gap-3 text-[10px] text-muted-foreground">
+                    <span>Created: {new Date(alert.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                    {alert.resolved_at && <span>Resolved: {new Date(alert.resolved_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>}
                   </div>
                 </div>
               ))}
@@ -216,3 +249,34 @@ export function MaydayButton({ agencyId, classroomId, studentId, studentName }: 
     </>
   );
 }
+
+function AlertCard({ alert, onAcknowledge, onResolve }: { alert: MaydayAlert; onAcknowledge: () => void; onResolve: () => void }) {
+  return (
+    <div className={cn("rounded-lg border p-3 space-y-2", alert.status === 'active' ? 'border-destructive/40 bg-destructive/5' : 'border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/10')}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={alert.status === 'active' ? 'destructive' : 'outline'} className="text-[9px]">{alert.status === 'active' ? '🔴 Active' : '🟡 Acknowledged'}</Badge>
+            <Badge variant="outline" className="text-[9px]">{URGENCY_LEVELS.find(u => u.value === alert.urgency)?.label}</Badge>
+          </div>
+          <p className="text-sm font-medium mt-1">{ALERT_TYPES.find(t => t.value === alert.alert_type)?.label}</p>
+          {alert.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{alert.message}</p>}
+          <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{new Date(alert.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+          {alert.acknowledged_at && <p className="text-[10px] text-muted-foreground">✓ Acknowledged {new Date(alert.acknowledged_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
+        </div>
+      </div>
+      <div className="flex gap-1.5">
+        {alert.status === 'active' && (
+          <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-amber-300 text-amber-700 dark:text-amber-300" onClick={onAcknowledge}>
+            <CheckCircle className="h-3 w-3" /> Acknowledge
+          </Button>
+        )}
+        <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-accent text-accent-foreground" onClick={onResolve}>
+          <XCircle className="h-3 w-3" /> Resolve
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+const URGENCY_LEVELS_EXPORT = URGENCY_LEVELS;
