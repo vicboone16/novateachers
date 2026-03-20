@@ -748,10 +748,11 @@ const ClassroomManager = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {group.teachers.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No teachers assigned</p>
+                        <p className="text-xs text-muted-foreground">No staff assigned</p>
                       ) : group.teachers.map(t => (
                         <Badge key={t.id} variant="secondary" className="gap-1 pr-1">
                           <span className="text-xs">{getMemberDisplayName(t.user_id)}</span>
+                          <span className="text-[9px] text-muted-foreground uppercase">{t.staff_role}</span>
                           <button onClick={() => handleRemoveTeacher(t.id)} className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5">
                             <X className="h-2.5 w-2.5" />
                           </button>
