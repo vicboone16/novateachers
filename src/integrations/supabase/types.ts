@@ -382,18 +382,21 @@ export type Database = {
           created_at: string
           group_id: string
           id: string
+          staff_role: string
           user_id: string
         }
         Insert: {
           created_at?: string
           group_id: string
           id?: string
+          staff_role?: string
           user_id: string
         }
         Update: {
           created_at?: string
           group_id?: string
           id?: string
+          staff_role?: string
           user_id?: string
         }
         Relationships: [

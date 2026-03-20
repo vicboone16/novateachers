@@ -54,7 +54,7 @@ interface GuestCode {
 }
 
 interface GroupWithMembers extends ClassroomGroup {
-  teachers: { id: string; user_id: string }[];
+  teachers: { id: string; user_id: string; staff_role: string }[];
   students: { id: string; client_id: string; client?: Client }[];
   guestCodes: GuestCode[];
 }
@@ -80,9 +80,10 @@ const ClassroomManager = () => {
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Assign teacher dialog
+  // Assign staff dialog
   const [assignTeacherGroupId, setAssignTeacherGroupId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedStaffRole, setSelectedStaffRole] = useState('teacher');
 
   // Bulk-assign students dialog
   const [bulkAssignGroupId, setBulkAssignGroupId] = useState<string | null>(null);
@@ -163,7 +164,7 @@ const ClassroomManager = () => {
       try {
         const teachersRes = await cloudSupabase
           .from('classroom_group_teachers')
-          .select('id, group_id, user_id')
+          .select('id, group_id, user_id, staff_role')
           .in('group_id', groupIds);
         if (teachersRes.error) {
           if (import.meta.env.DEV) console.warn('[Classroom] Teacher query error (RLS?):', teachersRes.error.message);
@@ -216,6 +217,7 @@ const ClassroomManager = () => {
         teachers: teacherRows.filter(t => t.group_id === g.group_id).map(t => ({
           id: t.id,
           user_id: t.user_id,
+          staff_role: t.staff_role || 'teacher',
         })),
         students: studentRows.filter(s => s.group_id === g.group_id).map(s => ({
           id: s.id,
@@ -347,31 +349,31 @@ const ClassroomManager = () => {
   const handleAssignTeacher = async () => {
     if (!assignTeacherGroupId || !selectedUserId) return;
     try {
-      const row = { group_id: assignTeacherGroupId, user_id: selectedUserId };
-      // Try insert first (simpler, avoids upsert conflict target issues)
+      const row = { group_id: assignTeacherGroupId, user_id: selectedUserId, staff_role: selectedStaffRole };
       const { error } = await cloudSupabase.from('classroom_group_teachers').insert(row);
       if (error) {
         const msg = String(error.message || '').toLowerCase();
-        // Ignore duplicate — teacher already assigned
         if (msg.includes('duplicate') || msg.includes('23505')) {
-          toast({ title: 'Teacher already assigned to this classroom' });
+          toast({ title: 'This person is already assigned with that role' });
           setAssignTeacherGroupId(null);
           setSelectedUserId('');
+          setSelectedStaffRole('teacher');
           return;
         }
-        if (import.meta.env.DEV) console.error('[Classroom] Teacher assign error:', error);
+        if (import.meta.env.DEV) console.error('[Classroom] Staff assign error:', error);
         throw error;
       }
       const member = allMembers.find(m => m.user_id === selectedUserId);
       toast({
-        title: 'Teacher assigned',
-        description: member ? `${member.display_name} (synced from staff)` : undefined,
+        title: 'Staff assigned',
+        description: member ? `${member.display_name} as ${selectedStaffRole}` : undefined,
       });
       setAssignTeacherGroupId(null);
       setSelectedUserId('');
+      setSelectedStaffRole('teacher');
       loadAll();
     } catch (err: any) {
-      toast({ title: 'Error assigning teacher', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error assigning staff', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -578,9 +580,9 @@ const ClassroomManager = () => {
       ) : (
         <div className="space-y-4">
           {groups.map((group) => {
-            const teacherUserIds = new Set(group.teachers.map(t => t.user_id));
+            const teacherUserIds = new Set(group.teachers.map(t => `${t.user_id}-${t.staff_role}`));
             const studentClientIds = new Set(group.students.map(s => s.client_id));
-            const availableTeachers = allMembers.filter(m => !teacherUserIds.has(m.user_id));
+            const availableTeachers = allMembers;
             const availableStudents = allClients.filter(c => !studentClientIds.has(c.id));
 
             // Filtered available students for bulk dialog
@@ -686,38 +688,59 @@ const ClassroomManager = () => {
                   {/* ── Teachers ── */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <UserPlus className="h-3 w-3" /> Teachers
+                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <UserPlus className="h-3 w-3" /> Staff
+                        <Badge variant="outline" className="text-[10px] ml-1">{group.teachers.length}</Badge>
                       </p>
                       <Dialog open={assignTeacherGroupId === group.group_id} onOpenChange={(o) => { if (!o) setAssignTeacherGroupId(null); }}>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAssignTeacherGroupId(group.group_id)}>
-                            <Plus className="h-3 w-3" /> Add
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setAssignTeacherGroupId(group.group_id); setSelectedStaffRole('teacher'); }}>
+                            <Plus className="h-3 w-3" /> Add Staff
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
-                          <DialogHeader><DialogTitle>Assign Teacher</DialogTitle></DialogHeader>
-                          <p className="text-xs text-muted-foreground">Showing existing staff members from your agency. Teachers are synced automatically.</p>
+                          <DialogHeader><DialogTitle>Assign Staff</DialogTitle></DialogHeader>
+                          <p className="text-xs text-muted-foreground">Select a team member and their role. The same person can be assigned multiple roles.</p>
                           <div className="space-y-4 pt-2">
-                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a team member…" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableTeachers.map(m => (
-                                  <SelectItem key={m.user_id} value={m.user_id}>
-                                    <span className="flex items-center gap-2">
-                                      {m.display_name}
-                                      <span className="text-muted-foreground text-xs">({m.role})</span>
-                                      <Badge variant="outline" className="text-[9px] h-4 px-1">Staff ✓</Badge>
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                                {availableTeachers.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-muted-foreground">All members assigned</div>
-                                )}
-                              </SelectContent>
-                            </Select>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Team Member</Label>
+                              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a team member…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableTeachers.map(m => (
+                                    <SelectItem key={m.user_id} value={m.user_id}>
+                                      <span className="flex items-center gap-2">
+                                        {m.display_name}
+                                        <span className="text-muted-foreground text-xs">({m.role})</span>
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                  {availableTeachers.length === 0 && (
+                                    <div className="px-3 py-2 text-xs text-muted-foreground">No team members available</div>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Classroom Role</Label>
+                              <Select value={selectedStaffRole} onValueChange={setSelectedStaffRole}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="teacher">Teacher</SelectItem>
+                                  <SelectItem value="bi">BI (Behavior Interventionist)</SelectItem>
+                                  <SelectItem value="aide">Aide / Paraprofessional</SelectItem>
+                                  <SelectItem value="bcba">BCBA / Supervisor</SelectItem>
+                                  <SelectItem value="sped">SPED Teacher</SelectItem>
+                                  <SelectItem value="slp">SLP</SelectItem>
+                                  <SelectItem value="ot">OT</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <Button onClick={handleAssignTeacher} disabled={!selectedUserId} className="w-full">Assign</Button>
                           </div>
                         </DialogContent>
@@ -725,10 +748,11 @@ const ClassroomManager = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {group.teachers.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No teachers assigned</p>
+                        <p className="text-xs text-muted-foreground">No staff assigned</p>
                       ) : group.teachers.map(t => (
                         <Badge key={t.id} variant="secondary" className="gap-1 pr-1">
                           <span className="text-xs">{getMemberDisplayName(t.user_id)}</span>
+                          <span className="text-[9px] text-muted-foreground uppercase">{t.staff_role}</span>
                           <button onClick={() => handleRemoveTeacher(t.id)} className="ml-0.5 rounded-full hover:bg-destructive/20 p-0.5">
                             <X className="h-2.5 w-2.5" />
                           </button>
