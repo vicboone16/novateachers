@@ -141,6 +141,7 @@ const App = () => (
           <Routes>
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/guest/:code" element={<GuestDataCollection />} />
+            <Route path="/board/:slug" element={<ClassroomBoard />} />
             <Route path="/board" element={<ClassroomBoard />} />
             <Route path="/portal/:token" element={<StudentPortalEnhanced />} />
             <Route path="/portal" element={<StudentPortalEnhanced />} />

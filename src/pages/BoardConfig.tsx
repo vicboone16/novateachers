@@ -60,7 +60,9 @@ const BoardConfig = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [groups, setGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const [groups, setGroups] = useState<{ group_id: string; name: string; board_slug?: string | null }[]>([]);
+  const [slugValue, setSlugValue] = useState('');
+  const [savingSlug, setSavingSlug] = useState(false);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
@@ -68,31 +70,38 @@ const BoardConfig = () => {
     if (!user || !effectiveAgencyId) return;
     cloudSupabase
       .from('classroom_groups')
-      .select('group_id, name')
+      .select('group_id, name, board_slug')
       .eq('agency_id', effectiveAgencyId)
       .order('name')
       .then(({ data }) => {
-        const g = data || [];
+        const g = (data || []) as { group_id: string; name: string; board_slug?: string | null }[];
         setGroups(g);
-        if (g.length > 0 && !activeGroupId) setActiveGroupId(g[0].group_id);
+        if (g.length > 0 && !activeGroupId) {
+          setActiveGroupId(g[0].group_id);
+          setSlugValue(g[0].board_slug || '');
+        }
       });
   }, [user, effectiveAgencyId]);
 
   useEffect(() => {
-    if (activeGroupId) loadSettings();
+    if (activeGroupId) {
+      loadSettings();
+      const g = groups.find(g => g.group_id === activeGroupId);
+      setSlugValue(g?.board_slug || '');
+    }
   }, [activeGroupId]);
 
   const loadSettings = async () => {
     if (!activeGroupId) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('classroom_board_settings' as any)
         .select('*')
         .eq('classroom_id', activeGroupId)
         .maybeSingle();
 
-      if (data) {
+      if (!error && data) {
         setSettings(data as any);
       } else {
         setSettings({ ...DEFAULT_SETTINGS, classroom_id: activeGroupId });
@@ -102,6 +111,22 @@ const BoardConfig = () => {
       setSettings({ ...DEFAULT_SETTINGS, classroom_id: activeGroupId });
     }
     setLoading(false);
+  };
+
+  const handleSaveSlug = async () => {
+    if (!activeGroupId) return;
+    setSavingSlug(true);
+    try {
+      const slug = slugValue.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || null;
+      const { error } = await cloudSupabase.from('classroom_groups').update({ board_slug: slug } as any).eq('group_id', activeGroupId);
+      if (error) throw error;
+      setSlugValue(slug || '');
+      setGroups(prev => prev.map(g => g.group_id === activeGroupId ? { ...g, board_slug: slug } : g));
+      toast({ title: 'Board URL saved', description: slug ? `Board accessible at /board/${slug}` : 'Custom URL removed' });
+    } catch (err: any) {
+      toast({ title: 'Error saving URL', description: err.message, variant: 'destructive' });
+    }
+    setSavingSlug(false);
   };
 
   const handleSave = async () => {
@@ -156,7 +181,11 @@ const BoardConfig = () => {
               </SelectContent>
             </Select>
           )}
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => window.open('/board', '_blank')}>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => {
+            const g = groups.find(g => g.group_id === activeGroupId);
+            const slug = g?.board_slug;
+            window.open(slug ? `/board/${slug}` : `/board?classroom=${activeGroupId}`, '_blank');
+          }}>
             <ExternalLink className="h-3.5 w-3.5" /> Open Board
           </Button>
         </div>
@@ -227,6 +256,35 @@ const BoardConfig = () => {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Board URL Slug */}
+          <Card className="border-border/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading">Public Board URL</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Set a custom URL slug so the board can be opened without login at <code className="text-foreground">/board/your-slug</code>
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={slugValue}
+                  onChange={e => setSlugValue(e.target.value)}
+                  placeholder="e.g. room-204"
+                  className="flex-1"
+                />
+                <Button size="sm" onClick={handleSaveSlug} disabled={savingSlug} className="gap-1.5">
+                  {savingSlug ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Set URL
+                </Button>
+              </div>
+              {slugValue && (
+                <p className="text-xs text-muted-foreground">
+                  Board URL: <code className="text-primary">{window.location.origin}/board/{slugValue.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-')}</code>
+                </p>
+              )}
             </CardContent>
           </Card>
 

@@ -409,6 +409,7 @@ export type Database = {
       classroom_groups: {
         Row: {
           agency_id: string
+          board_slug: string | null
           created_at: string
           created_by: string
           grade_band: string | null
@@ -419,6 +420,7 @@ export type Database = {
         }
         Insert: {
           agency_id: string
+          board_slug?: string | null
           created_at?: string
           created_by: string
           grade_band?: string | null
@@ -429,6 +431,7 @@ export type Database = {
         }
         Update: {
           agency_id?: string
+          board_slug?: string | null
           created_at?: string
           created_by?: string
           grade_band?: string | null

@@ -64,6 +64,7 @@ interface ClassroomGroup {
   agency_id: string;
   grade_band: string | null;
   school_name: string | null;
+  board_slug: string | null;
 }
 
 const AdminDashboard = () => {
@@ -79,6 +80,14 @@ const AdminDashboard = () => {
   const [classrooms, setClassrooms] = useState<ClassroomGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Add classroom
+  const [showAddClassroom, setShowAddClassroom] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassGrade, setNewClassGrade] = useState('');
+  const [newClassSchool, setNewClassSchool] = useState('');
+  const [newClassSlug, setNewClassSlug] = useState('');
+  const [addingClassroom, setAddingClassroom] = useState(false);
 
   // Add student
   const [showAddStudent, setShowAddStudent] = useState(false);
@@ -297,6 +306,49 @@ const AdminDashboard = () => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
+  const handleAddClassroom = async () => {
+    if (!currentWorkspace || !user || !newClassName.trim()) return;
+    setAddingClassroom(true);
+    try {
+      const slug = newClassSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || null;
+      const insertData: any = {
+        agency_id: currentWorkspace.agency_id,
+        name: newClassName.trim(),
+        created_by: user.id,
+        board_slug: slug,
+      };
+      if (newClassGrade.trim()) insertData.grade_band = newClassGrade.trim();
+      if (newClassSchool.trim()) insertData.school_name = newClassSchool.trim();
+      const { error } = await cloudSupabase.from('classroom_groups').insert(insertData);
+      if (error) throw error;
+      // Sync to Nova Core
+      const { data: newGroup } = await cloudSupabase
+        .from('classroom_groups')
+        .select('group_id, name, grade_band, school_name')
+        .eq('agency_id', currentWorkspace.agency_id)
+        .eq('name', newClassName.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (newGroup) {
+        await supabase.from('classrooms').upsert({
+          id: (newGroup as any).group_id,
+          name: (newGroup as any).name,
+          grade_band: (newGroup as any).grade_band,
+          school_name: (newGroup as any).school_name,
+          agency_id: currentWorkspace.agency_id,
+        }, { onConflict: 'id' });
+      }
+      toast({ title: '✓ Classroom created', description: slug ? `Board URL: /board/${slug}` : undefined });
+      setShowAddClassroom(false);
+      setNewClassName(''); setNewClassGrade(''); setNewClassSchool(''); setNewClassSlug('');
+      loadAll();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setAddingClassroom(false);
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -344,6 +396,7 @@ const AdminDashboard = () => {
             <TabsList className="w-max sm:w-full sm:justify-start">
               <TabsTrigger value="ids" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Hash className="h-3.5 w-3.5" /> IDs</TabsTrigger>
               <TabsTrigger value="invites" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Key className="h-3.5 w-3.5" /> Invites</TabsTrigger>
+              <TabsTrigger value="classrooms" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Building2 className="h-3.5 w-3.5" /> Classrooms</TabsTrigger>
               <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
               <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
               <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
@@ -484,7 +537,73 @@ const AdminDashboard = () => {
             })}
           </TabsContent>
 
-          {/* ═══════════════ STUDENTS ═══════════════ */}
+          {/* ═══════════════ CLASSROOMS ═══════════════ */}
+          <TabsContent value="classrooms" className="space-y-3 mt-4">
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-muted-foreground">Create classrooms and assign board URL slugs.</p>
+              <Dialog open={showAddClassroom} onOpenChange={setShowAddClassroom}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Add Classroom</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Create Classroom</DialogTitle></DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Classroom Name *</Label>
+                      <Input value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="e.g. Room 204" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Grade Band</Label>
+                        <Input value={newClassGrade} onChange={e => setNewClassGrade(e.target.value)} placeholder="e.g. K-2" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">School Name</Label>
+                        <Input value={newClassSchool} onChange={e => setNewClassSchool(e.target.value)} placeholder="e.g. Lincoln Elementary" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Board URL Slug</Label>
+                      <Input value={newClassSlug} onChange={e => setNewClassSlug(e.target.value)} placeholder="e.g. room-204" />
+                      <p className="text-[10px] text-muted-foreground">
+                        Optional. Allows the display board to be opened at <code>/board/your-slug</code> without login.
+                      </p>
+                    </div>
+                    <Button onClick={handleAddClassroom} disabled={addingClassroom || !newClassName.trim()} className="w-full">
+                      {addingClassroom ? 'Creating…' : 'Create Classroom'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {filtered(classrooms, ['group_id', 'name', 'board_slug']).map(c => (
+              <Card key={c.group_id} className="border-border/50">
+                <CardContent className="py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <code className="text-[10px] text-muted-foreground font-mono">{c.group_id.slice(0, 12)}…</code>
+                      {c.board_slug && (
+                        <Badge variant="outline" className="text-[9px] gap-1">
+                          /board/{c.board_slug}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {c.grade_band && <Badge variant="outline" className="text-[9px]">{c.grade_band}</Badge>}
+                  {c.school_name && <Badge variant="secondary" className="text-[9px]">{c.school_name}</Badge>}
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(c.group_id)}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+            {classrooms.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">No classrooms yet. Create one above.</p>
+            )}
+          </TabsContent>
+
           <TabsContent value="students" className="space-y-3 mt-4">
             <div className="flex justify-between items-center">
               <p className="text-xs text-muted-foreground">Add students that may or may not integrate with NovaCore.</p>
