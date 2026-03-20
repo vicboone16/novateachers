@@ -81,6 +81,7 @@ function ConfettiParticle({ delay, x }: { delay: number; x: number }) {
 
 export default function ClassroomBoard() {
   const [params] = useSearchParams();
+  const { slug } = useParams<{ slug?: string }>();
   const { user } = useAuth();
   const classroomParam = params.get('classroom');
 
@@ -93,11 +94,31 @@ export default function ClassroomBoard() {
   const [topRewards, setTopRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   const [resolveState, setResolveState] = useState<'loading' | 'resolved' | 'empty'>('loading');
 
-  // Resolution: URL param → teacher membership → any group
+  // Resolution: slug → URL param → teacher membership → any group
   useEffect(() => {
     if (classroomParam) {
       setClassroomId(classroomParam);
       setResolveState('resolved');
+      return;
+    }
+
+    // Resolve by slug first
+    if (slug) {
+      cloudSupabase
+        .from('classroom_groups')
+        .select('group_id')
+        .eq('board_slug', slug)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            console.log('[Board] Resolved via slug:', slug, (data as any).group_id);
+            setClassroomId((data as any).group_id);
+            setResolveState('resolved');
+          } else {
+            console.warn('[Board] No classroom found for slug:', slug);
+            setResolveState('empty');
+          }
+        });
       return;
     }
 
