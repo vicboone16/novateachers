@@ -37,6 +37,7 @@ const GameBoard = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
+  const { groupId: sharedGroupId, loading: classroomLoading, error: classroomError } = useActiveClassroom();
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<ClassroomGameSettings | null>(null);
@@ -51,12 +52,10 @@ const GameBoard = () => {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
-
+  // Use shared classroom context
   useEffect(() => {
-    if (!effectiveAgencyId) return;
-    cloudSupabase.from('classroom_groups').select('group_id').eq('agency_id', effectiveAgencyId).limit(1).then(({ data }) => { if (data?.length) setActiveGroupId(data[0].group_id); });
-  }, [effectiveAgencyId]);
+    if (sharedGroupId) setActiveGroupId(sharedGroupId);
+  }, [sharedGroupId]);
 
   useEffect(() => { if (activeGroupId) loadBoard(); }, [activeGroupId]);
 
