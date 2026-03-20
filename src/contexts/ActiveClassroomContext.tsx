@@ -71,7 +71,6 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
           .limit(1);
         if (data?.[0]) {
           await applyGroup(data[0].group_id, 'agency_match');
-          autoLinkTeacher(data[0].group_id);
           return;
         }
       } catch (e) { console.warn('[ActiveClassroom] agency match failed:', e); }
@@ -86,7 +85,6 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
       if (data?.[0]) {
         console.log('[ActiveClassroom] Using first_available fallback:', data[0].group_id);
         await applyGroup(data[0].group_id, 'first_available');
-        autoLinkTeacher(data[0].group_id);
         return;
       }
     } catch (e) { console.warn('[ActiveClassroom] first_available failed:', e); }
