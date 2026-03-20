@@ -81,6 +81,14 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  // Add classroom
+  const [showAddClassroom, setShowAddClassroom] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassGrade, setNewClassGrade] = useState('');
+  const [newClassSchool, setNewClassSchool] = useState('');
+  const [newClassSlug, setNewClassSlug] = useState('');
+  const [addingClassroom, setAddingClassroom] = useState(false);
+
   // Add student
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newFirstName, setNewFirstName] = useState('');
