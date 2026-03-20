@@ -142,15 +142,17 @@ const Threads = () => {
 
   // ── Realtime on messages ──
   useEffect(() => {
-    const channel = supabase
+    const table = useLocalMode ? 'teacher_messages' : 'messages';
+    const client = useLocalMode ? cloudSupabase : supabase;
+    const channel = client
       .channel('thread-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, () => {
         if (activeThread) loadMessages(activeThread.id);
         loadThreads();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [activeThread, loadThreads]);
+    return () => { client.removeChannel(channel); };
+  }, [activeThread, loadThreads, useLocalMode]);
 
   // ── Resolve user names ──
   const resolveNames = useCallback(async (ids: string[]) => {
@@ -167,26 +169,46 @@ const Threads = () => {
   // ── Load messages for a thread ──
   const loadMessages = async (threadId: string) => {
     try {
-      const { data } = await supabase
-        .from('messages' as any)
-        .select('*')
-        .eq('thread_id', threadId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
-      const msgs = (data || []) as any as Message[];
-      setMessages(msgs);
-      resolveNames(msgs.map(m => m.sender_id));
-
-      // Load reactions
-      const msgIds = msgs.map(m => m.id);
-      if (msgIds.length > 0) {
-        const { data: rxns } = await supabase
-          .from('message_reactions' as any)
+      if (useLocalMode) {
+        // Load from teacher_messages
+        const { data } = await cloudSupabase
+          .from('teacher_messages')
           .select('*')
-          .in('message_id', msgIds);
-        setReactions((rxns || []) as any as Reaction[]);
-      }
+          .eq('thread_id', threadId)
+          .order('created_at', { ascending: true });
+        const msgs = (data || []).map((m: any) => ({
+          id: m.id,
+          thread_id: m.thread_id || threadId,
+          sender_id: m.sender_id,
+          parent_id: m.parent_id,
+          body: m.body,
+          message_type: m.message_type || 'text',
+          metadata: m.metadata || {},
+          created_at: m.created_at,
+        })) as Message[];
+        setMessages(msgs);
+        resolveNames(msgs.map(m => m.sender_id));
+        setReactions([]);
+      } else {
+        const { data } = await supabase
+          .from('messages' as any)
+          .select('*')
+          .eq('thread_id', threadId)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: true });
+        const msgs = (data || []) as any as Message[];
+        setMessages(msgs);
+        resolveNames(msgs.map(m => m.sender_id));
 
+        const msgIds = msgs.map(m => m.id);
+        if (msgIds.length > 0) {
+          const { data: rxns } = await supabase
+            .from('message_reactions' as any)
+            .select('*')
+            .in('message_id', msgIds);
+          setReactions((rxns || []) as any as Reaction[]);
+        }
+      }
       setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch { /* silent */ }
   };
@@ -201,17 +223,34 @@ const Threads = () => {
     if (!msgText.trim() || !activeThread || !user) return;
     setSending(true);
     try {
-      const { error } = await supabase
-        .from('messages' as any)
-        .insert({
-          thread_id: activeThread.id,
-          sender_id: user.id,
-          body: msgText.trim(),
-          message_type: 'text',
-          metadata: { app_source: 'beacon' },
-        });
-      if (error) throw error;
+      if (useLocalMode) {
+        const { error } = await cloudSupabase
+          .from('teacher_messages')
+          .insert({
+            agency_id: agencyId,
+            sender_id: user.id,
+            recipient_id: user.id, // self-thread for now
+            body: msgText.trim(),
+            thread_id: activeThread.id,
+            message_type: 'note',
+            subject: activeThread.title,
+            metadata: { app_source: 'beacon_thread' },
+          });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('messages' as any)
+          .insert({
+            thread_id: activeThread.id,
+            sender_id: user.id,
+            body: msgText.trim(),
+            message_type: 'text',
+            metadata: { app_source: 'beacon' },
+          });
+        if (error) throw error;
+      }
       setMsgText('');
+      loadMessages(activeThread.id);
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
     } finally {
