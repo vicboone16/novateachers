@@ -85,6 +85,7 @@ const ClassroomView = () => {
   useEffect(() => {
     if (sharedGroupId && !activeGroupId) setActiveGroupIdLocal(sharedGroupId);
   }, [sharedGroupId]);
+  const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [flashCard, setFlashCard] = useState<string | null>(null);
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
