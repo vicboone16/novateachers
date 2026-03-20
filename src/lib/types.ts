@@ -119,12 +119,21 @@ export interface UserPermissions {
 export interface TeacherTarget {
   id: string;
   agency_id: string;
-  client_id: string;
+  client_id?: string | null;
   name: string;
   description?: string;
-  target_type: 'behavior' | 'skill';
-  created_by: string;
+  target_type: 'behavior' | 'skill' | 'replacement' | 'classroom' | 'manual';
+  source_table?: string;
+  default_event_type?: string | null;
+  default_event_subtype?: string | null;
+  default_behavior_name?: string | null;
+  default_behavior_category?: string | null;
+  action_group?: string | null;
+  icon?: string | null;
+  active?: boolean;
+  created_by?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export type DataCollectionMode =
