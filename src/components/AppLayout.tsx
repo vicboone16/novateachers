@@ -252,6 +252,13 @@ function MoreNavDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={() => navigate('/classrooms')} className="gap-2">
+          <School className="h-3.5 w-3.5" /> Classrooms
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2">
+          <ShieldCheck className="h-3.5 w-3.5" /> Admin
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/tracker')} className="gap-2">
           <Activity className="h-3.5 w-3.5" /> Tracker
         </DropdownMenuItem>
