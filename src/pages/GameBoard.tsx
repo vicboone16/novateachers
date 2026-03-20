@@ -1,8 +1,6 @@
 /**
- * GameBoard — Race Track game board for classroom display.
- * Deterministic race engine: position = min(balance, TRACK_LENGTH).
- * Checkpoints every CHECKPOINT_INTERVAL points. Finish celebrations.
- * Realtime via Cloud beacon_points_ledger subscription.
+ * GameBoard — Race Track with deterministic engine, realtime updates, and reset flow.
+ * Formula: position = min(balance, TRACK_LENGTH). Checkpoints every CHECKPOINT_INTERVAL.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -14,11 +12,16 @@ import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { getClassroomGameSettings, getClassroomGameProgress, getTeamScores } from '@/lib/game-data';
 import { getStudentBalances } from '@/lib/beacon-points';
 import { POINT_SKINS, type ClassroomGameSettings, type StudentGameProgress, type TeamScore } from '@/lib/game-types';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Trophy, Sparkles, Users, Flag, Star, Zap, PartyPopper, CheckCircle } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { ArrowLeft, Trophy, Sparkles, Users, Flag, Star, Zap, PartyPopper, CheckCircle, RotateCcw, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
@@ -33,6 +36,7 @@ const GameBoard = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
+  const { toast } = useToast();
 
   const [settings, setSettings] = useState<ClassroomGameSettings | null>(null);
   const [students, setStudents] = useState<StudentGameProgress[]>([]);
@@ -42,6 +46,8 @@ const GameBoard = () => {
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [liveBalances, setLiveBalances] = useState<Record<string, number>>({});
   const [recentCheckpoint, setRecentCheckpoint] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
@@ -66,7 +72,7 @@ const GameBoard = () => {
     setLoading(false);
   };
 
-  // Realtime subscription
+  // Realtime subscription using a ref-stable callback
   useEffect(() => {
     if (!user) return;
     const channel = cloudSupabase.channel('game-board-live').on('postgres_changes', {
@@ -75,18 +81,37 @@ const GameBoard = () => {
       const sid = payload.new?.student_id;
       const pts = payload.new?.points || 0;
       if (sid) {
-        const prevBal = liveBalances[sid] || 0;
-        const newBal = prevBal + pts;
-        const prevCp = getCheckpointsReached(getPosition(prevBal));
-        const newCp = getCheckpointsReached(getPosition(newBal));
-        setLiveBalances(prev => ({ ...prev, [sid]: (prev[sid] || 0) + pts }));
+        setLiveBalances(prev => {
+          const prevBal = prev[sid] || 0;
+          const newBal = prevBal + pts;
+          const prevCp = getCheckpointsReached(getPosition(prevBal));
+          const newCp = getCheckpointsReached(getPosition(newBal));
+          if (newCp > prevCp) { setRecentCheckpoint(sid); setTimeout(() => setRecentCheckpoint(null), 3000); }
+          return { ...prev, [sid]: newBal };
+        });
         setFlash(sid);
         setTimeout(() => setFlash(null), 1500);
-        if (newCp > prevCp) { setRecentCheckpoint(sid); setTimeout(() => setRecentCheckpoint(null), 3000); }
       }
     }).subscribe();
     return () => { cloudSupabase.removeChannel(channel); };
-  }, [user, liveBalances]);
+  }, [user]);
+
+  const handleReset = async () => {
+    if (!user || !activeGroupId) return;
+    setResetting(true);
+    try {
+      // Delete all point entries for this staff's students in this agency
+      const studentIds = students.map(s => s.student_id);
+      for (const sid of studentIds) {
+        await cloudSupabase.from('beacon_points_ledger').delete().eq('staff_id', user.id).eq('student_id', sid);
+      }
+      setLiveBalances({});
+      toast({ title: '🔄 Race reset!', description: 'All positions reset to start.' });
+      setResetOpen(false);
+      loadBoard();
+    } catch (err: any) { toast({ title: 'Reset failed', description: err.message, variant: 'destructive' }); }
+    finally { setResetting(false); }
+  };
 
   const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
   const getEffectiveBalance = (s: StudentGameProgress) => liveBalances[s.student_id] ?? s.points_balance ?? 0;
@@ -109,7 +134,7 @@ const GameBoard = () => {
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate('/classroom')} className="gap-1"><ArrowLeft className="h-4 w-4" /> Classroom</Button>
         <h1 className="text-lg font-bold font-heading flex items-center gap-2"><Flag className="h-5 w-5 text-accent" /> Race Board</h1>
-        <div />
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setResetOpen(true)} title="Reset race"><RotateCcw className="h-4 w-4 text-muted-foreground" /></Button>
       </div>
 
       {/* Class banner */}
@@ -124,7 +149,6 @@ const GameBoard = () => {
               <Badge className="bg-accent/20 text-accent-foreground border-accent/30 gap-1"><PartyPopper className="h-3 w-3" /> {finishedCount} finished!</Badge>
             )}
             {settings?.mission_of_the_day && <div className="text-right"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mission</p><p className="text-sm font-semibold">{settings.mission_of_the_day}</p></div>}
-            {settings?.word_of_the_week && <Badge variant="outline" className="text-xs gap-1">📖 {settings.word_of_the_week}</Badge>}
           </div>
         </CardContent>
       </Card>
@@ -138,7 +162,6 @@ const GameBoard = () => {
                 <span className="text-xl">{t.team_icon}</span>
                 <p className="text-xs font-bold mt-1" style={{ color: t.team_color }}>{t.team_name}</p>
                 <p className="text-lg font-bold tabular-nums">{t.total_points}</p>
-                <p className="text-[10px] text-muted-foreground">{t.member_count} members</p>
               </CardContent>
             </Card>
           ))}
@@ -150,7 +173,7 @@ const GameBoard = () => {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent" /><p className="text-sm font-bold">Race Track</p></div>
-            <p className="text-[10px] text-muted-foreground">{TRACK_LENGTH} point finish</p>
+            <p className="text-[10px] text-muted-foreground">{TRACK_LENGTH} point finish · {CHECKPOINT_INTERVAL}pt checkpoints</p>
           </div>
 
           <div className="relative bg-muted/30 rounded-2xl p-4 min-h-[180px] overflow-hidden border border-border/30">
@@ -165,7 +188,6 @@ const GameBoard = () => {
                   <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[9px] font-bold text-muted-foreground whitespace-nowrap">{cp}</span>
                 </div>
               ))}
-              {/* Finish flag */}
               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 text-lg">🏁</div>
             </div>
 
@@ -188,11 +210,11 @@ const GameBoard = () => {
                   )} style={{ left: `calc(${Math.max(3, Math.min(93, pct))}% - 16px)`, top: `${yOffset}px` }}>
                     {isFlashing && <div className="absolute inset-0 -m-3 rounded-full bg-amber-400/30 animate-ping" />}
                     {isCheckpoint && <div className="absolute -top-6 text-sm animate-bounce">⭐</div>}
+                    {isFinished && <div className="absolute -top-5 text-xs animate-bounce">🏆</div>}
                     <div className={cn(
                       "relative z-10 flex items-center justify-center w-9 h-9 rounded-full transition-all duration-500",
                       isFlashing ? "shadow-lg shadow-amber-400/40 ring-2 ring-amber-400" : "shadow-sm",
                       isFinished && "ring-2 ring-accent shadow-accent/30",
-                      s.team_color ? `ring-2` : ''
                     )} style={s.team_color ? { borderColor: s.team_color } : {}}>
                       <span className="text-xl">{s.avatar_emoji || '👤'}</span>
                     </div>
@@ -238,6 +260,22 @@ const GameBoard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Reset Dialog */}
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle className="font-heading flex items-center gap-2 text-destructive"><RotateCcw className="h-5 w-5" /> Reset Race</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">This will delete all point entries and reset all students to the starting position. This cannot be undone.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setResetOpen(false)}>Cancel</Button>
+              <Button variant="destructive" className="flex-1 gap-1" onClick={handleReset} disabled={resetting}>
+                {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Reset
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
