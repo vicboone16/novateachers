@@ -537,7 +537,73 @@ const AdminDashboard = () => {
             })}
           </TabsContent>
 
-          {/* ═══════════════ STUDENTS ═══════════════ */}
+          {/* ═══════════════ CLASSROOMS ═══════════════ */}
+          <TabsContent value="classrooms" className="space-y-3 mt-4">
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-muted-foreground">Create classrooms and assign board URL slugs.</p>
+              <Dialog open={showAddClassroom} onOpenChange={setShowAddClassroom}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Add Classroom</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Create Classroom</DialogTitle></DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Classroom Name *</Label>
+                      <Input value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="e.g. Room 204" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Grade Band</Label>
+                        <Input value={newClassGrade} onChange={e => setNewClassGrade(e.target.value)} placeholder="e.g. K-2" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">School Name</Label>
+                        <Input value={newClassSchool} onChange={e => setNewClassSchool(e.target.value)} placeholder="e.g. Lincoln Elementary" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Board URL Slug</Label>
+                      <Input value={newClassSlug} onChange={e => setNewClassSlug(e.target.value)} placeholder="e.g. room-204" />
+                      <p className="text-[10px] text-muted-foreground">
+                        Optional. Allows the display board to be opened at <code>/board/your-slug</code> without login.
+                      </p>
+                    </div>
+                    <Button onClick={handleAddClassroom} disabled={addingClassroom || !newClassName.trim()} className="w-full">
+                      {addingClassroom ? 'Creating…' : 'Create Classroom'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {filtered(classrooms, ['group_id', 'name', 'board_slug']).map(c => (
+              <Card key={c.group_id} className="border-border/50">
+                <CardContent className="py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <code className="text-[10px] text-muted-foreground font-mono">{c.group_id.slice(0, 12)}…</code>
+                      {c.board_slug && (
+                        <Badge variant="outline" className="text-[9px] gap-1">
+                          /board/{c.board_slug}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {c.grade_band && <Badge variant="outline" className="text-[9px]">{c.grade_band}</Badge>}
+                  {c.school_name && <Badge variant="secondary" className="text-[9px]">{c.school_name}</Badge>}
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyToClipboard(c.group_id)}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+            {classrooms.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">No classrooms yet. Create one above.</p>
+            )}
+          </TabsContent>
+
           <TabsContent value="students" className="space-y-3 mt-4">
             <div className="flex justify-between items-center">
               <p className="text-xs text-muted-foreground">Add students that may or may not integrate with NovaCore.</p>
