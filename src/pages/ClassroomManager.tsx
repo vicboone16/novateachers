@@ -580,9 +580,9 @@ const ClassroomManager = () => {
       ) : (
         <div className="space-y-4">
           {groups.map((group) => {
-            const teacherUserIds = new Set(group.teachers.map(t => t.user_id));
+            const teacherUserIds = new Set(group.teachers.map(t => `${t.user_id}-${t.staff_role}`));
             const studentClientIds = new Set(group.students.map(s => s.client_id));
-            const availableTeachers = allMembers.filter(m => !teacherUserIds.has(m.user_id));
+            const availableTeachers = allMembers;
             const availableStudents = allClients.filter(c => !studentClientIds.has(c.id));
 
             // Filtered available students for bulk dialog
