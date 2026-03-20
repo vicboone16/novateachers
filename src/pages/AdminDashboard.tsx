@@ -350,7 +350,7 @@ const AdminDashboard = () => {
     }
   };
 
-
+  if (!isAdmin) {
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground">Admin access required.</p>
