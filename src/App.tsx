@@ -46,6 +46,7 @@ import GameBoardPage from "@/pages/GameBoard";
 import GameSettings from "@/pages/GameSettings";
 import ClassroomLive from "@/pages/ClassroomLive";
 import AvatarUnlocks from "@/pages/AvatarUnlocks";
+import PointRulesManager from "@/pages/PointRulesManager";
 
 const queryClient = new QueryClient();
 
