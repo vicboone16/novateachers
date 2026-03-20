@@ -259,6 +259,35 @@ const BoardConfig = () => {
             </CardContent>
           </Card>
 
+          {/* Board URL Slug */}
+          <Card className="border-border/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-heading">Public Board URL</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Set a custom URL slug so the board can be opened without login at <code className="text-foreground">/board/your-slug</code>
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={slugValue}
+                  onChange={e => setSlugValue(e.target.value)}
+                  placeholder="e.g. room-204"
+                  className="flex-1"
+                />
+                <Button size="sm" onClick={handleSaveSlug} disabled={savingSlug} className="gap-1.5">
+                  {savingSlug ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Set URL
+                </Button>
+              </div>
+              {slugValue && (
+                <p className="text-xs text-muted-foreground">
+                  Board URL: <code className="text-primary">{window.location.origin}/board/{slugValue.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-')}</code>
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="sm:col-span-2">
             <Button onClick={handleSave} disabled={saving} className="gap-1.5">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
