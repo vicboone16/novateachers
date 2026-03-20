@@ -66,7 +66,9 @@ const ProtectedRoutes = () => {
     <AppAccessProvider>
       <AppAccessGuard>
         <WorkspaceProvider>
-          <WorkspaceRoutes />
+          <ActiveClassroomProvider>
+            <WorkspaceRoutes />
+          </ActiveClassroomProvider>
         </WorkspaceProvider>
       </AppAccessGuard>
     </AppAccessProvider>
