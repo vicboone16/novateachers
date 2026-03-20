@@ -54,7 +54,7 @@ interface GuestCode {
 }
 
 interface GroupWithMembers extends ClassroomGroup {
-  teachers: { id: string; user_id: string }[];
+  teachers: { id: string; user_id: string; staff_role: string }[];
   students: { id: string; client_id: string; client?: Client }[];
   guestCodes: GuestCode[];
 }
