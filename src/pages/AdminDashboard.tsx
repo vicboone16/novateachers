@@ -26,6 +26,7 @@ import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import { NOTIFICATION_LABELS } from '@/lib/notifications';
+import { MaydayContactsManager } from '@/components/MaydayContactsManager';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
