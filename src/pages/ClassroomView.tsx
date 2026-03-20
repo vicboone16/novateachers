@@ -859,9 +859,9 @@ function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
   useEffect(() => {
     if (!agencyId) return;
     supabase.from('beacon_rewards' as any).select('name, emoji, point_cost').eq('is_active', true).order('point_cost', { ascending: true }).limit(5)
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         setRewards((data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.point_cost })));
-      }).catch(() => {});
+      });
   }, [agencyId]);
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
