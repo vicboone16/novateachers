@@ -756,7 +756,7 @@ const ClassroomView = () => {
                       onClick={() => navigate(`/collect?student=${client.id}`)}
                       className="flex items-center gap-0.5 rounded border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
                     >
-                      <Target className="h-2.5 w-2.5" />Probe
+                      <Target className="h-2.5 w-2.5" />Add Data
                     </button>
                     <div className="ml-auto flex gap-0.5">
                       <button onClick={() => logEngagement(client.id, true)} title="Engaged"

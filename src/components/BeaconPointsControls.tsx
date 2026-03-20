@@ -101,15 +101,44 @@ export const BeaconPointsControls = ({
         {balance}
       </Badge>
 
-      {/* Quick +1 button */}
-      <button
-        onClick={() => handleAward(1)}
-        disabled={awarding}
-        title="Award 1 point"
-        className="flex items-center justify-center h-6 w-6 rounded-md border border-accent/40 bg-accent/10 text-accent-foreground transition-colors hover:bg-accent/20 active:scale-90 disabled:opacity-50"
-      >
-        <Plus className="h-3 w-3" />
-      </button>
+      {/* Quick add button with positive behavior options */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            disabled={awarding}
+            title="Log positive behavior"
+            className="flex items-center justify-center h-6 w-6 rounded-md border border-accent/40 bg-accent/10 text-foreground transition-colors hover:bg-accent/20 active:scale-90 disabled:opacity-50"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2 space-y-1.5" align="start" side="top">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+            Log to ⭐
+          </p>
+          <button
+            onClick={() => { handleAward(1, 'manual', 'Replacement behavior'); }}
+            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+          >
+            <span>🟢</span>
+            <span>Replacement Behavior</span>
+          </button>
+          <button
+            onClick={() => { handleAward(1, 'manual', 'Positive behavior'); }}
+            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+          >
+            <span>⭐</span>
+            <span>Positive Behavior</span>
+          </button>
+          <button
+            onClick={() => handleAward(1)}
+            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+          >
+            <span>➕</span>
+            <span>Quick +1</span>
+          </button>
+        </PopoverContent>
+      </Popover>
 
       {/* More options popover */}
       <Popover>
