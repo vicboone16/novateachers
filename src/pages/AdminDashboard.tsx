@@ -64,6 +64,7 @@ interface ClassroomGroup {
   agency_id: string;
   grade_band: string | null;
   school_name: string | null;
+  board_slug: string | null;
 }
 
 const AdminDashboard = () => {
