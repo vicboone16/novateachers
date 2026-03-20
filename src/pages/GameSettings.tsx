@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
 import { useToast } from '@/hooks/use-toast';
