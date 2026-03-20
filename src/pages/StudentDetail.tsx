@@ -271,6 +271,7 @@ const StudentDetail = () => {
               {/* Targets */}
               <TargetManager
                 clientId={client.id}
+                agencyId={currentWorkspace?.agency_id}
                 targets={targets}
                 onRefresh={loadDataTab}
                 readOnly={!isSoloMode && !permissions.can_collect_data}
