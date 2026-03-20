@@ -217,6 +217,7 @@ const ClassroomManager = () => {
         teachers: teacherRows.filter(t => t.group_id === g.group_id).map(t => ({
           id: t.id,
           user_id: t.user_id,
+          staff_role: t.staff_role || 'teacher',
         })),
         students: studentRows.filter(s => s.group_id === g.group_id).map(s => ({
           id: s.id,
