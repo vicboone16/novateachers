@@ -7,6 +7,7 @@ import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
+import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { getStudentBalances } from '@/lib/beacon-points';
