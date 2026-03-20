@@ -118,21 +118,21 @@ export const BeaconPointsControls = ({
           </p>
           <button
             onClick={() => { handleAward(1, 'manual', 'Replacement behavior'); }}
-            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10 transition-colors text-left"
           >
             <span>🟢</span>
             <span>Replacement Behavior</span>
           </button>
           <button
             onClick={() => { handleAward(1, 'manual', 'Positive behavior'); }}
-            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10 transition-colors text-left"
           >
             <span>⭐</span>
             <span>Positive Behavior</span>
           </button>
           <button
             onClick={() => handleAward(1)}
-            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10 transition-colors text-left"
           >
             <span>➕</span>
             <span>Quick +1</span>

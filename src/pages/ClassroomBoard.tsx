@@ -91,19 +91,48 @@ export default function ClassroomBoard() {
   const [classroomName, setClassroomName] = useState('');
   const [recentFlash, setRecentFlash] = useState<string | null>(null);
   const [topRewards, setTopRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
+  const [resolveState, setResolveState] = useState<'loading' | 'resolved' | 'empty'>('loading');
 
-  // Auto-discover classroom if not in URL
+  // Auto-discover classroom with cascading fallbacks + timeout
   useEffect(() => {
     if (classroomParam) {
       setClassroomId(classroomParam);
+      setResolveState('resolved');
       return;
     }
-    // Try to find first group for current user
-    if (!user) return;
-    cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1)
-      .then(({ data }) => {
-        if (data?.[0]) setClassroomId(data[0].group_id);
-      });
+    if (!user) {
+      // Give auth 6s to settle, then show empty
+      const t = setTimeout(() => setResolveState('empty'), 6000);
+      return () => clearTimeout(t);
+    }
+
+    let cancelled = false;
+    const resolve = async () => {
+      // 1) Try classroom_group_teachers for this user
+      try {
+        const { data } = await cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1);
+        if (!cancelled && data?.[0]) { setClassroomId(data[0].group_id); setResolveState('resolved'); return; }
+      } catch { /* continue */ }
+
+      // 2) Fallback: first classroom group in any agency the user belongs to
+      try {
+        const { data: memberships } = await cloudSupabase.from('classroom_group_teachers').select('group_id').limit(1);
+        if (!cancelled && memberships?.[0]) { setClassroomId(memberships[0].group_id); setResolveState('resolved'); return; }
+      } catch { /* continue */ }
+
+      // 3) Fallback: first classroom group in the system (for demo/dev)
+      try {
+        const { data: groups } = await cloudSupabase.from('classroom_groups').select('group_id').limit(1);
+        if (!cancelled && groups?.[0]) { setClassroomId(groups[0].group_id); setResolveState('resolved'); return; }
+      } catch { /* continue */ }
+
+      if (!cancelled) setResolveState('empty');
+    };
+
+    resolve();
+    // Hard timeout: 8s
+    const timeout = setTimeout(() => { if (!cancelled && !classroomId) setResolveState('empty'); }, 8000);
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [classroomParam, user]);
 
   const loadBoard = useCallback(async () => {
@@ -257,12 +286,27 @@ export default function ClassroomBoard() {
   const skinIcon = settings.point_display_type === 'points' ? '💎' : settings.point_display_type === 'xp' ? '⚡' : '⭐';
 
   if (!classroomId) {
+    if (resolveState === 'empty') {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
+          <div className="text-center space-y-4">
+            <Sparkles className="h-12 w-12 mx-auto text-amber-400/50" />
+            <p className="text-xl font-bold">No Classroom Found</p>
+            <p className="text-sm text-white/50 max-w-xs mx-auto">Could not find a classroom to display. Make sure you are assigned to a classroom group.</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => { setResolveState('loading'); window.location.reload(); }} className="rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-sm font-medium hover:bg-white/20 transition-colors">Retry</button>
+              <button onClick={() => window.history.back()} className="rounded-lg bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/60 hover:bg-white/10 transition-colors">Go Back</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
         <div className="text-center space-y-3">
           <Sparkles className="h-12 w-12 mx-auto text-amber-400 animate-pulse" />
           <p className="text-xl font-bold">Classroom Board</p>
-          <p className="text-sm text-white/60">Loading classroom…</p>
+          <p className="text-sm text-white/60">Finding your classroom…</p>
         </div>
       </div>
     );
