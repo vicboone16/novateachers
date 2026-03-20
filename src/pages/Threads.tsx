@@ -1,9 +1,11 @@
 /**
  * Threads — Slack-like threaded messaging page.
  * Reads/writes to Core-owned threads, messages, reactions, mentions tables.
+ * Falls back to local teacher_messages if Core tables unavailable.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { resolveDisplayNames } from '@/lib/resolve-names';
@@ -83,6 +85,7 @@ const Threads = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState('team');
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
+  const [useLocalMode, setUseLocalMode] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
@@ -92,13 +95,46 @@ const Threads = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('threads' as any)
         .select('*')
         .eq('agency_id', agencyId)
         .order('updated_at', { ascending: false });
+      if (error) throw error;
       setThreads((data || []) as any as Thread[]);
-    } catch { /* silent */ }
+    } catch {
+      // Fallback: use teacher_messages as thread source
+      console.log('[Threads] Core threads unavailable, using local message threads');
+      setUseLocalMode(true);
+      try {
+        const { data: msgs } = await cloudSupabase
+          .from('teacher_messages')
+          .select('*')
+          .eq('agency_id', agencyId)
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        // Group messages by thread_id or subject into virtual threads
+        const threadMap = new Map<string, Thread>();
+        for (const m of (msgs || []) as any[]) {
+          const tid = m.thread_id || m.id;
+          if (!threadMap.has(tid)) {
+            threadMap.set(tid, {
+              id: tid,
+              agency_id: agencyId,
+              classroom_id: null,
+              thread_type: 'team',
+              title: m.subject || 'Conversation',
+              is_private: false,
+              created_by: m.sender_id,
+              created_at: m.created_at,
+              updated_at: m.created_at,
+            });
+          }
+        }
+        setThreads(Array.from(threadMap.values()));
+      } catch { setThreads([]); }
+    }
     setLoading(false);
   }, [user, agencyId]);
 
@@ -106,15 +142,17 @@ const Threads = () => {
 
   // ── Realtime on messages ──
   useEffect(() => {
-    const channel = supabase
+    const table = useLocalMode ? 'teacher_messages' : 'messages';
+    const client = useLocalMode ? cloudSupabase : supabase;
+    const channel = client
       .channel('thread-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, () => {
         if (activeThread) loadMessages(activeThread.id);
         loadThreads();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [activeThread, loadThreads]);
+    return () => { client.removeChannel(channel); };
+  }, [activeThread, loadThreads, useLocalMode]);
 
   // ── Resolve user names ──
   const resolveNames = useCallback(async (ids: string[]) => {
@@ -131,26 +169,46 @@ const Threads = () => {
   // ── Load messages for a thread ──
   const loadMessages = async (threadId: string) => {
     try {
-      const { data } = await supabase
-        .from('messages' as any)
-        .select('*')
-        .eq('thread_id', threadId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
-      const msgs = (data || []) as any as Message[];
-      setMessages(msgs);
-      resolveNames(msgs.map(m => m.sender_id));
-
-      // Load reactions
-      const msgIds = msgs.map(m => m.id);
-      if (msgIds.length > 0) {
-        const { data: rxns } = await supabase
-          .from('message_reactions' as any)
+      if (useLocalMode) {
+        // Load from teacher_messages
+        const { data } = await cloudSupabase
+          .from('teacher_messages')
           .select('*')
-          .in('message_id', msgIds);
-        setReactions((rxns || []) as any as Reaction[]);
-      }
+          .eq('thread_id', threadId)
+          .order('created_at', { ascending: true });
+        const msgs = (data || []).map((m: any) => ({
+          id: m.id,
+          thread_id: m.thread_id || threadId,
+          sender_id: m.sender_id,
+          parent_id: m.parent_id,
+          body: m.body,
+          message_type: m.message_type || 'text',
+          metadata: m.metadata || {},
+          created_at: m.created_at,
+        })) as Message[];
+        setMessages(msgs);
+        resolveNames(msgs.map(m => m.sender_id));
+        setReactions([]);
+      } else {
+        const { data } = await supabase
+          .from('messages' as any)
+          .select('*')
+          .eq('thread_id', threadId)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: true });
+        const msgs = (data || []) as any as Message[];
+        setMessages(msgs);
+        resolveNames(msgs.map(m => m.sender_id));
 
+        const msgIds = msgs.map(m => m.id);
+        if (msgIds.length > 0) {
+          const { data: rxns } = await supabase
+            .from('message_reactions' as any)
+            .select('*')
+            .in('message_id', msgIds);
+          setReactions((rxns || []) as any as Reaction[]);
+        }
+      }
       setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch { /* silent */ }
   };
@@ -165,17 +223,34 @@ const Threads = () => {
     if (!msgText.trim() || !activeThread || !user) return;
     setSending(true);
     try {
-      const { error } = await supabase
-        .from('messages' as any)
-        .insert({
-          thread_id: activeThread.id,
-          sender_id: user.id,
-          body: msgText.trim(),
-          message_type: 'text',
-          metadata: { app_source: 'beacon' },
-        });
-      if (error) throw error;
+      if (useLocalMode) {
+        const { error } = await cloudSupabase
+          .from('teacher_messages')
+          .insert({
+            agency_id: agencyId,
+            sender_id: user.id,
+            recipient_id: user.id, // self-thread for now
+            body: msgText.trim(),
+            thread_id: activeThread.id,
+            message_type: 'note',
+            subject: activeThread.title,
+            metadata: { app_source: 'beacon_thread' },
+          });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('messages' as any)
+          .insert({
+            thread_id: activeThread.id,
+            sender_id: user.id,
+            body: msgText.trim(),
+            message_type: 'text',
+            metadata: { app_source: 'beacon' },
+          });
+        if (error) throw error;
+      }
       setMsgText('');
+      loadMessages(activeThread.id);
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
     } finally {
@@ -187,23 +262,41 @@ const Threads = () => {
   const handleCreateThread = async () => {
     if (!newTitle.trim() || !user) return;
     try {
-      const { data, error } = await supabase
-        .from('threads' as any)
-        .insert({
-          agency_id: agencyId,
-          thread_type: newType,
-          title: newTitle.trim(),
-          is_private: newType === 'teacher_only' || newType === 'one_to_one',
-          created_by: user.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+      if (useLocalMode) {
+        // Create a "thread" via teacher_messages with a thread_id = new uuid
+        const threadId = crypto.randomUUID();
+        const { error } = await cloudSupabase
+          .from('teacher_messages')
+          .insert({
+            id: threadId,
+            agency_id: agencyId,
+            sender_id: user.id,
+            recipient_id: user.id,
+            body: `Thread created: ${newTitle.trim()}`,
+            thread_id: threadId,
+            message_type: 'note',
+            subject: newTitle.trim(),
+            metadata: { app_source: 'beacon_thread', thread_type: newType },
+          });
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('threads' as any)
+          .insert({
+            agency_id: agencyId,
+            thread_type: newType,
+            title: newTitle.trim(),
+            is_private: newType === 'teacher_only' || newType === 'one_to_one',
+            created_by: user.id,
+          })
+          .select()
+          .single();
+        if (error) throw error;
 
-      // Add creator as member
-      await supabase
-        .from('thread_members' as any)
-        .insert({ thread_id: (data as any).id, user_id: user.id, role: 'admin' });
+        await supabase
+          .from('thread_members' as any)
+          .insert({ thread_id: (data as any).id, user_id: user.id, role: 'admin' });
+      }
 
       setCreateOpen(false);
       setNewTitle('');

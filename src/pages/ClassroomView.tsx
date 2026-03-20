@@ -789,6 +789,33 @@ const ClassroomView = () => {
         </div>
       )}
 
+      {/* ─── BOTTOM BAND: Reward Preview + Celebration Feed ─── */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {/* Reward preview strip */}
+        <Card className="border-border/40">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="h-3.5 w-3.5 text-pink-500" />
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rewards</span>
+              <button onClick={() => navigate('/rewards')} className="ml-auto text-[10px] text-primary hover:underline">View All</button>
+            </div>
+            <RewardPreviewStrip agencyId={effectiveAgencyId} />
+          </CardContent>
+        </Card>
+
+        {/* Celebration / kid-safe feed */}
+        <Card className="border-border/40">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Celebrations</span>
+              <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-[10px] text-primary hover:underline">Feed</button>
+            </div>
+            <CelebrationFeedStrip groupId={activeGroupId} />
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Quick Action Modal */}
       {quickActionStudent && (
         <StudentQuickActionModal
@@ -822,6 +849,60 @@ function SummaryChip({ icon: Icon, label, value, color }: {
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className="text-sm font-bold leading-none">{value}</p>
       </div>
+    </div>
+  );
+}
+
+/* ── Reward preview strip (bottom band left) ── */
+function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
+  const [rewards, setRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
+  useEffect(() => {
+    if (!agencyId) return;
+    supabase.from('beacon_rewards' as any).select('name, emoji, point_cost').eq('is_active', true).order('point_cost', { ascending: true }).limit(5)
+      .then(({ data }: any) => {
+        setRewards((data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.point_cost })));
+      });
+  }, [agencyId]);
+
+  if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {rewards.map((r, i) => (
+        <div key={i} className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/20 px-2.5 py-1.5 shrink-0">
+          <span className="text-base">{r.emoji}</span>
+          <div>
+            <p className="text-[10px] font-semibold leading-tight">{r.name}</p>
+            <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold tabular-nums">⭐ {r.cost}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Celebration feed strip (bottom band right) ── */
+function CelebrationFeedStrip({ groupId }: { groupId: string | null }) {
+  const [posts, setPosts] = useState<{ id: string; body: string; title: string | null; post_type: string }[]>([]);
+  useEffect(() => {
+    if (!groupId) return;
+    cloudSupabase.from('classroom_feed_posts')
+      .select('id, body, title, post_type')
+      .eq('group_id', groupId)
+      .in('post_type', ['celebration', 'announcement', 'positive'])
+      .order('created_at', { ascending: false })
+      .limit(4)
+      .then(({ data }: any) => setPosts((data || []) as any[]));
+  }, [groupId]);
+
+  if (posts.length === 0) return <p className="text-xs text-muted-foreground">No celebrations yet today. 🎉</p>;
+  return (
+    <div className="space-y-1.5">
+      {posts.map(p => (
+        <div key={p.id} className="rounded-lg bg-muted/20 px-2.5 py-1.5">
+          {p.title && <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">{p.title}</p>}
+          <p className="text-[10px] text-foreground/80 leading-snug">{p.body}</p>
+        </div>
+      ))}
     </div>
   );
 }

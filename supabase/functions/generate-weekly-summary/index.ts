@@ -194,6 +194,33 @@ Deno.serve(async (req) => {
       const completedPrompts = engagementTotal;
       const snoozedPrompts = snoozeEvents.length;
 
+      // ── Points / Stars summary from Cloud beacon_points_ledger ──
+      const { data: pointsData } = await cloud
+        .from('beacon_points_ledger')
+        .select('points, source, entry_kind, reason, created_at')
+        .eq('student_id', combo.student_id)
+        .eq('staff_id', combo.staff_id)
+        .gte('created_at', weekStartTs)
+        .lte('created_at', weekEndTs);
+
+      const pointsEntries = pointsData || [];
+      const totalEarned = pointsEntries.filter((p: any) => p.points > 0).reduce((s: number, p: any) => s + p.points, 0);
+      const totalSpent = pointsEntries.filter((p: any) => p.points < 0).reduce((s: number, p: any) => s + Math.abs(p.points), 0);
+      const netPoints = pointsEntries.reduce((s: number, p: any) => s + p.points, 0);
+      const pointsBySource: Record<string, number> = {};
+      for (const p of pointsEntries as any[]) {
+        const src = p.source || 'unknown';
+        pointsBySource[src] = (pointsBySource[src] || 0) + p.points;
+      }
+
+      const pointsSummary = {
+        total_earned: totalEarned,
+        total_spent: totalSpent,
+        net_points: netPoints,
+        total_entries: pointsEntries.length,
+        by_source: pointsBySource,
+      };
+
       const behaviorSummary = {
         ...behaviorTotals,
         total_events: Object.values(behaviorTotals).reduce((a, b) => a + b, 0),
@@ -231,7 +258,7 @@ Deno.serve(async (req) => {
         school_days: schoolDays,
       };
 
-      // Write summary to Lovable Cloud
+      // Write summary to Lovable Cloud (includes points_summary in behavior_summary)
       const { error: insertErr } = await cloud
         .from('teacher_weekly_summaries')
         .insert({
@@ -240,7 +267,7 @@ Deno.serve(async (req) => {
           agency_id: combo.agency_id,
           week_start: weekStartStr,
           week_end: weekEndStr,
-          behavior_summary: behaviorSummary,
+          behavior_summary: { ...behaviorSummary, points_summary: pointsSummary },
           engagement_summary: engagementSummaryJson,
           abc_summary: abcSummaryJson,
           trigger_summary: triggerSummaryJson,
