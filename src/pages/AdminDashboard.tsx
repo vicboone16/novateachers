@@ -306,8 +306,51 @@ const AdminDashboard = () => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
+  const handleAddClassroom = async () => {
+    if (!currentWorkspace || !user || !newClassName.trim()) return;
+    setAddingClassroom(true);
+    try {
+      const slug = newClassSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || null;
+      const insertData: any = {
+        agency_id: currentWorkspace.agency_id,
+        name: newClassName.trim(),
+        created_by: user.id,
+        board_slug: slug,
+      };
+      if (newClassGrade.trim()) insertData.grade_band = newClassGrade.trim();
+      if (newClassSchool.trim()) insertData.school_name = newClassSchool.trim();
+      const { error } = await cloudSupabase.from('classroom_groups').insert(insertData);
+      if (error) throw error;
+      // Sync to Nova Core
+      const { data: newGroup } = await cloudSupabase
+        .from('classroom_groups')
+        .select('group_id, name, grade_band, school_name')
+        .eq('agency_id', currentWorkspace.agency_id)
+        .eq('name', newClassName.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (newGroup) {
+        await supabase.from('classrooms').upsert({
+          id: (newGroup as any).group_id,
+          name: (newGroup as any).name,
+          grade_band: (newGroup as any).grade_band,
+          school_name: (newGroup as any).school_name,
+          agency_id: currentWorkspace.agency_id,
+        }, { onConflict: 'id' });
+      }
+      toast({ title: '✓ Classroom created', description: slug ? `Board URL: /board/${slug}` : undefined });
+      setShowAddClassroom(false);
+      setNewClassName(''); setNewClassGrade(''); setNewClassSchool(''); setNewClassSlug('');
+      loadAll();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setAddingClassroom(false);
+    }
+  };
 
-  if (!isAdmin) {
+
     return (
       <div className="py-12 text-center">
         <p className="text-muted-foreground">Admin access required.</p>
