@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppAccessProvider } from "@/contexts/AppAccessContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
+import { ActiveClassroomProvider } from "@/contexts/ActiveClassroomContext";
 
 import { AppAccessGuard } from "@/components/AppAccessGuard";
 import { AppLayout } from "@/components/AppLayout";
@@ -65,7 +66,9 @@ const ProtectedRoutes = () => {
     <AppAccessProvider>
       <AppAccessGuard>
         <WorkspaceProvider>
-          <WorkspaceRoutes />
+          <ActiveClassroomProvider>
+            <WorkspaceRoutes />
+          </ActiveClassroomProvider>
         </WorkspaceProvider>
       </AppAccessGuard>
     </AppAccessProvider>
