@@ -349,31 +349,31 @@ const ClassroomManager = () => {
   const handleAssignTeacher = async () => {
     if (!assignTeacherGroupId || !selectedUserId) return;
     try {
-      const row = { group_id: assignTeacherGroupId, user_id: selectedUserId };
-      // Try insert first (simpler, avoids upsert conflict target issues)
+      const row = { group_id: assignTeacherGroupId, user_id: selectedUserId, staff_role: selectedStaffRole };
       const { error } = await cloudSupabase.from('classroom_group_teachers').insert(row);
       if (error) {
         const msg = String(error.message || '').toLowerCase();
-        // Ignore duplicate — teacher already assigned
         if (msg.includes('duplicate') || msg.includes('23505')) {
-          toast({ title: 'Teacher already assigned to this classroom' });
+          toast({ title: 'This person is already assigned with that role' });
           setAssignTeacherGroupId(null);
           setSelectedUserId('');
+          setSelectedStaffRole('teacher');
           return;
         }
-        if (import.meta.env.DEV) console.error('[Classroom] Teacher assign error:', error);
+        if (import.meta.env.DEV) console.error('[Classroom] Staff assign error:', error);
         throw error;
       }
       const member = allMembers.find(m => m.user_id === selectedUserId);
       toast({
-        title: 'Teacher assigned',
-        description: member ? `${member.display_name} (synced from staff)` : undefined,
+        title: 'Staff assigned',
+        description: member ? `${member.display_name} as ${selectedStaffRole}` : undefined,
       });
       setAssignTeacherGroupId(null);
       setSelectedUserId('');
+      setSelectedStaffRole('teacher');
       loadAll();
     } catch (err: any) {
-      toast({ title: 'Error assigning teacher', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error assigning staff', description: err.message, variant: 'destructive' });
     }
   };
 
