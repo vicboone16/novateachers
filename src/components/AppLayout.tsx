@@ -258,6 +258,9 @@ function MoreNavDropdown() {
         <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2">
           <ShieldCheck className="h-3.5 w-3.5" /> Admin
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/point-rules')} className="gap-2">
+          <Star className="h-3.5 w-3.5" /> Point Rules
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/tracker')} className="gap-2">
           <Activity className="h-3.5 w-3.5" /> Tracker
