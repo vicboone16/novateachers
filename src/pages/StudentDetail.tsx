@@ -83,7 +83,7 @@ const StudentDetail = () => {
 
     const [logsRes, targetsRes, sessionsRes] = await Promise.all([
       supabase.from('abc_logs').select('*').eq('client_id', id).order('logged_at', { ascending: false }).limit(200),
-      supabase.from('teacher_targets').select('*').eq('client_id', id).eq('agency_id', currentWorkspace.agency_id).order('name'),
+      supabase.from('teacher_targets').select('*').eq('agency_id', currentWorkspace.agency_id).or(`client_id.eq.${id},client_id.is.null`).order('name'),
       supabase.from('teacher_data_sessions').select('*').eq('client_id', id).eq('agency_id', currentWorkspace.agency_id).order('started_at', { ascending: false }).limit(50),
     ]);
 
@@ -271,6 +271,7 @@ const StudentDetail = () => {
               {/* Targets */}
               <TargetManager
                 clientId={client.id}
+                agencyId={currentWorkspace?.agency_id}
                 targets={targets}
                 onRefresh={loadDataTab}
                 readOnly={!isSoloMode && !permissions.can_collect_data}

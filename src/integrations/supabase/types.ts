@@ -144,11 +144,14 @@ export type Database = {
         Row: {
           abc_log_id: string | null
           agency_id: string
+          base_points: number | null
           created_at: string
           entry_kind: string | null
           id: string
           is_reversal: boolean
           manual_reason_category: string | null
+          override_points: number | null
+          point_adjustment: number
           point_rule_id: string | null
           points: number
           reason: string | null
@@ -157,6 +160,7 @@ export type Database = {
           source_event_id: string | null
           staff_id: string
           student_id: string
+          target_id: string | null
           teacher_data_event_id: string | null
           teacher_duration_entry_id: string | null
           teacher_frequency_entry_id: string | null
@@ -164,11 +168,14 @@ export type Database = {
         Insert: {
           abc_log_id?: string | null
           agency_id: string
+          base_points?: number | null
           created_at?: string
           entry_kind?: string | null
           id?: string
           is_reversal?: boolean
           manual_reason_category?: string | null
+          override_points?: number | null
+          point_adjustment?: number
           point_rule_id?: string | null
           points: number
           reason?: string | null
@@ -177,6 +184,7 @@ export type Database = {
           source_event_id?: string | null
           staff_id: string
           student_id: string
+          target_id?: string | null
           teacher_data_event_id?: string | null
           teacher_duration_entry_id?: string | null
           teacher_frequency_entry_id?: string | null
@@ -184,11 +192,14 @@ export type Database = {
         Update: {
           abc_log_id?: string | null
           agency_id?: string
+          base_points?: number | null
           created_at?: string
           entry_kind?: string | null
           id?: string
           is_reversal?: boolean
           manual_reason_category?: string | null
+          override_points?: number | null
+          point_adjustment?: number
           point_rule_id?: string | null
           points?: number
           reason?: string | null
@@ -197,11 +208,20 @@ export type Database = {
           source_event_id?: string | null
           staff_id?: string
           student_id?: string
+          target_id?: string | null
           teacher_data_event_id?: string | null
           teacher_duration_entry_id?: string | null
           teacher_frequency_entry_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "beacon_points_ledger_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_targets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       beacon_reinforcement_templates: {
         Row: {
@@ -1404,6 +1424,7 @@ export type Database = {
           mapped_rule_id: string | null
           sort_order: number
           source_table: string
+          target_id: string | null
         }
         Insert: {
           action_group?: string | null
@@ -1422,6 +1443,7 @@ export type Database = {
           mapped_rule_id?: string | null
           sort_order?: number
           source_table?: string
+          target_id?: string | null
         }
         Update: {
           action_group?: string | null
@@ -1440,6 +1462,7 @@ export type Database = {
           mapped_rule_id?: string | null
           sort_order?: number
           source_table?: string
+          target_id?: string | null
         }
         Relationships: [
           {
@@ -1447,6 +1470,13 @@ export type Database = {
             columns: ["mapped_rule_id"]
             isOneToOne: false
             referencedRelation: "teacher_point_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_point_actions_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_targets"
             referencedColumns: ["id"]
           },
         ]
@@ -1467,6 +1497,7 @@ export type Database = {
           rule_name: string
           rule_type: string
           source_table: string
+          target_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1484,6 +1515,7 @@ export type Database = {
           rule_name: string
           rule_type?: string
           source_table: string
+          target_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1501,9 +1533,18 @@ export type Database = {
           rule_name?: string
           rule_type?: string
           source_table?: string
+          target_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teacher_point_rules_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_targets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teacher_quick_notes: {
         Row: {
@@ -1604,6 +1645,66 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      teacher_targets: {
+        Row: {
+          action_group: string | null
+          active: boolean
+          agency_id: string
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          default_behavior_category: string | null
+          default_behavior_name: string | null
+          default_event_subtype: string | null
+          default_event_type: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          source_table: string
+          target_type: string
+          updated_at: string
+        }
+        Insert: {
+          action_group?: string | null
+          active?: boolean
+          agency_id: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_behavior_category?: string | null
+          default_behavior_name?: string | null
+          default_event_subtype?: string | null
+          default_event_type?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          source_table?: string
+          target_type: string
+          updated_at?: string
+        }
+        Update: {
+          action_group?: string | null
+          active?: boolean
+          agency_id?: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_behavior_category?: string | null
+          default_behavior_name?: string | null
+          default_event_subtype?: string | null
+          default_event_type?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          source_table?: string
+          target_type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1986,6 +2087,7 @@ export type Database = {
           rule_name: string
           rule_type: string
           source_table: string
+          target_id: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -2020,6 +2122,20 @@ export type Database = {
           p_source?: string
           p_staff_id: string
           p_student_id: string
+        }
+        Returns: Json
+      }
+      log_target_action: {
+        Args: {
+          p_agency_id: string
+          p_classroom_id: string
+          p_notes?: string
+          p_override_points?: number
+          p_point_adjustment?: number
+          p_recorded_at?: string
+          p_staff_id: string
+          p_student_id: string
+          p_target_id: string
         }
         Returns: Json
       }
