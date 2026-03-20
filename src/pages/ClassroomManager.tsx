@@ -694,8 +694,8 @@ const ClassroomManager = () => {
                       </p>
                       <Dialog open={assignTeacherGroupId === group.group_id} onOpenChange={(o) => { if (!o) setAssignTeacherGroupId(null); }}>
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setAssignTeacherGroupId(group.group_id)}>
-                            <Plus className="h-3 w-3" /> Add
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setAssignTeacherGroupId(group.group_id); setSelectedStaffRole('teacher'); }}>
+                            <Plus className="h-3 w-3" /> Add Staff
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
