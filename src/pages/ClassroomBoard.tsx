@@ -286,12 +286,27 @@ export default function ClassroomBoard() {
   const skinIcon = settings.point_display_type === 'points' ? '💎' : settings.point_display_type === 'xp' ? '⚡' : '⭐';
 
   if (!classroomId) {
+    if (resolveState === 'empty') {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
+          <div className="text-center space-y-4">
+            <Sparkles className="h-12 w-12 mx-auto text-amber-400/50" />
+            <p className="text-xl font-bold">No Classroom Found</p>
+            <p className="text-sm text-white/50 max-w-xs mx-auto">Could not find a classroom to display. Make sure you are assigned to a classroom group.</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => { setResolveState('loading'); window.location.reload(); }} className="rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-sm font-medium hover:bg-white/20 transition-colors">Retry</button>
+              <button onClick={() => window.history.back()} className="rounded-lg bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/60 hover:bg-white/10 transition-colors">Go Back</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
         <div className="text-center space-y-3">
           <Sparkles className="h-12 w-12 mx-auto text-amber-400 animate-pulse" />
           <p className="text-xl font-bold">Classroom Board</p>
-          <p className="text-sm text-white/60">Loading classroom…</p>
+          <p className="text-sm text-white/60">Finding your classroom…</p>
         </div>
       </div>
     );
