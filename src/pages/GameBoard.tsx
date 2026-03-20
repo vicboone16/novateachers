@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
+import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { getClassroomGameSettings, getClassroomGameProgress, getTeamScores } from '@/lib/game-data';
