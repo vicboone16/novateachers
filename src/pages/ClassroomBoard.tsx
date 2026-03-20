@@ -1,15 +1,18 @@
 /**
- * ClassroomBoard — Read-only projectable page showing student points,
- * class goals, celebrations, mission of the day, word of the week.
- * No edit controls — designed for projection/student viewing.
+ * ClassroomBoard — Kid-safe projectable page.
+ * Pulls from Cloud (points, groups, feed) and Core (board settings, game profiles).
+ * Auto-discovers classroom from auth context or query param.
+ * No teacher controls visible.
  */
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { Star, Award, Target, Trophy, Sparkles } from 'lucide-react';
+import { Star, Award, Target, Trophy, Sparkles, Flag, Users, Gift } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 
 interface BoardSettings {
   show_points: boolean;
@@ -18,23 +21,33 @@ interface BoardSettings {
   show_word_of_week: boolean;
   show_reward_progress: boolean;
   show_celebrations: boolean;
+  privacy_mode: 'full_names' | 'first_names' | 'initials' | 'avatars_only';
   mission_text: string | null;
   word_of_week: string | null;
   class_goal_label: string;
   class_goal_target: number;
   class_goal_current: number;
+  teams_enabled: boolean;
+  point_display_type: string;
 }
 
-interface StudentProfile {
+interface StudentCard {
   student_id: string;
   display_name: string;
+  first_name: string;
+  last_name: string;
   avatar_emoji: string;
-  is_visible: boolean;
+  balance: number;
+  team_name?: string;
+  team_color?: string;
 }
 
-interface PointBalance {
-  student_id: string;
-  balance: number;
+interface FeedPost {
+  id: string;
+  body: string;
+  post_type: string;
+  title: string | null;
+  created_at: string;
 }
 
 const DEFAULT_SETTINGS: BoardSettings = {
@@ -44,116 +57,192 @@ const DEFAULT_SETTINGS: BoardSettings = {
   show_word_of_week: true,
   show_reward_progress: true,
   show_celebrations: true,
+  privacy_mode: 'first_names',
   mission_text: 'Be kind. Work hard. Have fun.',
   word_of_week: 'Perseverance',
   class_goal_label: 'Class Goal',
   class_goal_target: 100,
   class_goal_current: 0,
+  teams_enabled: false,
+  point_display_type: 'stars',
 };
 
-// Confetti particle component
+const TRACK_LENGTH = 100;
+const CHECKPOINT_INTERVAL = 20;
+
 function ConfettiParticle({ delay, x }: { delay: number; x: number }) {
   const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899'];
   const color = colors[Math.floor(Math.random() * colors.length)];
   return (
-    <div
-      className="absolute w-3 h-3 rounded-sm animate-bounce"
-      style={{
-        left: `${x}%`,
-        top: '-10px',
-        backgroundColor: color,
-        animationDelay: `${delay}ms`,
-        animationDuration: `${1500 + Math.random() * 1000}ms`,
-        transform: `rotate(${Math.random() * 360}deg)`,
-      }}
-    />
+    <div className="absolute w-3 h-3 rounded-sm animate-bounce"
+      style={{ left: `${x}%`, top: '-10px', backgroundColor: color, animationDelay: `${delay}ms`, animationDuration: `${1500 + Math.random() * 1000}ms`, transform: `rotate(${Math.random() * 360}deg)` }} />
   );
 }
 
 export default function ClassroomBoard() {
   const [params] = useSearchParams();
-  const classroomId = params.get('classroom');
+  const { user } = useAuth();
+  const classroomParam = params.get('classroom');
 
   const [settings, setSettings] = useState<BoardSettings>(DEFAULT_SETTINGS);
-  const [profiles, setProfiles] = useState<StudentProfile[]>([]);
-  const [balances, setBalances] = useState<PointBalance[]>([]);
-  const [contingency, setContingency] = useState<{ name: string; target: number; current: number; reward: string } | null>(null);
-  const [recentAwards, setRecentAwards] = useState<Map<string, boolean>>(new Map());
-  const [tick, setTick] = useState(0);
+  const [students, setStudents] = useState<StudentCard[]>([]);
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+  const [classroomId, setClassroomId] = useState<string | null>(classroomParam);
+  const [classroomName, setClassroomName] = useState('');
+  const [recentFlash, setRecentFlash] = useState<string | null>(null);
+  const [topRewards, setTopRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
+
+  // Auto-discover classroom if not in URL
+  useEffect(() => {
+    if (classroomParam) {
+      setClassroomId(classroomParam);
+      return;
+    }
+    // Try to find first group for current user
+    if (!user) return;
+    cloudSupabase.from('classroom_group_teachers').select('group_id').eq('user_id', user.id).limit(1)
+      .then(({ data }) => {
+        if (data?.[0]) setClassroomId(data[0].group_id);
+      });
+  }, [classroomParam, user]);
 
   const loadBoard = useCallback(async () => {
     if (!classroomId) return;
 
+    // Load classroom name
+    const { data: grp } = await cloudSupabase.from('classroom_groups').select('name').eq('group_id', classroomId).maybeSingle();
+    if (grp) setClassroomName((grp as any).name || '');
+
     // Load board settings from Core
     try {
-      const { data } = await supabase
-        .from('classroom_board_settings' as any)
-        .select('*')
-        .eq('classroom_id', classroomId)
-        .maybeSingle();
-      if (data) setSettings({ ...DEFAULT_SETTINGS, ...data });
+      const { data } = await supabase.from('classroom_board_settings' as any).select('*').eq('classroom_id', classroomId).maybeSingle();
+      if (data) setSettings(prev => ({ ...prev, ...data as any }));
     } catch { /* use defaults */ }
 
-    // Load student board profiles from Core
+    // Load game settings from Core for privacy/teams
     try {
-      const { data } = await supabase
-        .from('student_board_profiles' as any)
-        .select('student_id, display_name, avatar_emoji, is_visible')
-        .eq('classroom_id', classroomId);
-      if (data) setProfiles((data as any[]).filter(p => p.is_visible));
-    } catch { /* empty */ }
-
-    // Load point balances from Cloud
-    try {
-      const { data } = await cloudSupabase
-        .from('beacon_points_ledger')
-        .select('student_id, points')
-        .order('created_at', { ascending: false });
+      const { data } = await supabase.from('classroom_game_settings' as any).select('privacy_mode, teams_enabled, point_display_type, mission_of_the_day, word_of_the_week').eq('group_id', classroomId).maybeSingle();
       if (data) {
-        const map = new Map<string, number>();
-        for (const row of data) {
-          map.set(row.student_id, (map.get(row.student_id) || 0) + row.points);
-        }
-        setBalances(Array.from(map.entries()).map(([student_id, balance]) => ({ student_id, balance })));
+        const d = data as any;
+        setSettings(prev => ({
+          ...prev,
+          privacy_mode: d.privacy_mode || prev.privacy_mode,
+          teams_enabled: d.teams_enabled || prev.teams_enabled,
+          point_display_type: d.point_display_type || prev.point_display_type,
+          mission_text: d.mission_of_the_day || prev.mission_text,
+          word_of_week: d.word_of_the_week || prev.word_of_week,
+        }));
       }
-    } catch { /* empty */ }
+    } catch { /* silent */ }
 
-    // Load active class contingency
+    // Load students in this group
+    const { data: groupStudents } = await cloudSupabase.from('classroom_group_students').select('client_id').eq('group_id', classroomId);
+    const studentIds = (groupStudents || []).map((s: any) => s.client_id);
+    if (studentIds.length === 0) { setStudents([]); return; }
+
+    // Load balances from Cloud
+    const { data: ledger } = await cloudSupabase.from('beacon_points_ledger').select('student_id, points').in('student_id', studentIds);
+    const balMap = new Map<string, number>();
+    for (const row of (ledger || [])) {
+      balMap.set(row.student_id, (balMap.get(row.student_id) || 0) + row.points);
+    }
+
+    // Load student names from Core
+    let nameMap = new Map<string, { first_name: string; last_name: string }>();
     try {
-      const { data } = await supabase
-        .from('class_contingencies' as any)
-        .select('name, target_value, current_value, reward_name')
-        .eq('classroom_id', classroomId)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-      if (data) setContingency({ name: data.name, target: data.target_value, current: data.current_value, reward: data.reward_name });
-    } catch { /* empty */ }
-  }, [classroomId]);
+      const { data: clients } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', studentIds);
+      for (const c of (clients || []) as any[]) {
+        nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+      }
+    } catch {
+      // Fallback - try students table
+      try {
+        const { data: stds } = await supabase.from('students' as any).select('id, first_name, last_name').in('id', studentIds);
+        for (const s of (stds || []) as any[]) {
+          nameMap.set(s.id, { first_name: s.first_name || '', last_name: s.last_name || '' });
+        }
+      } catch { /* silent */ }
+    }
+
+    // Load game profiles for avatars
+    let avatarMap = new Map<string, string>();
+    try {
+      const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', studentIds);
+      for (const p of (profiles || []) as any[]) {
+        avatarMap.set(p.student_id, p.avatar_emoji || '');
+      }
+    } catch { /* silent */ }
+
+    const cards: StudentCard[] = studentIds.map(sid => {
+      const names = nameMap.get(sid);
+      return {
+        student_id: sid,
+        display_name: names ? `${names.first_name} ${names.last_name}`.trim() : sid.slice(0, 6),
+        first_name: names?.first_name || '',
+        last_name: names?.last_name || '',
+        avatar_emoji: avatarMap.get(sid) || '👤',
+        balance: balMap.get(sid) || 0,
+      };
+    });
+    setStudents(cards.sort((a, b) => b.balance - a.balance));
+
+    // Load kid-safe feed posts
+    try {
+      const { data: posts } = await cloudSupabase.from('classroom_feed_posts')
+        .select('id, body, post_type, title, created_at')
+        .eq('group_id', classroomId)
+        .in('post_type', ['celebration', 'announcement', 'positive'])
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setFeedPosts((posts || []) as any[]);
+    } catch { /* silent */ }
+
+    // Load top rewards preview
+    try {
+      const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, emoji, point_cost').eq('is_active', true).order('point_cost', { ascending: true }).limit(4);
+      setTopRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.point_cost })));
+    } catch { /* silent */ }
+  }, [classroomId, user]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
 
-  // Auto-refresh every 15s for near-realtime projection
+  // Auto-refresh every 10s + realtime
   useEffect(() => {
-    const timer = setInterval(() => {
-      loadBoard();
-      setTick(t => t + 1);
-    }, 15_000);
+    const timer = setInterval(loadBoard, 10_000);
     return () => clearInterval(timer);
   }, [loadBoard]);
 
-  const goalPct = settings.class_goal_target > 0
-    ? Math.min(100, Math.round((settings.class_goal_current / settings.class_goal_target) * 100))
-    : 0;
+  // Realtime point updates
+  useEffect(() => {
+    const channel = cloudSupabase.channel('board-live').on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'beacon_points_ledger',
+    }, (payload: any) => {
+      const sid = payload.new?.student_id;
+      const pts = payload.new?.points || 0;
+      if (sid) {
+        setStudents(prev => {
+          const updated = prev.map(s => s.student_id === sid ? { ...s, balance: s.balance + pts } : s);
+          return updated.sort((a, b) => b.balance - a.balance);
+        });
+        setRecentFlash(sid);
+        setTimeout(() => setRecentFlash(null), 2000);
+      }
+    }).subscribe();
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, []);
 
-  const contingencyPct = contingency && contingency.target > 0
-    ? Math.min(100, Math.round((contingency.current / contingency.target) * 100))
-    : 0;
+  const getDisplayName = (s: StudentCard) => {
+    const mode = settings.privacy_mode;
+    if (mode === 'avatars_only') return '';
+    if (mode === 'initials') return `${s.first_name[0] || ''}${s.last_name[0] || ''}`;
+    if (mode === 'first_names') return s.first_name || s.display_name.split(' ')[0];
+    return s.display_name;
+  };
 
-  const getBalance = (studentId: string) => balances.find(b => b.student_id === studentId)?.balance || 0;
-
-  // Sort profiles by balance descending for leaderboard feel
-  const sortedProfiles = [...profiles].sort((a, b) => getBalance(b.student_id) - getBalance(a.student_id));
+  const totalClassPoints = students.reduce((sum, s) => sum + s.balance, 0);
+  const goalPct = settings.class_goal_target > 0 ? Math.min(100, Math.round((totalClassPoints / settings.class_goal_target) * 100)) : 0;
+  const finishedCount = students.filter(s => s.balance >= TRACK_LENGTH).length;
+  const skinIcon = settings.point_display_type === 'points' ? '💎' : settings.point_display_type === 'xp' ? '⚡' : '⭐';
 
   if (!classroomId) {
     return (
@@ -161,161 +250,196 @@ export default function ClassroomBoard() {
         <div className="text-center space-y-3">
           <Sparkles className="h-12 w-12 mx-auto text-amber-400 animate-pulse" />
           <p className="text-xl font-bold">Classroom Board</p>
-          <p className="text-sm text-white/60">Add <code className="bg-white/10 px-2 py-0.5 rounded">?classroom=YOUR_ID</code> to the URL</p>
+          <p className="text-sm text-white/60">Loading classroom…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f23] text-white select-none overflow-hidden relative" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-      {/* Subtle animated gradient background */}
-      <div
-        className="absolute inset-0 opacity-30"
-        style={{
-          background: 'radial-gradient(ellipse at 20% 50%, hsl(220 70% 20%) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, hsl(165 55% 15%) 0%, transparent 60%)',
-        }}
-      />
+    <div className="min-h-screen bg-[#0f0f23] text-white select-none overflow-hidden relative" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+      {/* Ambient gradient */}
+      <div className="absolute inset-0 opacity-20" style={{ background: 'radial-gradient(ellipse at 20% 50%, hsl(220 70% 20%) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, hsl(165 55% 15%) 0%, transparent 60%)' }} />
 
-      <div className="relative z-10 p-6 lg:p-8 space-y-6">
-        {/* Top bar: Mission + Word of Week */}
+      <div className="relative z-10 p-5 lg:p-8 space-y-5">
+        {/* Header band */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          {settings.show_mission && settings.mission_text && (
-            <div className="flex items-center gap-3 animate-fade-in">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/30">
-                <Sparkles className="h-5 w-5 text-amber-400 animate-pulse" />
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight">{classroomName || 'Classroom Board'}</h1>
+            <div className="flex items-center gap-3 mt-1">
+              {settings.show_mission && settings.mission_text && (
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="text-sm text-amber-300/80 font-medium">{settings.mission_text}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {settings.show_word_of_week && settings.word_of_week && (
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-[0.15em] text-cyan-400/70 font-semibold">Word of the Week</p>
+                <p className="text-lg font-bold text-cyan-300">{settings.word_of_week}</p>
               </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-400/80 font-semibold">Mission of the Day</p>
-                <p className="text-lg font-bold tracking-tight">{settings.mission_text}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Score band */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Class total */}
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/30 text-2xl">{skinIcon}</div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-semibold">Class Total</p>
+              <p className="text-3xl font-black tabular-nums text-amber-400">{totalClassPoints.toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Class goal */}
+          {settings.show_class_goal && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5"><Target className="h-4 w-4 text-emerald-400" /><span className="text-sm font-semibold">{settings.class_goal_label}</span></div>
+                <span className="text-lg font-bold tabular-nums text-emerald-400">{goalPct}%</span>
+              </div>
+              <Progress value={goalPct} className="h-3 bg-white/10 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-cyan-400 [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-1000" />
+            </div>
+          )}
+
+          {/* Race progress */}
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
+            <Flag className="h-8 w-8 text-violet-400 shrink-0" />
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-semibold">Race</p>
+              <p className="text-lg font-bold">{finishedCount > 0 ? `${finishedCount} finished!` : `${students.length} racing`}</p>
+            </div>
+          </div>
+
+          {/* Students */}
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
+            <Users className="h-8 w-8 text-blue-400 shrink-0" />
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-semibold">Students</p>
+              <p className="text-lg font-bold">{students.length}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Student board grid — BIG cards for projector */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+          {students.map((s, idx) => {
+            const pos = Math.min(s.balance, TRACK_LENGTH);
+            const cp = Math.floor(pos / CHECKPOINT_INTERVAL);
+            const isFinished = pos >= TRACK_LENGTH;
+            const isFlashing = recentFlash === s.student_id;
+            const isTop3 = idx < 3 && students.length > 3;
+
+            return (
+              <div key={s.student_id}
+                className={cn(
+                  'relative flex flex-col items-center rounded-2xl border p-4 transition-all duration-700',
+                  isFlashing ? 'bg-amber-500/15 border-amber-400/50 scale-105 shadow-lg shadow-amber-500/20' :
+                  isTop3 ? 'bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/20' :
+                  'bg-white/5 border-white/10',
+                  isFinished && 'ring-1 ring-emerald-400/40',
+                )}
+                style={{ animationDelay: `${idx * 60}ms` }}>
+                {/* Rank badge */}
+                {isTop3 && (
+                  <div className="absolute -top-2 -right-2 text-base">
+                    {idx === 0 ? '👑' : idx === 1 ? '🥈' : '🥉'}
+                  </div>
+                )}
+                {isFinished && <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-sm">🏆</div>}
+
+                {/* Flash effect */}
+                {isFlashing && <div className="absolute inset-0 rounded-2xl bg-amber-400/10 animate-ping pointer-events-none" style={{ animationDuration: '1s' }} />}
+
+                <span className="text-4xl mb-1.5 transition-transform duration-300" style={isFlashing ? { transform: 'scale(1.15)' } : {}}>{s.avatar_emoji}</span>
+                <p className="font-semibold text-sm truncate w-full text-center">{getDisplayName(s)}</p>
+
+                {/* Points */}
+                <div className="flex items-center gap-1 mt-1.5">
+                  <Star className={cn("h-4 w-4", isTop3 ? "fill-amber-400 text-amber-400" : "fill-amber-500/60 text-amber-500/60")} />
+                  <span className={cn("text-xl font-black tabular-nums", isTop3 ? "text-amber-400" : "text-white/90")}>{s.balance}</span>
+                </div>
+
+                {/* Race mini-bar */}
+                <div className="w-full mt-2 space-y-0.5">
+                  <Progress value={(pos / TRACK_LENGTH) * 100} className="h-1.5 bg-white/10 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-violet-500 [&>div]:to-cyan-400 [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-700" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[8px] text-white/40 tabular-nums">{cp}cp</span>
+                    {s.team_name && <span className="text-[8px] font-bold" style={{ color: s.team_color || '#9ca3af' }}>{s.team_name}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {students.length === 0 && (
+            <p className="col-span-full text-center text-white/40 py-16 text-lg">No students in this classroom yet.</p>
+          )}
+        </div>
+
+        {/* Bottom band: Rewards preview + Feed */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* Rewards preview */}
+          {topRewards.length > 0 && settings.show_reward_progress && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Gift className="h-4 w-4 text-pink-400" />
+                <span className="text-sm font-semibold">Rewards</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {topRewards.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                    <span className="text-xl">{r.emoji}</span>
+                    <div>
+                      <p className="text-xs font-semibold">{r.name}</p>
+                      <p className="text-[10px] text-amber-400 font-bold tabular-nums">{skinIcon} {r.cost}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-          {settings.show_word_of_week && settings.word_of_week && (
-            <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '150ms' }}>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 border border-cyan-500/30">
-                <Award className="h-5 w-5 text-cyan-400" />
+
+          {/* Kid-safe feed */}
+          {feedPosts.length > 0 && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                <span className="text-sm font-semibold">Celebrations</span>
               </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/80 font-semibold">Word of the Week</p>
-                <p className="text-lg font-bold tracking-tight">{settings.word_of_week}</p>
+              <div className="space-y-2">
+                {feedPosts.map(post => (
+                  <div key={post.id} className="rounded-lg bg-white/5 px-3 py-2">
+                    {post.title && <p className="text-xs font-semibold text-amber-300">{post.title}</p>}
+                    <p className="text-xs text-white/70">{post.body}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </div>
-
-        {/* Class Goal + Contingency Progress */}
-        {(settings.show_class_goal || contingency) && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {settings.show_class_goal && (
-              <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-5 animate-fade-in" style={{ animationDelay: '200ms' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-emerald-400" />
-                    <span className="font-semibold">{settings.class_goal_label}</span>
-                  </div>
-                  <span className="text-2xl font-bold tabular-nums text-emerald-400">
-                    {settings.class_goal_current}<span className="text-white/40 text-base">/{settings.class_goal_target}</span>
-                  </span>
-                </div>
-                <div className="relative">
-                  <Progress value={goalPct} className="h-5 bg-white/10 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-cyan-400 [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-1000" />
-                  <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold">{goalPct}%</span>
-                </div>
-              </div>
-            )}
-
-            {contingency && (
-              <div className="rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 p-5 animate-fade-in" style={{ animationDelay: '300ms' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-amber-400" />
-                    <span className="font-semibold">{contingency.name}</span>
-                  </div>
-                  <span className="text-2xl font-bold tabular-nums text-amber-400">
-                    {contingency.current}<span className="text-white/40 text-base">/{contingency.target}</span>
-                  </span>
-                </div>
-                <div className="relative">
-                  <Progress value={contingencyPct} className="h-5 bg-white/10 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-amber-500 [&>div]:to-orange-400 [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-1000" />
-                  <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold">{contingencyPct}%</span>
-                </div>
-                <p className="text-xs text-white/50 mt-2 flex items-center gap-1.5">
-                  <Trophy className="h-3 w-3 text-amber-400" />
-                  Reward: <strong className="text-white/80">{contingency.reward}</strong>
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Student Points Grid */}
-        {settings.show_points && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
-            {sortedProfiles.map((profile, idx) => {
-              const pts = getBalance(profile.student_id);
-              const isTop3 = idx < 3 && profiles.length > 3;
-              return (
-                <div
-                  key={profile.student_id}
-                  className={cn(
-                    'group flex flex-col items-center rounded-2xl border p-4 transition-all duration-500 animate-fade-in',
-                    isTop3
-                      ? 'bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/30 scale-105'
-                      : 'bg-white/5 border-white/10 hover:border-white/20',
-                  )}
-                  style={{ animationDelay: `${400 + idx * 80}ms` }}
-                >
-                  {isTop3 && idx === 0 && (
-                    <div className="absolute -top-2 -right-2 text-lg">👑</div>
-                  )}
-                  <span className="text-4xl mb-2 transition-transform group-hover:scale-110">
-                    {profile.avatar_emoji}
-                  </span>
-                  <p className="font-semibold text-sm truncate w-full text-center">
-                    {profile.display_name}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <Star className={cn("h-4 w-4", isTop3 ? "fill-amber-400 text-amber-400" : "fill-amber-500/70 text-amber-500/70")} />
-                    <span className={cn(
-                      "text-xl font-bold tabular-nums transition-all",
-                      isTop3 ? "text-amber-400" : "text-white/90"
-                    )}>
-                      {pts}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-            {profiles.length === 0 && (
-              <p className="col-span-full text-center text-white/50 py-12">
-                No student profiles configured for this board yet.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Celebrations overlay */}
-        {settings.show_celebrations && (goalPct >= 100 || (contingencyPct || 0) >= 100) && (
-          <div className="fixed inset-0 pointer-events-none z-50">
-            {/* Confetti */}
-            <div className="absolute inset-0 overflow-hidden">
-              {Array.from({ length: 30 }).map((_, i) => (
-                <ConfettiParticle key={i} delay={i * 100} x={Math.random() * 100} />
-              ))}
-            </div>
-            {/* Center celebration text */}
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center animate-bounce">
-                <p className="text-7xl">🎉</p>
-                <p className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 mt-3 tracking-tight">
-                  GOAL REACHED!
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Celebration overlay */}
+      {settings.show_celebrations && goalPct >= 100 && (
+        <div className="fixed inset-0 pointer-events-none z-50">
+          <div className="absolute inset-0 overflow-hidden">
+            {Array.from({ length: 30 }).map((_, i) => (
+              <ConfettiParticle key={i} delay={i * 100} x={Math.random() * 100} />
+            ))}
+          </div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center animate-bounce">
+              <p className="text-7xl">🎉</p>
+              <p className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 mt-3">GOAL REACHED!</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

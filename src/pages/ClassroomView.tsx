@@ -446,6 +446,9 @@ const ClassroomView = () => {
           <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/rewards')}>
             <Gift className="h-3.5 w-3.5" /> Rewards
           </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+            <ExternalLink className="h-4 w-4 text-muted-foreground" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/threads')} title="Threads">
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </Button>
