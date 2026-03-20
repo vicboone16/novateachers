@@ -906,6 +906,63 @@ export type Database = {
         }
         Relationships: []
       }
+      mayday_contacts: {
+        Row: {
+          admin_override: boolean
+          agency_id: string
+          contact_name: string
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          notify_email: boolean
+          notify_in_app: boolean
+          notify_sms: boolean
+          opt_out_days: number[] | null
+          phone: string | null
+          role_label: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_override?: boolean
+          agency_id: string
+          contact_name: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          notify_email?: boolean
+          notify_in_app?: boolean
+          notify_sms?: boolean
+          opt_out_days?: number[] | null
+          phone?: string | null
+          role_label?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_override?: boolean
+          agency_id?: string
+          contact_name?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          notify_email?: boolean
+          notify_in_app?: boolean
+          notify_sms?: boolean
+          opt_out_days?: number[] | null
+          phone?: string | null
+          role_label?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           admin_alerts: boolean
