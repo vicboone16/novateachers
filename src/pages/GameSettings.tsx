@@ -154,10 +154,22 @@ const GameSettings = () => {
     setSettings(prev => ({ ...prev, [key]: val }));
   };
 
-  if (loading) {
+  if (classroomLoading || loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!groupId) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center space-y-3">
+          <Gamepad2 className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">No classroom found. Create a classroom group first.</p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>Go to Admin</Button>
+        </div>
       </div>
     );
   }
