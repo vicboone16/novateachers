@@ -2,6 +2,7 @@
  * "Today in My Classroom" — default teacher landing page.
  * Comprehensive classroom dashboard with student cards, summary bar,
  * quick actions, and floating Mayday button.
+ * Now loads teacher_point_actions from DB and uses RPC linking functions.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,7 @@ import { normalizeClients, displayName, displayInitials } from '@/lib/student-ut
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
-import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
+import { getStudentBalances, writePointEntry, loadTeacherPointActions, executeTeacherAction, type TeacherPointAction } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { useUndoAction } from '@/hooks/useUndoAction';
 import { UndoToast } from '@/components/UndoToast';
@@ -31,12 +32,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Check, X, Play, ExternalLink, Clock, Bell,
   BarChart3, AlertTriangle, Users, Star, Sparkles,
   Target, BookOpen, MessageSquare, Zap, ChevronDown,
-  Gamepad2, Gift, KeyRound, Copy,
+  Gamepad2, Gift, KeyRound, Copy, MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
@@ -81,6 +83,7 @@ const ClassroomView = () => {
   const [wordOfWeek, setWordOfWeek] = useState('Perseverance');
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
   const [staffCount, setStaffCount] = useState(0);
+  const [teacherActions, setTeacherActions] = useState<TeacherPointAction[]>([]);
   const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
 
   const handleUndoComplete = async () => {
@@ -111,6 +114,8 @@ const ClassroomView = () => {
         setAllGroups(groups);
         if (groups.length > 0 && !activeGroupId) setActiveGroupId(groups[0].group_id);
       });
+    // Load teacher point actions
+    loadTeacherPointActions(effectiveAgencyId).then(setTeacherActions);
   }, [user, effectiveAgencyId]);
 
   const loadClients = async () => {
@@ -333,6 +338,7 @@ const ClassroomView = () => {
       writePointEntry({
         studentId: clientId, staffId: user.id, agencyId: effectiveAgencyId,
         points: 1, reason: 'Engagement sample — engaged', source: 'engagement_sample',
+        entryKind: 'teacher_data_event',
       });
     }
     writeUnifiedEvent({
@@ -346,10 +352,54 @@ const ClassroomView = () => {
     } catch {}
   };
 
+  /** Execute a teacher_point_action for a student */
+  const handleTeacherAction = async (action: TeacherPointAction, client: Client) => {
+    if (!user) return;
+    const estimatedPts = action.manual_points || (action.action_group === 'behavior' ? -2 : 1);
+    handlePointChange(client.id, estimatedPts);
+    setFlashCard(client.id);
+    setTimeout(() => setFlashCard(null), 800);
+    if ('vibrate' in navigator) navigator.vibrate(estimatedPts > 0 ? 10 : [10, 30, 10]);
+
+    const result = await executeTeacherAction(action, {
+      agencyId: effectiveAgencyId,
+      studentId: client.id,
+      staffId: user.id,
+      classroomId: activeGroupId || undefined,
+    });
+
+    if (result.ok) {
+      // Reconcile if actual points differ from estimate
+      if (result.points !== estimatedPts) {
+        handlePointChange(client.id, result.points - estimatedPts);
+      }
+      pushAction({
+        id: result.ledgerRowId || crypto.randomUUID(),
+        label: action.action_label,
+        studentId: client.id,
+        studentName: displayName(client),
+        ledgerRowId: result.ledgerRowId,
+        points: result.points || estimatedPts,
+        agencyId: effectiveAgencyId,
+        staffId: user.id,
+      });
+      toast({ title: `${action.action_icon || '⭐'} ${action.action_label} · ${displayName(client)}` });
+    } else {
+      // Rollback optimistic
+      handlePointChange(client.id, -estimatedPts);
+      toast({ title: 'Action failed', description: result.error, variant: 'destructive' });
+    }
+  };
+
   const formatTime = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const engagementPct = engagement.total > 0 ? Math.round((engagement.engaged / engagement.total) * 100) : 0;
   const classGoalPct = classGoal.target > 0 ? Math.round((classGoal.current / classGoal.target) * 100) : 0;
+
+  // Group teacher actions by category
+  const positiveActions = teacherActions.filter(a => a.action_group === 'positive');
+  const behaviorActions = teacherActions.filter(a => a.action_group === 'behavior');
+  const manualActions = teacherActions.filter(a => a.action_group === 'manual');
 
   if (loading) {
     return (
@@ -514,6 +564,18 @@ const ClassroomView = () => {
                         agencyId={effectiveAgencyId}
                         balance={pointBalances[client.id] || 0}
                         onPointChange={handlePointChange}
+                        onPointAction={(info) => {
+                          pushAction({
+                            id: info.ledgerRowId || crypto.randomUUID(),
+                            label: info.label,
+                            studentId: client.id,
+                            studentName: displayName(client),
+                            ledgerRowId: info.ledgerRowId,
+                            points: info.points,
+                            agencyId: effectiveAgencyId,
+                            staffId: user?.id || '',
+                          });
+                        }}
                         responseCostEnabled
                       />
                       {todayCounts[client.id] > 0 && (
@@ -531,40 +593,100 @@ const ClassroomView = () => {
                     </div>
                   </div>
 
-                  {/* Point award row */}
+                  {/* Quick award row — uses teacher_point_actions if available, else fallback */}
                   <div className="border-t border-border/30 px-2 py-1.5 flex items-center gap-1">
-                    {[1, 5, 10].map(n => (
-                      <button
-                        key={n}
-                        onClick={async () => {
-                          handlePointChange(client.id, n);
-                          setFlashCard(client.id);
-                          setTimeout(() => setFlashCard(null), 800);
-                          if ('vibrate' in navigator) navigator.vibrate(10);
-                          if (user) {
-                            const { data } = await cloudSupabase.from('beacon_points_ledger').insert({
-                              student_id: client.id, staff_id: user.id, agency_id: effectiveAgencyId,
-                              points: n, reason: `Quick +${n}`, source: 'quick_action', entry_kind: 'manual',
-                            } as any).select('id').single();
-                            pushAction({
-                              id: data?.id || crypto.randomUUID(),
-                              label: `Quick +${n}`,
-                              studentId: client.id,
-                              studentName: displayName(client),
-                              ledgerRowId: data?.id,
-                              points: n,
-                              agencyId: effectiveAgencyId,
-                              staffId: user.id,
-                            });
-                          }
-                          toast({ title: `+${n} ⭐ ${displayName(client)}` });
-                        }}
-                        className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
-                      >
-                        <Star className="h-2.5 w-2.5" />+{n}
-                      </button>
-                    ))}
+                    {positiveActions.length > 0 ? (
+                      <>
+                        {positiveActions.slice(0, 3).map(action => (
+                          <button
+                            key={action.id}
+                            onClick={() => handleTeacherAction(action, client)}
+                            title={action.action_label}
+                            className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
+                          >
+                            <span className="text-[10px]">{action.action_icon}</span>
+                            {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 12)}
+                          </button>
+                        ))}
+                        {positiveActions.length > 3 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="rounded border border-border/50 bg-muted/20 p-1 text-muted-foreground hover:bg-muted/40 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-44 p-1.5 space-y-0.5" align="start" side="top">
+                              {positiveActions.slice(3).map(action => (
+                                <button
+                                  key={action.id}
+                                  onClick={() => handleTeacherAction(action, client)}
+                                  className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+                                >
+                                  <span>{action.action_icon}</span>
+                                  <span>{action.action_label}</span>
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </>
+                    ) : (
+                      /* Fallback hardcoded +1/+5/+10 */
+                      [1, 5, 10].map(n => (
+                        <button
+                          key={n}
+                          onClick={async () => {
+                            handlePointChange(client.id, n);
+                            setFlashCard(client.id);
+                            setTimeout(() => setFlashCard(null), 800);
+                            if ('vibrate' in navigator) navigator.vibrate(10);
+                            if (user) {
+                              const result = await writePointEntry({
+                                studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId,
+                                points: n, reason: `Quick +${n}`, source: 'quick_action', entryKind: 'manual',
+                              });
+                              pushAction({
+                                id: result.id || crypto.randomUUID(),
+                                label: `Quick +${n}`,
+                                studentId: client.id,
+                                studentName: displayName(client),
+                                ledgerRowId: result.id,
+                                points: n,
+                                agencyId: effectiveAgencyId,
+                                staffId: user.id,
+                              });
+                            }
+                            toast({ title: `+${n} ⭐ ${displayName(client)}` });
+                          }}
+                          className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
+                        >
+                          <Star className="h-2.5 w-2.5" />+{n}
+                        </button>
+                      ))
+                    )}
                     <div className="ml-auto flex gap-1">
+                      {/* Manual actions popover */}
+                      {manualActions.length > 0 && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button title="Manual points" className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                              <Zap className="h-3 w-3" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-1.5 space-y-0.5" align="end" side="top">
+                            {manualActions.map(action => (
+                              <button
+                                key={action.id}
+                                onClick={() => handleTeacherAction(action, client)}
+                                className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+                              >
+                                <span>{action.action_icon}</span>
+                                <span>{action.action_label}</span>
+                              </button>
+                            ))}
+                          </PopoverContent>
+                        </Popover>
+                      )}
                       <button onClick={() => navigate('/rewards')} title="Rewards"
                         className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
                         <Gift className="h-3 w-3" />
@@ -580,18 +702,56 @@ const ClassroomView = () => {
                     </div>
                   </div>
 
-                  {/* Behavior + engagement row */}
+                  {/* Behavior + engagement row — uses teacher_point_actions behavior group if available */}
                   <div className="border-t border-border/30 px-2 py-1 flex items-center gap-1">
-                    {BEHAVIORS.slice(0, 3).map(({ name, abbr, icon: Icon }) => (
-                      <button
-                        key={name}
-                        onClick={() => logBehavior(client.id, name)}
-                        title={name}
-                        className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
-                      >
-                        <Icon className="h-2.5 w-2.5" />{abbr}
-                      </button>
-                    ))}
+                    {behaviorActions.length > 0 ? (
+                      <>
+                        {behaviorActions.slice(0, 3).map(action => (
+                          <button
+                            key={action.id}
+                            onClick={() => handleTeacherAction(action, client)}
+                            title={action.action_label}
+                            className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                          >
+                            <span className="text-[10px]">{action.action_icon}</span>
+                            {(action.default_behavior_name || action.action_label).slice(0, 4)}
+                          </button>
+                        ))}
+                        {behaviorActions.length > 3 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="rounded border border-border/50 bg-muted/20 p-1 text-muted-foreground hover:bg-muted/40 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-1.5 space-y-0.5" align="start" side="top">
+                              {behaviorActions.slice(3).map(action => (
+                                <button
+                                  key={action.id}
+                                  onClick={() => handleTeacherAction(action, client)}
+                                  className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-destructive/10 transition-colors text-left"
+                                >
+                                  <span>{action.action_icon}</span>
+                                  <span>{action.action_label}</span>
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </>
+                    ) : (
+                      /* Fallback hardcoded behaviors */
+                      BEHAVIORS.slice(0, 3).map(({ name, abbr, icon: Icon }) => (
+                        <button
+                          key={name}
+                          onClick={() => logBehavior(client.id, name)}
+                          title={name}
+                          className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                        >
+                          <Icon className="h-2.5 w-2.5" />{abbr}
+                        </button>
+                      ))
+                    )}
                     <button
                       onClick={() => navigate(`/collect?student=${client.id}`)}
                       className="flex items-center gap-0.5 rounded border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
