@@ -89,9 +89,6 @@ const Threads = () => {
 
   const agencyId = currentWorkspace?.agency_id || '';
 
-  // Import cloud client for local fallback
-  const cloudSupabase = (await import('@/integrations/supabase/client')).supabase;
-
   // ── Load threads ──
   const loadThreads = useCallback(async () => {
     if (!user) return;
