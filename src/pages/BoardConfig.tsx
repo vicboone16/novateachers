@@ -60,7 +60,9 @@ const BoardConfig = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [groups, setGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const [groups, setGroups] = useState<{ group_id: string; name: string; board_slug?: string | null }[]>([]);
+  const [slugValue, setSlugValue] = useState('');
+  const [savingSlug, setSavingSlug] = useState(false);
 
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
 
@@ -68,31 +70,38 @@ const BoardConfig = () => {
     if (!user || !effectiveAgencyId) return;
     cloudSupabase
       .from('classroom_groups')
-      .select('group_id, name')
+      .select('group_id, name, board_slug')
       .eq('agency_id', effectiveAgencyId)
       .order('name')
       .then(({ data }) => {
-        const g = data || [];
+        const g = (data || []) as { group_id: string; name: string; board_slug?: string | null }[];
         setGroups(g);
-        if (g.length > 0 && !activeGroupId) setActiveGroupId(g[0].group_id);
+        if (g.length > 0 && !activeGroupId) {
+          setActiveGroupId(g[0].group_id);
+          setSlugValue(g[0].board_slug || '');
+        }
       });
   }, [user, effectiveAgencyId]);
 
   useEffect(() => {
-    if (activeGroupId) loadSettings();
+    if (activeGroupId) {
+      loadSettings();
+      const g = groups.find(g => g.group_id === activeGroupId);
+      setSlugValue(g?.board_slug || '');
+    }
   }, [activeGroupId]);
 
   const loadSettings = async () => {
     if (!activeGroupId) return;
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('classroom_board_settings' as any)
         .select('*')
         .eq('classroom_id', activeGroupId)
         .maybeSingle();
 
-      if (data) {
+      if (!error && data) {
         setSettings(data as any);
       } else {
         setSettings({ ...DEFAULT_SETTINGS, classroom_id: activeGroupId });
@@ -102,6 +111,22 @@ const BoardConfig = () => {
       setSettings({ ...DEFAULT_SETTINGS, classroom_id: activeGroupId });
     }
     setLoading(false);
+  };
+
+  const handleSaveSlug = async () => {
+    if (!activeGroupId) return;
+    setSavingSlug(true);
+    try {
+      const slug = slugValue.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || null;
+      const { error } = await cloudSupabase.from('classroom_groups').update({ board_slug: slug } as any).eq('group_id', activeGroupId);
+      if (error) throw error;
+      setSlugValue(slug || '');
+      setGroups(prev => prev.map(g => g.group_id === activeGroupId ? { ...g, board_slug: slug } : g));
+      toast({ title: 'Board URL saved', description: slug ? `Board accessible at /board/${slug}` : 'Custom URL removed' });
+    } catch (err: any) {
+      toast({ title: 'Error saving URL', description: err.message, variant: 'destructive' });
+    }
+    setSavingSlug(false);
   };
 
   const handleSave = async () => {
