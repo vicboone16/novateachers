@@ -94,6 +94,22 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         .eq('agency_id', agencyId)
         .eq('is_active', true);
       const allContacts = (data || []) as any as MaydayContact[];
+
+      // Also pull available support staff from presence system
+      try {
+        const { data: supportStaff } = await cloudSupabase
+          .from('v_available_support_staff' as any)
+          .select('user_id, availability_status, location_label')
+          .eq('agency_id', agencyId);
+        const supportIds = new Set((supportStaff || []).map((s: any) => s.user_id));
+        // Tag contacts whose user_id is in available support staff
+        for (const c of allContacts) {
+          if (c.user_id && supportIds.has(c.user_id)) {
+            (c as any)._availableNow = true;
+          }
+        }
+      } catch { /* presence data optional */ }
+
       setContacts(allContacts);
       // Auto-select contacts that are available today (not opted out, or admin override)
       const available = allContacts.filter(c =>
