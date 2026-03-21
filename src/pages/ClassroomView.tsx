@@ -500,6 +500,16 @@ const ClassroomView = () => {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
+      {/* ─── STAFF PRESENCE: Who's Here ─── */}
+      {activeGroupId && (
+        <StaffPresencePanel
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          studentMap={Object.fromEntries(clients.map(c => [c.id, displayName(c)]))}
+          compact
+        />
+      )}
+
       {/* ─── STUDENT GRID ─── */}
       {clients.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
