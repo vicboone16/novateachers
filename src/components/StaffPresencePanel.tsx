@@ -70,7 +70,7 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
   const loadPresence = useCallback(async () => {
     try {
       // Use the view for classroom-scoped presence
-      const { data } = await cloudSupabase
+      const { data } = await supabase
         .from('v_classroom_staff_presence' as any)
         .select('*')
         .eq('classroom_group_id', groupId);
@@ -78,7 +78,7 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
       const rows = (data || []) as any as StaffPresenceRow[];
       
       // Also load agency-wide staff who are available for support but not in this room
-      const { data: available } = await cloudSupabase
+      const { data: available } = await supabase
         .from('v_available_support_staff' as any)
         .select('*')
         .eq('agency_id', agencyId)
@@ -113,7 +113,7 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
 
   // Subscribe to realtime changes on staff_presence
   useEffect(() => {
-    const channel = cloudSupabase
+    const channel = supabase
       .channel('staff_presence_live')
       .on('postgres_changes', {
         event: '*',
@@ -125,7 +125,7 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
       })
       .subscribe();
 
-    return () => { cloudSupabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); };
   }, [agencyId, loadPresence]);
 
   const inRoom = presenceRows.filter(r => r.classroom_group_id === groupId && r.status === 'in_room');
