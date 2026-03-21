@@ -233,9 +233,17 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
 
   const activeCount = activeAlerts.filter(a => a.status === 'active').length;
 
-  const suggestedContacts = contacts.filter(c => c._group === 'suggested');
-  const leadershipContacts = contacts.filter(c => c._group === 'leadership');
-  const otherContacts = contacts.filter(c => c._group === 'other' || !c._group);
+  const filteredContacts = (() => {
+    switch (recipientFilter) {
+      case 'room': return contacts.filter(c => c._group === 'suggested' && c._priority === 0);
+      case 'available': return contacts.filter(c => c._availableNow);
+      case 'supervisors': return contacts.filter(c => c._group === 'leadership');
+      default: return contacts;
+    }
+  })();
+  const suggestedContacts = filteredContacts.filter(c => c._group === 'suggested');
+  const leadershipContacts = filteredContacts.filter(c => c._group === 'leadership');
+  const otherContacts = filteredContacts.filter(c => c._group === 'other' || !c._group);
 
   return (
     <>
