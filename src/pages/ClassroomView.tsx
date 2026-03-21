@@ -60,6 +60,7 @@ interface PointBalances { [clientId: string]: number }
 interface StudentStatuses { [clientId: string]: StudentStatus }
 interface TokenProgress { [clientId: string]: { current: number; target: number } }
 interface EngagementData { total: number; engaged: number }
+interface StudentPresenceMap { [studentId: string]: StudentPresenceData }
 
 const ClassroomView = () => {
   const navigate = useNavigate();
