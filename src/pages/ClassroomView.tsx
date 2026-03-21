@@ -232,11 +232,11 @@ const ClassroomView = () => {
   const loadStaffCount = async () => {
     if (!activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('staff_presence_status' as any)
+      const { data } = await cloudSupabase
+        .from('v_classroom_staff_presence' as any)
         .select('id')
-        .eq('classroom_id', activeGroupId)
-        .eq('status', 'in_classroom');
+        .eq('classroom_group_id', activeGroupId)
+        .eq('status', 'in_room');
       setStaffCount((data || []).length);
     } catch { setStaffCount(0); }
   };
