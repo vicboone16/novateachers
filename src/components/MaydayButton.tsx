@@ -292,9 +292,25 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
                     <Zap className="h-2.5 w-2.5" /> Select best
                   </Button>
                 </div>
+                <div className="flex items-center gap-1 mb-2">
+                  {(['all', 'room', 'available', 'supervisors'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setRecipientFilter(f)}
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[9px] font-medium border transition-colors',
+                        recipientFilter === f
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      {f === 'all' ? 'All' : f === 'room' ? 'Same Room' : f === 'available' ? 'Available' : 'Supervisors'}
+                    </button>
+                  ))}
+                </div>
                 <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-border p-2">
-                  {contacts.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-2">No mayday contacts configured.</p>
+                  {filteredContacts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No contacts match this filter.</p>
                   ) : (
                     <>
                       {suggestedContacts.length > 0 && (
