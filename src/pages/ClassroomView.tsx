@@ -75,15 +75,15 @@ const ClassroomView = () => {
   const [studentStatuses, setStudentStatuses] = useState<StudentStatuses>({});
   const [tokenProgress, setTokenProgress] = useState<TokenProgress>({});
   const [engagement, setEngagement] = useState<EngagementData>({ total: 0, engaged: 0 });
-  const { groupId: sharedGroupId, setGroupId: setSharedGroupId } = useActiveClassroom();
+  const { groupId: sharedGroupId, groupName: sharedGroupName, agencyId: sharedAgencyId, setGroupId: setSharedGroupId, loading: classroomLoading } = useActiveClassroom();
   const [activeGroupId, setActiveGroupIdLocal] = useState<string | null>(sharedGroupId);
   const setActiveGroupId = useCallback((id: string | null) => {
     setActiveGroupIdLocal(id);
     if (id) setSharedGroupId(id);
   }, [setSharedGroupId]);
-  // Sync from shared context on mount
+  // Sync from shared context
   useEffect(() => {
-    if (sharedGroupId && !activeGroupId) setActiveGroupIdLocal(sharedGroupId);
+    if (sharedGroupId) setActiveGroupIdLocal(sharedGroupId);
   }, [sharedGroupId]);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const [totalPoints, setTotalPoints] = useState(0);

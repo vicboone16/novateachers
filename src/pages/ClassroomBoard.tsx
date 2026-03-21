@@ -1,10 +1,10 @@
 /**
  * ClassroomBoard — Kid-safe projectable page.
  * Pulls from Cloud (points, groups, feed) and Core (board settings, game profiles).
- * Auto-discovers classroom from auth context or query param.
+ * Uses ActiveClassroomContext when available, otherwise resolves independently.
  * No teacher controls visible.
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useContext } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -158,11 +158,11 @@ export default function ClassroomBoard() {
       }
     };
 
-    // Wait for auth to settle, then resolve
-    const delay = setTimeout(resolve, user ? 100 : 1500);
+    // Wait a moment for auth, then resolve
+    const delay = setTimeout(resolve, user ? 100 : 800);
     const timeout = setTimeout(() => {
       if (!cancelled && resolveState === 'loading') setResolveState('empty');
-    }, 10000);
+    }, 8000);
     return () => { cancelled = true; clearTimeout(delay); clearTimeout(timeout); };
   }, [classroomParam, user]);
 

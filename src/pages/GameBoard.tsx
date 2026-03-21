@@ -37,7 +37,7 @@ const GameBoard = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
-  const { groupId: sharedGroupId, loading: classroomLoading, error: classroomError } = useActiveClassroom();
+  const { groupId: sharedGroupId, loading: classroomLoading, error: classroomError, errorReason } = useActiveClassroom();
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<ClassroomGameSettings | null>(null);
@@ -55,7 +55,8 @@ const GameBoard = () => {
   // Use shared classroom context
   useEffect(() => {
     if (sharedGroupId) setActiveGroupId(sharedGroupId);
-  }, [sharedGroupId]);
+    else if (!classroomLoading && !sharedGroupId) setLoading(false);
+  }, [sharedGroupId, classroomLoading]);
 
   useEffect(() => { if (activeGroupId) loadBoard(); }, [activeGroupId]);
 
@@ -182,7 +183,7 @@ const GameBoard = () => {
     return s.first_name || '';
   };
 
-  if (classroomLoading || loading) return <div className="flex min-h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
+  if (classroomLoading || (loading && activeGroupId)) return <div className="flex min-h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
 
   if (loadError) return (
     <div className="flex min-h-[60vh] items-center justify-center">
@@ -198,8 +199,16 @@ const GameBoard = () => {
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="text-center space-y-3">
         <Flag className="h-10 w-10 mx-auto text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">No classroom found. Create a classroom group first.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate('/classroom')}>Go to Classroom</Button>
+        <p className="text-sm text-muted-foreground">
+          {classroomError || 'No classroom found. Create a classroom group first.'}
+        </p>
+        {errorReason === 'no_teacher_assignment' && (
+          <p className="text-xs text-muted-foreground">You are not assigned to any classroom as staff.</p>
+        )}
+        {errorReason === 'no_classrooms_at_all' && (
+          <p className="text-xs text-muted-foreground">No classroom groups exist yet.</p>
+        )}
+        <Button variant="outline" size="sm" onClick={() => navigate('/classrooms')}>Classroom Manager</Button>
       </div>
     </div>
   );
