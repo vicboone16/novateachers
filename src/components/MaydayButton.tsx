@@ -95,20 +95,32 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         .eq('is_active', true);
       const allContacts = (data || []) as any as MaydayContact[];
 
-      // Also pull available support staff from presence system
+      // Pull presence data to tag availability and prioritize
       try {
         const { data: supportStaff } = await supabase
           .from('v_available_support_staff' as any)
-          .select('user_id, availability_status, location_label')
+          .select('user_id, availability_status, location_label, status, classroom_group_id')
           .eq('agency_id', agencyId);
-        const supportIds = new Set((supportStaff || []).map((s: any) => s.user_id));
-        // Tag contacts whose user_id is in available support staff
+        const supportMap = new Map<string, any>();
+        for (const s of supportStaff || []) {
+          supportMap.set((s as any).user_id, s);
+        }
         for (const c of allContacts) {
-          if (c.user_id && supportIds.has(c.user_id)) {
+          if (c.user_id && supportMap.has(c.user_id)) {
+            const sp = supportMap.get(c.user_id);
             (c as any)._availableNow = true;
+            (c as any)._presenceStatus = sp.status;
+            // Priority: same room > available support > floating > other
+            const inSameRoom = classroomId && sp.classroom_group_id === classroomId;
+            (c as any)._priority = inSameRoom ? 0 : sp.status === 'floating' ? 1 : 2;
+          } else {
+            (c as any)._priority = 10;
           }
         }
       } catch { /* presence data optional */ }
+
+      // Sort: available in same room first, then floating, then others
+      allContacts.sort((a, b) => ((a as any)._priority ?? 10) - ((b as any)._priority ?? 10));
 
       setContacts(allContacts);
       // Auto-select contacts that are available today (not opted out, or admin override)
@@ -117,7 +129,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       );
       setSelectedContacts(new Set(available.map(c => c.id)));
     } catch { /* silent */ }
-  }, [agencyId, todayDay]);
+  }, [agencyId, todayDay, classroomId]);
 
   const loadAlerts = useCallback(async () => {
     if (!user) return;

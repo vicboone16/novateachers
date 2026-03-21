@@ -2,18 +2,20 @@
  * StaffPresencePanel — shows all staff in current classroom/agency.
  * Reads from Nova Core: staff_presence, v_classroom_staff_presence, v_available_support_staff.
  * Writes via Nova Core RPC: set_staff_presence(...).
- * No local schema — Nova Core is the source of truth.
+ * Resolves display names via edge function + classroom_group_teachers for roles.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StaffActionSheet } from '@/components/StaffActionSheet';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 import {
-  UserCheck, UserX, TreePine, UserCog, Briefcase, Coffee, ShieldCheck,
-  Users2, Radio, HelpCircle, MapPin,
+  UserCheck, UserX, Coffee, Briefcase, ShieldCheck,
+  Users2, Radio, HelpCircle, MapPin, UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -57,7 +59,6 @@ interface StaffPresenceRow {
 interface StaffPresencePanelProps {
   groupId: string;
   agencyId: string;
-  /** Optional list of student names for display */
   studentMap?: Record<string, string>;
 }
 
@@ -66,27 +67,39 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
   const [presenceRows, setPresenceRows] = useState<StaffPresenceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionSheetUserId, setActionSheetUserId] = useState<string | null>(null);
+  const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
+  const [roleMap, setRoleMap] = useState<Record<string, string>>({});
+
+  // Load staff roles from classroom_group_teachers (Lovable Cloud)
+  const loadRoles = useCallback(async () => {
+    try {
+      const { data } = await cloudSupabase
+        .from('classroom_group_teachers')
+        .select('user_id, staff_role')
+        .eq('group_id', groupId);
+      const roles: Record<string, string> = {};
+      for (const row of data || []) {
+        roles[row.user_id] = row.staff_role || 'Staff';
+      }
+      setRoleMap(roles);
+    } catch { /* silent */ }
+  }, [groupId]);
 
   const loadPresence = useCallback(async () => {
     try {
-      // Use the view for classroom-scoped presence
       const { data } = await supabase
         .from('v_classroom_staff_presence' as any)
         .select('*')
         .eq('classroom_group_id', groupId);
-      
       const rows = (data || []) as any as StaffPresenceRow[];
-      
-      // Also load agency-wide staff who are available for support but not in this room
+
       const { data: available } = await supabase
         .from('v_available_support_staff' as any)
         .select('*')
         .eq('agency_id', agencyId)
         .neq('classroom_group_id', groupId);
-      
       const availableRows = (available || []) as any as StaffPresenceRow[];
-      
-      // Merge, deduplicate by user_id
+
       const seen = new Set(rows.map(r => r.user_id));
       const merged = [...rows];
       for (const r of availableRows) {
@@ -95,8 +108,17 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
           merged.push(r);
         }
       }
-      
+
       setPresenceRows(merged);
+
+      // Resolve names for all user_ids
+      const allIds = merged.map(r => r.user_id);
+      if (allIds.length > 0) {
+        try {
+          const names = await resolveDisplayNames(allIds);
+          setNameMap(names);
+        } catch { /* fallback to truncated IDs */ }
+      }
     } catch (e) {
       console.warn('[StaffPresence] load failed:', e);
     } finally {
@@ -106,12 +128,12 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
 
   useEffect(() => {
     loadPresence();
-    // Poll every 30s for live updates
+    loadRoles();
     const interval = setInterval(loadPresence, 30000);
     return () => clearInterval(interval);
-  }, [loadPresence]);
+  }, [loadPresence, loadRoles]);
 
-  // Subscribe to realtime changes on staff_presence
+  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel('staff_presence_live')
@@ -130,11 +152,17 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
 
   const inRoom = presenceRows.filter(r => r.classroom_group_id === groupId && r.status === 'in_room');
   const withStudent = presenceRows.filter(r => r.status === 'with_student');
-  const floatingCovering = presenceRows.filter(r => r.status === 'floating' || r.status === 'covering');
-  const available = presenceRows.filter(r => r.available_for_support && r.classroom_group_id !== groupId);
-  const away = presenceRows.filter(r => ['out', 'on_break', 'in_office', 'unavailable'].includes(r.status));
+  const available = presenceRows.filter(r => r.available_for_support && r.classroom_group_id !== groupId && r.status !== 'with_student');
+  const away = presenceRows.filter(r => ['out', 'on_break', 'in_office', 'unavailable', 'floating', 'covering'].includes(r.status) && r.classroom_group_id !== groupId && !r.available_for_support);
 
   const myPresence = presenceRows.find(r => r.user_id === user?.id);
+
+  const getDisplayName = (userId: string) => {
+    if (userId === user?.id) return 'You';
+    return nameMap.get(userId) || `Staff ${userId.slice(0, 6)}`;
+  };
+
+  const getRole = (userId: string) => roleMap[userId] || null;
 
   return (
     <Card className="border-border/40">
@@ -163,34 +191,25 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : presenceRows.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">No staff presence data yet.</p>
+          <p className="text-xs text-muted-foreground text-center py-2">No staff presence data yet. Tap "Set Status" to start.</p>
         ) : (
           <div className="space-y-2">
-            {/* In Room */}
             {inRoom.length > 0 && (
-              <PresenceGroup label="In Room" rows={inRoom} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+              <PresenceGroup label="In This Room" rows={inRoom} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
             )}
-            {/* With Student */}
             {withStudent.length > 0 && (
-              <PresenceGroup label="With Student" rows={withStudent} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+              <PresenceGroup label="With Student" rows={withStudent} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
             )}
-            {/* Floating / Covering */}
-            {floatingCovering.length > 0 && (
-              <PresenceGroup label="Floating / Covering" rows={floatingCovering} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
-            )}
-            {/* Available for Support (other rooms) */}
             {available.length > 0 && (
-              <PresenceGroup label="Available Nearby" rows={available} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+              <PresenceGroup label="Available Support" rows={available} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
             )}
-            {/* Away */}
             {away.length > 0 && (
-              <PresenceGroup label="Away" rows={away} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+              <PresenceGroup label="Away" rows={away} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
             )}
           </div>
         )}
       </CardContent>
 
-      {/* Staff Action Sheet */}
       {actionSheetUserId && (
         <StaffActionSheet
           open={!!actionSheetUserId}
@@ -208,12 +227,13 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
 }
 
 /* ── Presence group section ── */
-function PresenceGroup({ label, rows, studentMap, onSelect, currentUserId }: {
+function PresenceGroup({ label, rows, studentMap, onSelect, getDisplayName, getRole }: {
   label: string;
   rows: StaffPresenceRow[];
   studentMap?: Record<string, string>;
   onSelect: (userId: string) => void;
-  currentUserId?: string;
+  getDisplayName: (userId: string) => string;
+  getRole: (userId: string) => string | null;
 }) {
   return (
     <div>
@@ -222,30 +242,34 @@ function PresenceGroup({ label, rows, studentMap, onSelect, currentUserId }: {
         {rows.map(row => {
           const config = PRESENCE_STATUS_MAP[row.status] || PRESENCE_STATUS_MAP.in_room;
           const Icon = config.icon;
-          const isMe = row.user_id === currentUserId;
+          const name = getDisplayName(row.user_id);
+          const role = getRole(row.user_id);
           return (
             <button
               key={row.id || row.user_id}
               onClick={() => onSelect(row.user_id)}
               className={cn(
                 "flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50",
-                isMe && "bg-primary/5 border border-primary/20"
+                name === 'You' && "bg-primary/5 border border-primary/20"
               )}
             >
               <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">
-                  {isMe ? 'You' : row.user_id.slice(0, 8)}
-                  {row.available_for_support && (
-                    <span className="ml-1 text-[9px] text-green-600 dark:text-green-400">● available</span>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-medium truncate">{name}</p>
+                  {role && (
+                    <Badge variant="outline" className="text-[8px] h-3.5 px-1 shrink-0 capitalize">{role}</Badge>
                   )}
-                </p>
+                  {row.available_for_support && (
+                    <span className="text-[8px] text-green-600 dark:text-green-400 shrink-0">● available</span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
                   {row.location_label && <span>{row.location_label}</span>}
                   {row.assigned_student_id && (
                     <span>→ {studentMap?.[row.assigned_student_id] || 'Student'}</span>
                   )}
-                  {row.note && <span className="italic truncate max-w-[100px]">"{row.note}"</span>}
+                  {row.note && <span className="italic truncate max-w-[120px]">"{row.note}"</span>}
                 </div>
               </div>
               <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
