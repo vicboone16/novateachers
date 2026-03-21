@@ -89,6 +89,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   const [alertType, setAlertType] = useState('safety');
   const [message, setMessage] = useState('');
   const [tab, setTab] = useState('send');
+  const [recipientFilter, setRecipientFilter] = useState<'all' | 'room' | 'available' | 'supervisors'>('all');
 
   const todayDay = new Date().getDay();
 
