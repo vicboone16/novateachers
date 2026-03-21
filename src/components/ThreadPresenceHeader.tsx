@@ -1,13 +1,17 @@
 /**
  * ThreadPresenceHeader — shows who's in room, available, with student
  * at the top of a classroom thread. Uses realtime staff_presence.
+ * Includes actions: Ping available, Start support thread, Notify room.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { UserCheck, Radio, UserCog, Zap } from 'lucide-react';
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import { UserCheck, Radio, UserCog, Zap, MessageSquarePlus, Bell, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PresenceEntry {
@@ -23,9 +27,13 @@ interface ThreadPresenceHeaderProps {
   agencyId: string;
   classroomId?: string | null;
   onPingAvailable?: () => void;
+  onStartSupportThread?: (staffIds: string[]) => void;
+  onNotifyRoom?: (staffIds: string[]) => void;
 }
 
-export function ThreadPresenceHeader({ agencyId, classroomId, onPingAvailable }: ThreadPresenceHeaderProps) {
+export function ThreadPresenceHeader({
+  agencyId, classroomId, onPingAvailable, onStartSupportThread, onNotifyRoom,
+}: ThreadPresenceHeaderProps) {
   const [presence, setPresence] = useState<PresenceEntry[]>([]);
   const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
 
@@ -68,9 +76,11 @@ export function ThreadPresenceHeader({ agencyId, classroomId, onPingAvailable }:
 
   const getName = (uid: string) => {
     const n = nameMap.get(uid);
-    if (n) return n.split(' ')[0]; // first name only for compact display
+    if (n) return n.split(' ')[0];
     return uid.slice(0, 6);
   };
+
+  const hasActions = onPingAvailable || onStartSupportThread || onNotifyRoom;
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap py-1.5">
@@ -95,10 +105,51 @@ export function ThreadPresenceHeader({ agencyId, classroomId, onPingAvailable }:
           {withStudent.length} w/ student
         </Badge>
       )}
-      {onPingAvailable && available.length > 0 && (
-        <Button variant="ghost" size="sm" className="h-5 text-[9px] px-2 gap-1 text-primary" onClick={onPingAvailable}>
-          <Zap className="h-2.5 w-2.5" /> Ping
-        </Button>
+
+      {/* Actions */}
+      {hasActions && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-primary">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-44 p-1.5 space-y-0.5" align="end" side="bottom">
+            {onPingAvailable && available.length > 0 && (
+              <button
+                onClick={() => { onPingAvailable(); }}
+                className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+              >
+                <Zap className="h-3 w-3 text-primary" />
+                Ping available ({available.length})
+              </button>
+            )}
+            {onStartSupportThread && (
+              <button
+                onClick={() => {
+                  const staffIds = [...available, ...inRoom].map(p => p.user_id);
+                  onStartSupportThread(staffIds);
+                }}
+                className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+              >
+                <MessageSquarePlus className="h-3 w-3 text-primary" />
+                Start support thread
+              </button>
+            )}
+            {onNotifyRoom && inRoom.length > 0 && (
+              <button
+                onClick={() => {
+                  const staffIds = inRoom.map(p => p.user_id);
+                  onNotifyRoom(staffIds);
+                }}
+                className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+              >
+                <Bell className="h-3 w-3 text-primary" />
+                Notify room staff ({inRoom.length})
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   );
