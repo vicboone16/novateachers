@@ -89,6 +89,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   const [alertType, setAlertType] = useState('safety');
   const [message, setMessage] = useState('');
   const [tab, setTab] = useState('send');
+  const [recipientFilter, setRecipientFilter] = useState<'all' | 'room' | 'available' | 'supervisors'>('all');
 
   const todayDay = new Date().getDay();
 
@@ -232,9 +233,17 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
 
   const activeCount = activeAlerts.filter(a => a.status === 'active').length;
 
-  const suggestedContacts = contacts.filter(c => c._group === 'suggested');
-  const leadershipContacts = contacts.filter(c => c._group === 'leadership');
-  const otherContacts = contacts.filter(c => c._group === 'other' || !c._group);
+  const filteredContacts = (() => {
+    switch (recipientFilter) {
+      case 'room': return contacts.filter(c => c._group === 'suggested' && c._priority === 0);
+      case 'available': return contacts.filter(c => c._availableNow);
+      case 'supervisors': return contacts.filter(c => c._group === 'leadership');
+      default: return contacts;
+    }
+  })();
+  const suggestedContacts = filteredContacts.filter(c => c._group === 'suggested');
+  const leadershipContacts = filteredContacts.filter(c => c._group === 'leadership');
+  const otherContacts = filteredContacts.filter(c => c._group === 'other' || !c._group);
 
   return (
     <>
@@ -283,9 +292,25 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
                     <Zap className="h-2.5 w-2.5" /> Select best
                   </Button>
                 </div>
+                <div className="flex items-center gap-1 mb-2">
+                  {(['all', 'room', 'available', 'supervisors'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setRecipientFilter(f)}
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[9px] font-medium border transition-colors',
+                        recipientFilter === f
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      {f === 'all' ? 'All' : f === 'room' ? 'Same Room' : f === 'available' ? 'Available' : 'Supervisors'}
+                    </button>
+                  ))}
+                </div>
                 <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-border p-2">
-                  {contacts.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-2">No mayday contacts configured.</p>
+                  {filteredContacts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">No contacts match this filter.</p>
                   ) : (
                     <>
                       {suggestedContacts.length > 0 && (

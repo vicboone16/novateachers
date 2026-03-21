@@ -366,6 +366,15 @@ const Threads = () => {
             onPingAvailable={() => {
               setMsgText('🔔 Requesting support — anyone available?');
             }}
+            onStartSupportThread={(staffIds) => {
+              toast({ title: `Support thread with ${staffIds.length} staff`, description: 'Creating thread…' });
+              // Could auto-create a support thread — for now pre-fill compose
+              setMsgText(`🆘 Support needed in ${activeThread.title || 'this classroom'}`);
+            }}
+            onNotifyRoom={(staffIds) => {
+              toast({ title: `Notifying ${staffIds.length} room staff` });
+              setMsgText(`📢 Room notification: `);
+            }}
           />
         </div>
 
