@@ -97,7 +97,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
 
       // Also pull available support staff from presence system
       try {
-        const { data: supportStaff } = await cloudSupabase
+        const { data: supportStaff } = await supabase
           .from('v_available_support_staff' as any)
           .select('user_id, availability_status, location_label')
           .eq('agency_id', agencyId);

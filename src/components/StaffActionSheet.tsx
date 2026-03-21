@@ -1,10 +1,11 @@
 /**
  * StaffActionSheet — quick controls to move rooms, change status,
  * assign to student, change support availability.
- * Writes via set_staff_presence RPC.
+ * Writes via Nova Core RPC: set_staff_presence(...).
+ * No local schema — Nova Core is the source of truth.
  */
 import { useState } from 'react';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -75,7 +76,7 @@ export function StaffActionSheet({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { data, error } = await cloudSupabase.rpc('set_staff_presence', {
+      const { data, error } = await supabase.rpc('set_staff_presence', {
         p_agency_id: agencyId,
         p_user_id: userId,
         p_classroom_group_id: status === 'in_room' ? currentGroupId : (currentPresence?.classroom_group_id || null),
@@ -105,7 +106,7 @@ export function StaffActionSheet({
   const quickMove = async (newStatus: PresenceStatus, newLocation?: string) => {
     setSaving(true);
     try {
-      const { error } = await cloudSupabase.rpc('set_staff_presence', {
+      const { error } = await supabase.rpc('set_staff_presence', {
         p_agency_id: agencyId,
         p_user_id: userId,
         p_classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
