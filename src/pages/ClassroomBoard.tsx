@@ -1,10 +1,10 @@
 /**
  * ClassroomBoard — Kid-safe projectable page.
  * Pulls from Cloud (points, groups, feed) and Core (board settings, game profiles).
- * Auto-discovers classroom from auth context or query param.
+ * Uses ActiveClassroomContext when available, otherwise resolves independently.
  * No teacher controls visible.
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useContext } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
