@@ -94,6 +94,22 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         .eq('agency_id', agencyId)
         .eq('is_active', true);
       const allContacts = (data || []) as any as MaydayContact[];
+
+      // Also pull available support staff from presence system
+      try {
+        const { data: supportStaff } = await cloudSupabase
+          .from('v_available_support_staff' as any)
+          .select('user_id, availability_status, location_label')
+          .eq('agency_id', agencyId);
+        const supportIds = new Set((supportStaff || []).map((s: any) => s.user_id));
+        // Tag contacts whose user_id is in available support staff
+        for (const c of allContacts) {
+          if (c.user_id && supportIds.has(c.user_id)) {
+            (c as any)._availableNow = true;
+          }
+        }
+      } catch { /* presence data optional */ }
+
       setContacts(allContacts);
       // Auto-select contacts that are available today (not opted out, or admin override)
       const available = allContacts.filter(c =>
@@ -249,6 +265,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <Badge variant="outline" className="text-[9px]">{c.role_label}</Badge>
+                          {(c as any)._availableNow && <Badge variant="secondary" className="text-[8px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Available</Badge>}
                           {c.email && c.notify_email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
                           {c.phone && c.notify_sms && <Phone className="h-2.5 w-2.5 text-muted-foreground" />}
                           {c.admin_override && <Shield className="h-2.5 w-2.5 text-destructive" />}
