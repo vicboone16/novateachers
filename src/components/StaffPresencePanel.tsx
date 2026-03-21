@@ -1,9 +1,11 @@
 /**
  * StaffPresencePanel — shows all staff in current classroom/agency.
- * Uses local staff_presence table + v_classroom_staff_presence view + set_staff_presence RPC.
+ * Reads from Nova Core: staff_presence, v_classroom_staff_presence, v_available_support_staff.
+ * Writes via Nova Core RPC: set_staff_presence(...).
+ * No local schema — Nova Core is the source of truth.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

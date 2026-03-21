@@ -1,10 +1,11 @@
 /**
  * StaffActionSheet — quick controls to move rooms, change status,
  * assign to student, change support availability.
- * Writes via set_staff_presence RPC.
+ * Writes via Nova Core RPC: set_staff_presence(...).
+ * No local schema — Nova Core is the source of truth.
  */
 import { useState } from 'react';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
