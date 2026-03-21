@@ -265,6 +265,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <Badge variant="outline" className="text-[9px]">{c.role_label}</Badge>
+                          {(c as any)._availableNow && <Badge variant="secondary" className="text-[8px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Available</Badge>}
                           {c.email && c.notify_email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
                           {c.phone && c.notify_sms && <Phone className="h-2.5 w-2.5 text-muted-foreground" />}
                           {c.admin_override && <Shield className="h-2.5 w-2.5 text-destructive" />}
