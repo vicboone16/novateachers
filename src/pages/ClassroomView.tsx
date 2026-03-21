@@ -605,14 +605,21 @@ const ClassroomView = () => {
                       </div>
                     </button>
                     {activeGroupId && (
-                      <StudentStatusBadge
-                        studentId={client.id}
-                        groupId={activeGroupId}
-                        agencyId={effectiveAgencyId}
-                        userId={user?.id || ''}
-                        currentStatus={status}
-                        onStatusChange={handleStudentStatusChange}
-                      />
+                      <div className="flex items-center gap-1">
+                        <StudentPresenceChip
+                          presence={studentPresence[client.id] || null}
+                          compact
+                          onClick={() => setPresenceSheetStudent(client)}
+                        />
+                        <StudentStatusBadge
+                          studentId={client.id}
+                          groupId={activeGroupId}
+                          agencyId={effectiveAgencyId}
+                          userId={user?.id || ''}
+                          currentStatus={status}
+                          onStatusChange={handleStudentStatusChange}
+                        />
+                      </div>
                     )}
                   </div>
 
