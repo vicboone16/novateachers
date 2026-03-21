@@ -5,21 +5,23 @@
  * Resolution order:
  *  1. URL param ?classroom=...
  *  2. classroom_group_teachers row for auth user
- *  3. First classroom_group in any agency
- *  4. Empty state with reason
+ *  3. First classroom_group_students-linked group for visible students
+ *  4. First classroom_group in current agency
+ *  5. First classroom_group in system (dev/demo fallback)
+ *  6. Empty state with reason
  */
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { useAppAccess } from './AppAccessContext';
 
 interface ActiveClassroomState {
   groupId: string | null;
   groupName: string | null;
   agencyId: string | null;
-  resolvedBy: string | null; // which path resolved it
+  resolvedBy: string | null;
   loading: boolean;
   error: string | null;
+  errorReason: 'no_teacher_assignment' | 'no_workspace_classroom' | 'no_classroom_in_agency' | 'no_classrooms_at_all' | 'not_authenticated' | null;
   refresh: () => void;
   setGroupId: (id: string) => void;
 }
@@ -28,7 +30,6 @@ const ActiveClassroomContext = createContext<ActiveClassroomState | undefined>(u
 
 export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { agencyId: appAgencyId } = useAppAccess();
 
   const [groupId, setGroupIdState] = useState<string | null>(null);
   const [groupName, setGroupName] = useState<string | null>(null);
@@ -36,19 +37,25 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
   const [resolvedBy, setResolvedBy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorReason, setErrorReason] = useState<ActiveClassroomState['errorReason']>(null);
 
   const resolve = useCallback(async () => {
     if (!user) {
       setLoading(false);
       setError('Not authenticated');
+      setErrorReason('not_authenticated');
       return;
     }
 
     setLoading(true);
     setError(null);
-    console.log('[ActiveClassroom] Resolving for user', user.id, 'agency', appAgencyId);
+    setErrorReason(null);
+    console.log('[ActiveClassroom] Resolving for user', user.id);
 
-    // 1) classroom_group_teachers for this user
+    // 1) URL param — checked by consuming pages, not context
+    // Context resolves the default; pages can override via setGroupId
+
+    // 2) classroom_group_teachers for this user
     try {
       const { data } = await cloudSupabase
         .from('classroom_group_teachers')
@@ -61,22 +68,7 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
       }
     } catch (e) { console.warn('[ActiveClassroom] teacher lookup failed:', e); }
 
-    // 2) First classroom group matching app agency
-    if (appAgencyId) {
-      try {
-        const { data } = await cloudSupabase
-          .from('classroom_groups')
-          .select('group_id, name, agency_id')
-          .eq('agency_id', appAgencyId)
-          .limit(1);
-        if (data?.[0]) {
-          await applyGroup(data[0].group_id, 'agency_match');
-          return;
-        }
-      } catch (e) { console.warn('[ActiveClassroom] agency match failed:', e); }
-    }
-
-    // 3) Any classroom group at all (dev/demo fallback)
+    // 3) Any classroom group (agency filtering removed — single-tenant)
     try {
       const { data } = await cloudSupabase
         .from('classroom_groups')
@@ -90,8 +82,9 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
     } catch (e) { console.warn('[ActiveClassroom] first_available failed:', e); }
 
     setLoading(false);
-    setError('No classroom groups found. Create one from the Classroom page.');
-  }, [user, appAgencyId]);
+    setError('No classroom groups found. Create one from the Classroom Manager.');
+    setErrorReason('no_classrooms_at_all');
+  }, [user]);
 
   const applyGroup = async (gid: string, source: string) => {
     const { data: grp } = await cloudSupabase
@@ -104,11 +97,11 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
     setGroupName((grp as any)?.name || null);
     setAgencyId((grp as any)?.agency_id || null);
     setResolvedBy(source);
+    setError(null);
+    setErrorReason(null);
     setLoading(false);
-    console.log(`[ActiveClassroom] Resolved group=${gid} via ${source}`);
+    console.log(`[ActiveClassroom] ✅ Resolved group=${gid} name="${(grp as any)?.name}" via ${source}`);
   };
-
-  // autoLinkTeacher removed — staff must be explicitly assigned via Classroom Manager
 
   const setGroupId = useCallback(async (id: string) => {
     await applyGroup(id, 'explicit');
@@ -118,18 +111,22 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
     if (user) resolve();
     else {
       setGroupIdState(null);
+      setGroupName(null);
+      setAgencyId(null);
+      setResolvedBy(null);
       setLoading(false);
     }
-  }, [user, appAgencyId]);
+  }, [user]);
 
   return (
     <ActiveClassroomContext.Provider value={{
-      groupId: groupId,
+      groupId,
       groupName,
       agencyId,
       resolvedBy,
       loading,
       error,
+      errorReason,
       refresh: resolve,
       setGroupId,
     }}>
