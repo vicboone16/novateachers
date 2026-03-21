@@ -250,7 +250,38 @@ const ClassroomView = () => {
     setStudentStatuses(prev => ({ ...prev, [studentId]: status }));
   };
 
-  const handlePointChange = (studentId: string, delta: number) => {
+  const handleStudentPresenceUpdate = (studentId: string, presence: StudentPresenceData) => {
+    setStudentPresence(prev => ({ ...prev, [studentId]: presence }));
+  };
+
+  // Load student presence from Core
+  const loadStudentPresence = useCallback(async () => {
+    if (!activeGroupId) return;
+    try {
+      const { data } = await supabase
+        .from('v_classroom_student_presence' as any)
+        .select('student_id, location_type, location_label, status, assigned_staff_id, updated_at')
+        .eq('classroom_group_id', activeGroupId);
+      const map: StudentPresenceMap = {};
+      for (const row of (data || []) as any[]) {
+        map[row.student_id] = row as StudentPresenceData;
+      }
+      setStudentPresence(map);
+    } catch { /* Core view may not exist yet */ }
+  }, [activeGroupId]);
+
+  // Subscribe to student_presence realtime
+  useEffect(() => {
+    if (!activeGroupId) return;
+    loadStudentPresence();
+    const channel = supabase
+      .channel(`student_presence_${activeGroupId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_presence' }, () => {
+        loadStudentPresence();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeGroupId, loadStudentPresence]);
     setPointBalances(prev => ({
       ...prev,
       [studentId]: (prev[studentId] || 0) + delta,
