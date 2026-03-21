@@ -1,21 +1,26 @@
 /**
- * StaffPresencePanel — shows all staff in current classroom/agency.
+ * StaffPresencePanel — "Who's Here" panel for classroom page.
  * Reads from Nova Core: staff_presence, v_classroom_staff_presence, v_available_support_staff.
  * Writes via Nova Core RPC: set_staff_presence(...).
- * Resolves display names via edge function + classroom_group_teachers for roles.
+ * Shows My Status card, In This Room, Available Support, With Student sections.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StaffActionSheet } from '@/components/StaffActionSheet';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   UserCheck, UserX, Coffee, Briefcase, ShieldCheck,
   Users2, Radio, HelpCircle, MapPin, UserCog,
+  ChevronDown, ChevronUp, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,7 +47,7 @@ export const PRESENCE_STATUS_ORDER: PresenceStatus[] = [
   'in_room', 'floating', 'covering', 'with_student', 'on_break', 'in_office', 'out', 'unavailable',
 ];
 
-interface StaffPresenceRow {
+export interface StaffPresenceRow {
   id: string;
   user_id: string;
   status: PresenceStatus;
@@ -60,15 +65,18 @@ interface StaffPresencePanelProps {
   groupId: string;
   agencyId: string;
   studentMap?: Record<string, string>;
+  compact?: boolean;
 }
 
-export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPresencePanelProps) {
+export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: StaffPresencePanelProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [presenceRows, setPresenceRows] = useState<StaffPresenceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionSheetUserId, setActionSheetUserId] = useState<string | null>(null);
   const [nameMap, setNameMap] = useState<Map<string, string>>(new Map());
   const [roleMap, setRoleMap] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState(!compact);
 
   // Load staff roles from classroom_group_teachers (Lovable Cloud)
   const loadRoles = useCallback(async () => {
@@ -111,7 +119,6 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
 
       setPresenceRows(merged);
 
-      // Resolve names for all user_ids
       const allIds = merged.map(r => r.user_id);
       if (allIds.length > 0) {
         try {
@@ -150,64 +157,103 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
     return () => { supabase.removeChannel(channel); };
   }, [agencyId, loadPresence]);
 
+  const myPresence = presenceRows.find(r => r.user_id === user?.id);
   const inRoom = presenceRows.filter(r => r.classroom_group_id === groupId && r.status === 'in_room');
   const withStudent = presenceRows.filter(r => r.status === 'with_student');
-  const available = presenceRows.filter(r => r.available_for_support && r.classroom_group_id !== groupId && r.status !== 'with_student');
+  const availableSupport = presenceRows.filter(r => r.available_for_support && r.classroom_group_id !== groupId && r.status !== 'with_student');
   const away = presenceRows.filter(r => ['out', 'on_break', 'in_office', 'unavailable', 'floating', 'covering'].includes(r.status) && r.classroom_group_id !== groupId && !r.available_for_support);
-
-  const myPresence = presenceRows.find(r => r.user_id === user?.id);
 
   const getDisplayName = (userId: string) => {
     if (userId === user?.id) return 'You';
     return nameMap.get(userId) || `Staff ${userId.slice(0, 6)}`;
   };
-
   const getRole = (userId: string) => roleMap[userId] || null;
+
+  // Mini presence chips for compact header display
+  const miniCounts = {
+    inRoom: inRoom.length,
+    available: availableSupport.length,
+    withStudent: withStudent.length,
+  };
 
   return (
     <Card className="border-border/40">
       <CardContent className="p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users2 className="h-4 w-4 text-primary" />
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Who's Here</span>
-            <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{inRoom.length} in room</Badge>
+        {/* Panel header with mini-presence chips */}
+        <Collapsible open={expanded} onOpenChange={setExpanded}>
+          <div className="flex items-center justify-between">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Users2 className="h-4 w-4 text-primary" />
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Who's Here</span>
+                <div className="flex items-center gap-1.5 ml-1">
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5 gap-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+                    {miniCounts.inRoom}
+                  </Badge>
+                  {miniCounts.available > 0 && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
+                      <Zap className="h-2 w-2 text-purple-500" />
+                      {miniCounts.available}
+                    </Badge>
+                  )}
+                  {miniCounts.withStudent > 0 && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
+                      <UserCog className="h-2 w-2 text-primary" />
+                      {miniCounts.withStudent}
+                    </Badge>
+                  )}
+                </div>
+                {expanded ? <ChevronUp className="h-3 w-3 text-muted-foreground ml-1" /> : <ChevronDown className="h-3 w-3 text-muted-foreground ml-1" />}
+              </button>
+            </CollapsibleTrigger>
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-[10px] px-2"
+                onClick={() => setActionSheetUserId(user.id)}
+              >
+                <MapPin className="h-3 w-3 mr-1" />
+                {myPresence ? PRESENCE_STATUS_MAP[myPresence.status]?.label || myPresence.status : 'Set Status'}
+              </Button>
+            )}
           </div>
-          {user && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 text-[10px] px-2"
-              onClick={() => setActionSheetUserId(user.id)}
-            >
-              <MapPin className="h-3 w-3 mr-1" />
-              {myPresence ? PRESENCE_STATUS_MAP[myPresence.status]?.label || myPresence.status : 'Set Status'}
-            </Button>
-          )}
-        </div>
 
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
-        ) : presenceRows.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">No staff presence data yet. Tap "Set Status" to start.</p>
-        ) : (
-          <div className="space-y-2">
-            {inRoom.length > 0 && (
-              <PresenceGroup label="In This Room" rows={inRoom} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
+          <CollapsibleContent>
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : presenceRows.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-2 mt-2">No staff presence data yet. Tap "Set Status" to start.</p>
+            ) : (
+              <div className="space-y-3 mt-3">
+                {/* My Status card */}
+                {user && (
+                  <MyStatusCard
+                    presence={myPresence || null}
+                    studentMap={studentMap}
+                    onEdit={() => setActionSheetUserId(user.id)}
+                  />
+                )}
+
+                {inRoom.length > 0 && (
+                  <PresenceGroup label="In This Room" rows={inRoom} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
+                )}
+                {withStudent.length > 0 && (
+                  <PresenceGroup label="With Student" rows={withStudent} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
+                )}
+                {availableSupport.length > 0 && (
+                  <PresenceGroup label="Available Support" rows={availableSupport} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
+                )}
+                {away.length > 0 && (
+                  <PresenceGroup label="Away" rows={away} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
+                )}
+              </div>
             )}
-            {withStudent.length > 0 && (
-              <PresenceGroup label="With Student" rows={withStudent} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
-            )}
-            {available.length > 0 && (
-              <PresenceGroup label="Available Support" rows={available} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
-            )}
-            {away.length > 0 && (
-              <PresenceGroup label="Away" rows={away} studentMap={studentMap} onSelect={setActionSheetUserId} getDisplayName={getDisplayName} getRole={getRole} />
-            )}
-          </div>
-        )}
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
 
       {actionSheetUserId && (
@@ -223,6 +269,56 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPrese
         />
       )}
     </Card>
+  );
+}
+
+/* ── My Status Card ── */
+function MyStatusCard({ presence, studentMap, onEdit }: {
+  presence: StaffPresenceRow | null;
+  studentMap?: Record<string, string>;
+  onEdit: () => void;
+}) {
+  if (!presence) {
+    return (
+      <button
+        onClick={onEdit}
+        className="w-full rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-center transition-colors hover:bg-primary/10"
+      >
+        <MapPin className="h-4 w-4 mx-auto text-primary mb-1" />
+        <p className="text-xs font-medium text-primary">Set your status</p>
+        <p className="text-[10px] text-muted-foreground">Let your team know where you are</p>
+      </button>
+    );
+  }
+
+  const config = PRESENCE_STATUS_MAP[presence.status] || PRESENCE_STATUS_MAP.in_room;
+  const Icon = config.icon;
+
+  return (
+    <button
+      onClick={onEdit}
+      className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", config.dot)} />
+          <span className="text-xs font-bold text-primary">My Status</span>
+        </div>
+        <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-1 capitalize">
+          <Icon className="h-2.5 w-2.5" />
+          {config.label}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+        {presence.location_label && <span>📍 {presence.location_label}</span>}
+        {presence.available_for_support && <span className="text-green-600 dark:text-green-400">● Available</span>}
+        {!presence.available_for_support && <span className="text-muted-foreground">○ Busy</span>}
+        {presence.assigned_student_id && (
+          <span>→ {studentMap?.[presence.assigned_student_id] || 'Student'}</span>
+        )}
+        {presence.note && <span className="italic truncate max-w-[120px]">"{presence.note}"</span>}
+      </div>
+    </button>
   );
 }
 

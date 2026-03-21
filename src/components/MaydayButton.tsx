@@ -1,7 +1,7 @@
 /**
- * MaydayButton — Emergency alert with lifecycle: active → acknowledged → resolved.
- * Senders pick which contacts to notify from mayday_contacts + agency_memberships.
- * Recipients can have opt-out days; admin override bypasses opt-out.
+ * MaydayButton — Emergency alert with presence-aware recipient suggestions.
+ * Priority: 1) same room staff  2) available support  3) floating  4) supervisors/BCBA
+ * Groups recipients into "Suggested Now" and "Leadership / Supervisors".
  */
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell, Mail, Phone } from 'lucide-react';
+import { AlertTriangle, Send, Loader2, Shield, Users, CheckCircle, XCircle, Clock, Bell, Mail, Phone, Zap, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MaydayContact {
@@ -36,6 +36,11 @@ interface MaydayContact {
   admin_override: boolean;
   is_active: boolean;
   user_id: string | null;
+  _availableNow?: boolean;
+  _presenceStatus?: string;
+  _presenceLocation?: string;
+  _priority?: number;
+  _group?: 'suggested' | 'leadership' | 'other';
 }
 
 interface MaydayAlert {
@@ -68,6 +73,7 @@ const ALERT_TYPES = [
 ];
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const LEADERSHIP_ROLES = ['supervisor', 'bcba', 'admin', 'director', 'lead', 'coordinator'];
 
 export function MaydayButton({ agencyId, classroomId, classroomName, studentId, studentName }: Props) {
   const { user } = useAuth();
@@ -84,7 +90,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   const [message, setMessage] = useState('');
   const [tab, setTab] = useState('send');
 
-  const todayDay = new Date().getDay(); // 0=Sun
+  const todayDay = new Date().getDay();
 
   const loadContacts = useCallback(async () => {
     try {
@@ -95,41 +101,60 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         .eq('is_active', true);
       const allContacts = (data || []) as any as MaydayContact[];
 
-      // Pull presence data to tag availability and prioritize
+      // Enrich with presence data
       try {
-        const { data: supportStaff } = await supabase
-          .from('v_available_support_staff' as any)
-          .select('user_id, availability_status, location_label, status, classroom_group_id')
-          .eq('agency_id', agencyId);
-        const supportMap = new Map<string, any>();
-        for (const s of supportStaff || []) {
-          supportMap.set((s as any).user_id, s);
+        const [{ data: roomStaff }, { data: supportStaff }] = await Promise.all([
+          supabase.from('v_classroom_staff_presence' as any)
+            .select('user_id, status, location_label, classroom_group_id, available_for_support')
+            .eq('agency_id', agencyId),
+          supabase.from('v_available_support_staff' as any)
+            .select('user_id, availability_status, location_label, status, classroom_group_id')
+            .eq('agency_id', agencyId),
+        ]);
+
+        const presenceMap = new Map<string, any>();
+        for (const s of [...(roomStaff || []), ...(supportStaff || [])] as any[]) {
+          if (!presenceMap.has(s.user_id)) presenceMap.set(s.user_id, s);
         }
+
         for (const c of allContacts) {
-          if (c.user_id && supportMap.has(c.user_id)) {
-            const sp = supportMap.get(c.user_id);
-            (c as any)._availableNow = true;
-            (c as any)._presenceStatus = sp.status;
-            // Priority: same room > available support > floating > other
+          const isLeadership = LEADERSHIP_ROLES.some(r => (c.role_label || '').toLowerCase().includes(r));
+          const sp = c.user_id ? presenceMap.get(c.user_id) : null;
+
+          if (sp) {
+            c._availableNow = true;
+            c._presenceStatus = sp.status;
+            c._presenceLocation = sp.location_label;
             const inSameRoom = classroomId && sp.classroom_group_id === classroomId;
-            (c as any)._priority = inSameRoom ? 0 : sp.status === 'floating' ? 1 : 2;
+            c._priority = inSameRoom ? 0 : sp.status === 'floating' ? 1 : sp.available_for_support ? 2 : 5;
+            c._group = inSameRoom || sp.available_for_support || sp.status === 'floating' ? 'suggested' : isLeadership ? 'leadership' : 'other';
           } else {
-            (c as any)._priority = 10;
+            c._priority = isLeadership ? 8 : 10;
+            c._group = isLeadership ? 'leadership' : 'other';
           }
         }
       } catch { /* presence data optional */ }
 
-      // Sort: available in same room first, then floating, then others
-      allContacts.sort((a, b) => ((a as any)._priority ?? 10) - ((b as any)._priority ?? 10));
-
+      allContacts.sort((a, b) => (a._priority ?? 10) - (b._priority ?? 10));
       setContacts(allContacts);
-      // Auto-select contacts that are available today (not opted out, or admin override)
+
+      // Auto-select available + leadership
       const available = allContacts.filter(c =>
-        c.admin_override || !(c.opt_out_days || []).includes(todayDay)
+        (c.admin_override || !(c.opt_out_days || []).includes(todayDay)) &&
+        (c._group === 'suggested' || c._group === 'leadership')
       );
       setSelectedContacts(new Set(available.map(c => c.id)));
     } catch { /* silent */ }
   }, [agencyId, todayDay, classroomId]);
+
+  const selectBestResponders = () => {
+    const best = contacts.filter(c =>
+      (c._group === 'suggested' || c._group === 'leadership') &&
+      (c.admin_override || !(c.opt_out_days || []).includes(todayDay))
+    );
+    setSelectedContacts(new Set(best.map(c => c.id)));
+    toast({ title: `✓ Selected ${best.length} best responders` });
+  };
 
   const loadAlerts = useCallback(async () => {
     if (!user) return;
@@ -154,8 +179,6 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
     setSending(true);
     try {
       const alertMsg = message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`;
-
-      // Create alert in Core
       const { data: alert, error: alertErr } = await supabase.from('mayday_alerts' as any).insert({
         agency_id: agencyId, classroom_id: classroomId || null, student_id: studentId || null,
         triggered_by: user.id, alert_type: alertType, urgency,
@@ -163,22 +186,17 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       }).select('id').single();
       if (alertErr) throw alertErr;
 
-      // Gather selected contacts
       const selected = contacts.filter(c => selectedContacts.has(c.id));
       const recipientEmails = selected.filter(c => c.notify_email && c.email).map(c => c.email!);
       const recipientPhones = selected.filter(c => c.notify_sms && c.phone).map(c => c.phone!);
 
-      // Log recipients
-      const recipientRows = selected
-        .filter(c => c.user_id)
-        .map(c => ({
-          alert_id: (alert as any).id, user_id: c.user_id, delivery_channel: 'in_app', status: 'pending',
-        }));
+      const recipientRows = selected.filter(c => c.user_id).map(c => ({
+        alert_id: (alert as any).id, user_id: c.user_id, delivery_channel: 'in_app', status: 'pending',
+      }));
       if (recipientRows.length > 0) {
         await supabase.from('mayday_recipients' as any).insert(recipientRows);
       }
 
-      // Send via edge function (email + SMS phone numbers)
       if (recipientEmails.length > 0 || recipientPhones.length > 0) {
         try {
           await cloudSupabase.functions.invoke('send-mayday-alert', {
@@ -186,8 +204,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
               alert_type: alertType, urgency, message: alertMsg,
               classroom_name: classroomName || null, student_name: studentName || null,
               triggered_by_name: user.email?.split('@')[0] || 'Staff',
-              recipient_emails: recipientEmails,
-              recipient_phones: recipientPhones,
+              recipient_emails: recipientEmails, recipient_phones: recipientPhones,
             },
           });
         } catch (e) { console.warn('[Mayday] notification send failed:', e); }
@@ -214,6 +231,10 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   };
 
   const activeCount = activeAlerts.filter(a => a.status === 'active').length;
+
+  const suggestedContacts = contacts.filter(c => c._group === 'suggested');
+  const leadershipContacts = contacts.filter(c => c._group === 'leadership');
+  const otherContacts = contacts.filter(c => c._group === 'other' || !c._group);
 
   return (
     <>
@@ -254,37 +275,30 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
               </div>
               <div className="space-y-1"><Label className="text-xs">Details (optional)</Label><Textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe the situation…" rows={2} /></div>
 
-              {/* Recipient picker */}
+              {/* Recipient picker — grouped */}
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1"><Users className="h-3 w-3" /> Notify ({selectedContacts.size} of {contacts.length})</Label>
-                <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-border p-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs flex items-center gap-1"><Users className="h-3 w-3" /> Notify ({selectedContacts.size})</Label>
+                  <Button variant="ghost" size="sm" className="h-5 text-[9px] gap-1 px-2" onClick={selectBestResponders}>
+                    <Zap className="h-2.5 w-2.5" /> Select best
+                  </Button>
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-border p-2">
                   {contacts.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-2">No mayday contacts configured. Add them in Admin → Mayday Contacts.</p>
-                  ) : contacts.map(c => {
-                    const isOptedOut = !c.admin_override && (c.opt_out_days || []).includes(todayDay);
-                    return (
-                      <label key={c.id} className={cn(
-                        "flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer",
-                        isOptedOut ? "opacity-50 bg-muted/30" : "hover:bg-muted/50"
-                      )}>
-                        <Checkbox
-                          checked={selectedContacts.has(c.id)}
-                          onCheckedChange={() => toggleContact(c.id)}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-medium">{c.contact_name}</span>
-                          {isOptedOut && <span className="text-[9px] text-amber-600 ml-1">(off {DAYS[todayDay]})</span>}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Badge variant="outline" className="text-[9px]">{c.role_label}</Badge>
-                          {(c as any)._availableNow && <Badge variant="secondary" className="text-[8px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Available</Badge>}
-                          {c.email && c.notify_email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
-                          {c.phone && c.notify_sms && <Phone className="h-2.5 w-2.5 text-muted-foreground" />}
-                          {c.admin_override && <Shield className="h-2.5 w-2.5 text-destructive" />}
-                        </div>
-                      </label>
-                    );
-                  })}
+                    <p className="text-xs text-muted-foreground text-center py-2">No mayday contacts configured.</p>
+                  ) : (
+                    <>
+                      {suggestedContacts.length > 0 && (
+                        <ContactGroup label="Suggested Now" contacts={suggestedContacts} selectedContacts={selectedContacts} toggleContact={toggleContact} todayDay={todayDay} />
+                      )}
+                      {leadershipContacts.length > 0 && (
+                        <ContactGroup label="Leadership / Supervisors" contacts={leadershipContacts} selectedContacts={selectedContacts} toggleContact={toggleContact} todayDay={todayDay} />
+                      )}
+                      {otherContacts.length > 0 && (
+                        <ContactGroup label="Other Staff" contacts={otherContacts} selectedContacts={selectedContacts} toggleContact={toggleContact} todayDay={todayDay} />
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
               <Button onClick={sendAlert} disabled={sending || selectedContacts.size === 0} variant="destructive" className="w-full gap-1.5 font-bold">
@@ -324,6 +338,52 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   );
 }
 
+/* ── Contact group ── */
+function ContactGroup({ label, contacts, selectedContacts, toggleContact, todayDay }: {
+  label: string;
+  contacts: MaydayContact[];
+  selectedContacts: Set<string>;
+  toggleContact: (id: string) => void;
+  todayDay: number;
+}) {
+  return (
+    <div>
+      <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+      {contacts.map(c => {
+        const isOptedOut = !c.admin_override && (c.opt_out_days || []).includes(todayDay);
+        return (
+          <label key={c.id} className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer",
+            isOptedOut ? "opacity-50 bg-muted/30" : "hover:bg-muted/50"
+          )}>
+            <Checkbox checked={selectedContacts.has(c.id)} onCheckedChange={() => toggleContact(c.id)} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium">{c.contact_name}</span>
+                {isOptedOut && <span className="text-[9px] text-amber-600">(off {DAYS[todayDay]})</span>}
+              </div>
+              {(c._presenceStatus || c._presenceLocation) && (
+                <p className="text-[9px] text-muted-foreground">
+                  {c._presenceLocation && `📍 ${c._presenceLocation}`}
+                  {c._presenceStatus && ` · ${c._presenceStatus}`}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Badge variant="outline" className="text-[9px]">{c.role_label}</Badge>
+              {c._availableNow && <Badge variant="secondary" className="text-[8px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Available</Badge>}
+              {c.email && c.notify_email && <Mail className="h-2.5 w-2.5 text-muted-foreground" />}
+              {c.phone && c.notify_sms && <Phone className="h-2.5 w-2.5 text-muted-foreground" />}
+              {c.admin_override && <Shield className="h-2.5 w-2.5 text-destructive" />}
+            </div>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Alert card ── */
 function AlertCard({ alert, onAcknowledge, onResolve }: { alert: MaydayAlert; onAcknowledge: () => void; onResolve: () => void }) {
   return (
     <div className={cn("rounded-lg border p-3 space-y-2", alert.status === 'active' ? 'border-destructive/40 bg-destructive/5' : 'border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/10')}>
@@ -336,18 +396,17 @@ function AlertCard({ alert, onAcknowledge, onResolve }: { alert: MaydayAlert; on
           <p className="text-sm font-medium mt-1">{ALERT_TYPES.find(t => t.value === alert.alert_type)?.label}</p>
           {alert.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{alert.message}</p>}
           <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{new Date(alert.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
-          {alert.acknowledged_at && <p className="text-[10px] text-muted-foreground">✓ Acknowledged {new Date(alert.acknowledged_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
         </div>
-      </div>
-      <div className="flex gap-1.5">
-        {alert.status === 'active' && (
-          <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-amber-300 text-amber-700 dark:text-amber-300" onClick={onAcknowledge}>
-            <CheckCircle className="h-3 w-3" /> Acknowledge
+        <div className="flex flex-col gap-1 shrink-0">
+          {alert.status === 'active' && (
+            <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={onAcknowledge}>
+              <UserCheck className="h-3 w-3" /> ACK
+            </Button>
+          )}
+          <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-accent" onClick={onResolve}>
+            <CheckCircle className="h-3 w-3" /> Resolve
           </Button>
-        )}
-        <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 border-accent text-accent-foreground" onClick={onResolve}>
-          <XCircle className="h-3 w-3" /> Resolve
-        </Button>
+        </div>
       </div>
     </div>
   );

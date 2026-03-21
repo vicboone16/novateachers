@@ -1,27 +1,26 @@
 /**
- * StaffActionSheet — quick controls to move rooms, change status,
- * assign to student, change support availability.
+ * StaffActionSheet — full status update sheet with location presets,
+ * status selector, availability, student assignment, and note.
  * Writes via Nova Core RPC: set_staff_presence(...).
- * No local schema — Nova Core is the source of truth.
  */
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
   UserCheck, Coffee, Briefcase, Radio, ShieldCheck, UserCog, UserX, HelpCircle,
-  MapPin, Loader2,
+  MapPin, Loader2, School, TreePine, UtensilsCrossed, Building2, DoorOpen, Dumbbell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PRESENCE_STATUS_ORDER, PRESENCE_STATUS_MAP, type PresenceStatus } from './StaffPresencePanel';
@@ -47,14 +46,22 @@ interface StaffActionSheetProps {
 }
 
 const LOCATION_PRESETS = [
-  { value: 'classroom', label: 'Classroom' },
-  { value: 'playground', label: 'Playground' },
-  { value: 'cafeteria', label: 'Cafeteria' },
-  { value: 'office', label: 'Office' },
-  { value: 'therapy_room', label: 'Therapy Room' },
-  { value: 'hallway', label: 'Hallway' },
-  { value: 'gym', label: 'Gym' },
-  { value: 'other', label: 'Other' },
+  { value: 'classroom', label: 'This Classroom', icon: School },
+  { value: 'other_classroom', label: 'Another Classroom', icon: DoorOpen },
+  { value: 'playground', label: 'Playground', icon: TreePine },
+  { value: 'hallway', label: 'Hallway', icon: DoorOpen },
+  { value: 'cafeteria', label: 'Cafeteria', icon: UtensilsCrossed },
+  { value: 'office', label: 'Office', icon: Building2 },
+  { value: 'therapy_room', label: 'Therapy / Pull-Out', icon: UserCog },
+  { value: 'gym', label: 'Gym', icon: Dumbbell },
+  { value: 'support_room', label: 'Support Room', icon: ShieldCheck },
+  { value: 'other', label: 'Other', icon: MapPin },
+];
+
+const AVAILABILITY_OPTIONS = [
+  { value: 'available', label: 'Available', color: 'bg-green-500' },
+  { value: 'limited', label: 'Limited', color: 'bg-amber-500' },
+  { value: 'unavailable', label: 'Unavailable', color: 'bg-muted-foreground' },
 ];
 
 export function StaffActionSheet({
@@ -68,7 +75,9 @@ export function StaffActionSheet({
   const [status, setStatus] = useState<PresenceStatus>(currentPresence?.status || 'in_room');
   const [locationType, setLocationType] = useState(currentPresence?.location_type || 'classroom');
   const [locationLabel, setLocationLabel] = useState(currentPresence?.location_label || '');
-  const [availableForSupport, setAvailableForSupport] = useState(currentPresence?.available_for_support ?? true);
+  const [availability, setAvailability] = useState(
+    currentPresence?.availability_status || (currentPresence?.available_for_support ? 'available' : 'unavailable')
+  );
   const [assignedStudentId, setAssignedStudentId] = useState(currentPresence?.assigned_student_id || '');
   const [note, setNote] = useState(currentPresence?.note || '');
   const [saving, setSaving] = useState(false);
@@ -76,15 +85,16 @@ export function StaffActionSheet({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc('set_staff_presence', {
+      const isAvailable = availability === 'available' || availability === 'limited';
+      const { error } = await supabase.rpc('set_staff_presence', {
         p_agency_id: agencyId,
         p_user_id: userId,
         p_classroom_group_id: status === 'in_room' ? currentGroupId : (currentPresence?.classroom_group_id || null),
         p_location_type: locationType,
-        p_location_label: locationLabel || null,
+        p_location_label: locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null,
         p_status: status,
-        p_availability_status: availableForSupport ? 'available' : 'busy',
-        p_available_for_support: availableForSupport,
+        p_availability_status: availability,
+        p_available_for_support: isAvailable,
         p_assigned_student_id: assignedStudentId || null,
         p_note: note || null,
         p_changed_by: user?.id || null,
@@ -102,15 +112,16 @@ export function StaffActionSheet({
     }
   };
 
-  // Quick status buttons
-  const quickMove = async (newStatus: PresenceStatus, newLocation?: string) => {
+  // Quick status tap
+  const quickMove = async (newStatus: PresenceStatus) => {
+    if (!isMe) { setStatus(newStatus); return; }
     setSaving(true);
     try {
       const { error } = await supabase.rpc('set_staff_presence', {
         p_agency_id: agencyId,
         p_user_id: userId,
         p_classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
-        p_location_type: newLocation || locationType,
+        p_location_type: newStatus === 'in_room' ? 'classroom' : locationType,
         p_status: newStatus,
         p_available_for_support: newStatus === 'in_room' || newStatus === 'floating',
         p_changed_by: user?.id || null,
@@ -129,110 +140,140 @@ export function StaffActionSheet({
   const studentEntries = studentMap ? Object.entries(studentMap) : [];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-sm flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl px-4 pb-8">
+        <SheetHeader className="pb-2">
+          <SheetTitle className="font-heading text-sm flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
-            {isMe ? 'My Status' : 'Staff Status'}
-          </DialogTitle>
-        </DialogHeader>
+            {isMe ? 'Update My Status' : 'Staff Status'}
+          </SheetTitle>
+        </SheetHeader>
 
-        {/* Quick action buttons */}
-        <div className="grid grid-cols-4 gap-1.5">
-          {PRESENCE_STATUS_ORDER.map(s => {
-            const cfg = PRESENCE_STATUS_MAP[s];
-            const Icon = cfg.icon;
-            const active = status === s;
-            return (
+        {/* Section 1: Quick status buttons */}
+        <div className="space-y-1.5">
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">What's my status?</Label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {PRESENCE_STATUS_ORDER.map(s => {
+              const cfg = PRESENCE_STATUS_MAP[s];
+              const Icon = cfg.icon;
+              const active = status === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => { setStatus(s); if (isMe) quickMove(s); }}
+                  disabled={saving}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all active:scale-95",
+                    active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/50 bg-card text-muted-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="text-[8px] font-medium leading-tight">{cfg.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Section 2: Where am I? */}
+        <div className="space-y-1.5 pt-4 border-t border-border/30 mt-4">
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Where am I?</Label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {LOCATION_PRESETS.map(loc => {
+              const LocIcon = loc.icon;
+              const active = locationType === loc.value;
+              return (
+                <button
+                  key={loc.value}
+                  onClick={() => setLocationType(loc.value)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-all active:scale-95",
+                    active
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/50 bg-card text-muted-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <LocIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="text-[10px] font-medium">{loc.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          {(locationType === 'other' || locationType === 'other_classroom') && (
+            <Input
+              value={locationLabel}
+              onChange={e => setLocationLabel(e.target.value)}
+              placeholder={locationType === 'other_classroom' ? 'Room name…' : 'Location name…'}
+              className="h-8 text-xs mt-1"
+            />
+          )}
+        </div>
+
+        {/* Section 3: Availability */}
+        <div className="space-y-1.5 pt-4 border-t border-border/30 mt-4">
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Availability</Label>
+          <div className="flex gap-2">
+            {AVAILABILITY_OPTIONS.map(opt => (
               <button
-                key={s}
-                onClick={() => { setStatus(s); if (isMe) quickMove(s, s === 'in_room' ? 'classroom' : undefined); }}
-                disabled={saving}
+                key={opt.value}
+                onClick={() => setAvailability(opt.value)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all active:scale-95",
-                  active
+                  "flex items-center gap-2 rounded-lg border px-3 py-2 flex-1 transition-all active:scale-95",
+                  availability === opt.value
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border/50 bg-card text-muted-foreground hover:bg-muted/50"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                <span className="text-[8px] font-medium leading-tight">{cfg.label}</span>
+                <span className={cn("h-2 w-2 rounded-full shrink-0", opt.color)} />
+                <span className="text-[10px] font-medium">{opt.label}</span>
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
 
-        {/* Detailed controls */}
-        <div className="space-y-3 pt-2 border-t border-border/30">
-          {/* Location */}
-          <div className="space-y-1">
-            <Label className="text-xs">Location</Label>
-            <Select value={locationType} onValueChange={setLocationType}>
+        {/* Section 4: Student assignment */}
+        {studentEntries.length > 0 && (
+          <div className="space-y-1.5 pt-4 border-t border-border/30 mt-4">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Assigned Student (optional)</Label>
+            <Select value={assignedStudentId} onValueChange={setAssignedStudentId}>
               <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
+                <SelectValue placeholder="None" />
               </SelectTrigger>
               <SelectContent>
-                {LOCATION_PRESETS.map(l => (
-                  <SelectItem key={l.value} value={l.value} className="text-xs">{l.label}</SelectItem>
+                <SelectItem value="" className="text-xs">None</SelectItem>
+                {studentEntries.map(([id, name]) => (
+                  <SelectItem key={id} value={id} className="text-xs">{name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {locationType === 'other' && (
-              <Input
-                value={locationLabel}
-                onChange={e => setLocationLabel(e.target.value)}
-                placeholder="Room name…"
-                className="h-7 text-xs mt-1"
-              />
-            )}
           </div>
+        )}
 
-          {/* Assign to student */}
-          {studentEntries.length > 0 && (
-            <div className="space-y-1">
-              <Label className="text-xs">Assigned Student</Label>
-              <Select value={assignedStudentId} onValueChange={setAssignedStudentId}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="" className="text-xs">None</SelectItem>
-                  {studentEntries.map(([id, name]) => (
-                    <SelectItem key={id} value={id} className="text-xs">{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Available for support */}
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Available for Support</Label>
-            <Switch
-              checked={availableForSupport}
-              onCheckedChange={setAvailableForSupport}
-            />
-          </div>
-
-          {/* Note */}
-          <div className="space-y-1">
-            <Label className="text-xs">Note (optional)</Label>
-            <Textarea
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              placeholder="e.g. covering for Ms. Smith…"
-              rows={2}
-              className="text-xs"
-            />
-          </div>
+        {/* Section 5: Note */}
+        <div className="space-y-1.5 pt-4 border-t border-border/30 mt-4">
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Note (optional)</Label>
+          <Textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="e.g. covering lunch, with Jayden, playground support…"
+            rows={2}
+            className="text-xs"
+          />
         </div>
 
-        <Button onClick={handleSave} disabled={saving} className="w-full gap-1.5">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-          Save Status
-        </Button>
-      </DialogContent>
-    </Dialog>
+        {/* Footer */}
+        <div className="flex gap-2 pt-4 mt-4 border-t border-border/30">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1" disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="flex-1 gap-1.5">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+            Save
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
