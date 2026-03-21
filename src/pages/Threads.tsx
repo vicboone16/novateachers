@@ -347,16 +347,26 @@ const Threads = () => {
     return (
       <div className="flex flex-col h-[calc(100vh-12rem)]">
         {/* Header */}
-        <div className="flex items-center gap-3 pb-3 border-b border-border/40">
-          <Button variant="ghost" size="icon" onClick={() => { setActiveThread(null); setMessages([]); }}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <TypeIcon className="h-4 w-4 text-muted-foreground" />
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold truncate">{activeThread.title || 'Untitled'}</h3>
-            <p className="text-xs text-muted-foreground">{typeConfig?.label} thread</p>
+        <div className="pb-3 border-b border-border/40">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => { setActiveThread(null); setMessages([]); }}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <TypeIcon className="h-4 w-4 text-muted-foreground" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold truncate">{activeThread.title || 'Untitled'}</h3>
+              <p className="text-xs text-muted-foreground">{typeConfig?.label} thread</p>
+            </div>
+            {activeThread.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
           </div>
-          {activeThread.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+          {/* Presence strip */}
+          <ThreadPresenceHeader
+            agencyId={agencyId}
+            classroomId={activeThread.classroom_id}
+            onPingAvailable={() => {
+              setMsgText('🔔 Requesting support — anyone available?');
+            }}
+          />
         </div>
 
         {/* Messages */}
