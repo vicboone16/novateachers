@@ -789,6 +789,15 @@ const ClassroomView = () => {
         </div>
       )}
 
+      {/* ─── STAFF PRESENCE: Who's Here ─── */}
+      {activeGroupId && (
+        <StaffPresencePanel
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          studentMap={Object.fromEntries(clients.map(c => [c.id, displayName(c)]))}
+        />
+      )}
+
       {/* ─── BOTTOM BAND: Reward Preview + Celebration Feed ─── */}
       <div className="grid gap-3 lg:grid-cols-2">
         {/* Reward preview strip */}
