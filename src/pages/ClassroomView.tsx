@@ -282,6 +282,8 @@ const ClassroomView = () => {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeGroupId, loadStudentPresence]);
+
+  const handlePointChange = (studentId: string, delta: number) => {
     setPointBalances(prev => ({
       ...prev,
       [studentId]: (prev[studentId] || 0) + delta,
