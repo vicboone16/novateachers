@@ -25,6 +25,8 @@ import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
+import { StudentPresenceChip, type StudentPresenceData } from '@/components/StudentPresenceChip';
+import { StudentPresenceSheet } from '@/components/StudentPresenceSheet';
 import { MaydayButton } from '@/components/MaydayButton';
 import { listRecentClassroomEvents, seedTeacherEvents, type CoreBridgeEvent } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
