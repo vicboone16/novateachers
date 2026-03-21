@@ -1177,6 +1177,102 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_presence: {
+        Row: {
+          agency_id: string
+          assigned_student_id: string | null
+          availability_status: string
+          available_for_support: boolean
+          classroom_group_id: string | null
+          created_at: string
+          id: string
+          location_label: string | null
+          location_type: string
+          note: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          assigned_student_id?: string | null
+          availability_status?: string
+          available_for_support?: boolean
+          classroom_group_id?: string | null
+          created_at?: string
+          id?: string
+          location_label?: string | null
+          location_type?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          assigned_student_id?: string | null
+          availability_status?: string
+          available_for_support?: boolean
+          classroom_group_id?: string | null
+          created_at?: string
+          id?: string
+          location_label?: string | null
+          location_type?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      staff_presence_history: {
+        Row: {
+          agency_id: string
+          assigned_student_id: string | null
+          availability_status: string
+          available_for_support: boolean
+          changed_at: string
+          changed_by: string | null
+          classroom_group_id: string | null
+          id: string
+          location_label: string | null
+          location_type: string
+          note: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          agency_id: string
+          assigned_student_id?: string | null
+          availability_status: string
+          available_for_support?: boolean
+          changed_at?: string
+          changed_by?: string | null
+          classroom_group_id?: string | null
+          id?: string
+          location_label?: string | null
+          location_type: string
+          note?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string
+          assigned_student_id?: string | null
+          availability_status?: string
+          available_for_support?: boolean
+          changed_at?: string
+          changed_by?: string | null
+          classroom_group_id?: string | null
+          id?: string
+          location_label?: string | null
+          location_type?: string
+          note?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       teacher_data_events: {
         Row: {
           agency_id: string | null
@@ -2044,6 +2140,48 @@ export type Database = {
         }
         Relationships: []
       }
+      v_available_support_staff: {
+        Row: {
+          agency_id: string | null
+          assigned_student_id: string | null
+          availability_status: string | null
+          available_for_support: boolean | null
+          classroom_group_id: string | null
+          id: string | null
+          location_label: string | null
+          location_type: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          assigned_student_id?: string | null
+          availability_status?: string | null
+          available_for_support?: boolean | null
+          classroom_group_id?: string | null
+          id?: string | null
+          location_label?: string | null
+          location_type?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          assigned_student_id?: string | null
+          availability_status?: string | null
+          available_for_support?: boolean | null
+          classroom_group_id?: string | null
+          id?: string | null
+          location_label?: string | null
+          location_type?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       v_beacon_points_audit: {
         Row: {
           abc_log_id: string | null
@@ -2065,6 +2203,51 @@ export type Database = {
           teacher_data_event_id: string | null
           teacher_duration_entry_id: string | null
           teacher_frequency_entry_id: string | null
+        }
+        Relationships: []
+      }
+      v_classroom_staff_presence: {
+        Row: {
+          agency_id: string | null
+          assigned_student_id: string | null
+          availability_status: string | null
+          available_for_support: boolean | null
+          classroom_group_id: string | null
+          id: string | null
+          location_label: string | null
+          location_type: string | null
+          note: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          assigned_student_id?: string | null
+          availability_status?: string | null
+          available_for_support?: boolean | null
+          classroom_group_id?: string | null
+          id?: string | null
+          location_label?: string | null
+          location_type?: string | null
+          note?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          assigned_student_id?: string | null
+          availability_status?: string | null
+          available_for_support?: boolean | null
+          classroom_group_id?: string | null
+          id?: string | null
+          location_label?: string | null
+          location_type?: string | null
+          note?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2259,6 +2442,22 @@ export type Database = {
           redeemed: boolean
           role_slug: string
         }[]
+      }
+      set_staff_presence: {
+        Args: {
+          p_agency_id: string
+          p_assigned_student_id?: string
+          p_availability_status?: string
+          p_available_for_support?: boolean
+          p_changed_by?: string
+          p_classroom_group_id?: string
+          p_location_label?: string
+          p_location_type?: string
+          p_note?: string
+          p_status?: string
+          p_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
