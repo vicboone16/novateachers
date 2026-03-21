@@ -37,7 +37,7 @@ const GameBoard = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
-  const { groupId: sharedGroupId, loading: classroomLoading, error: classroomError } = useActiveClassroom();
+  const { groupId: sharedGroupId, loading: classroomLoading, error: classroomError, errorReason } = useActiveClassroom();
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<ClassroomGameSettings | null>(null);
@@ -55,7 +55,8 @@ const GameBoard = () => {
   // Use shared classroom context
   useEffect(() => {
     if (sharedGroupId) setActiveGroupId(sharedGroupId);
-  }, [sharedGroupId]);
+    else if (!classroomLoading && !sharedGroupId) setLoading(false);
+  }, [sharedGroupId, classroomLoading]);
 
   useEffect(() => { if (activeGroupId) loadBoard(); }, [activeGroupId]);
 
