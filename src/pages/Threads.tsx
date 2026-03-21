@@ -2,6 +2,7 @@
  * Threads — Slack-like threaded messaging page.
  * Reads/writes to Core-owned threads, messages, reactions, mentions tables.
  * Falls back to local teacher_messages if Core tables unavailable.
+ * Shows presence context in thread header via ThreadPresenceHeader.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -10,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import { useToast } from '@/hooks/use-toast';
+import { ThreadPresenceHeader } from '@/components/ThreadPresenceHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
