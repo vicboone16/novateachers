@@ -1,154 +1,256 @@
 /**
- * StaffPresencePanel — shows current user's presence status in a classroom.
- * Reads/writes to Core-owned `staff_presence_status` table.
+ * StaffPresencePanel — shows all staff in current classroom/agency.
+ * Uses local staff_presence table + v_classroom_staff_presence view + set_staff_presence RPC.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { StaffActionSheet } from '@/components/StaffActionSheet';
 import {
   UserCheck, UserX, TreePine, UserCog, Briefcase, Coffee, ShieldCheck,
-  ChevronDown, Users2,
+  Users2, Radio, HelpCircle, MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type StaffStatus =
-  | 'in_classroom'
-  | 'absent'
-  | 'on_playground'
-  | 'with_student'
-  | 'in_office'
-  | 'on_break'
-  | 'sub_covering';
+export type PresenceStatus = 'in_room' | 'out' | 'on_break' | 'in_office' | 'floating' | 'covering' | 'with_student' | 'unavailable';
 
-interface StaffStatusConfig {
+interface PresenceStatusConfig {
   label: string;
   icon: typeof UserCheck;
-  className: string;
+  dot: string;
 }
 
-const STAFF_STATUS_MAP: Record<StaffStatus, StaffStatusConfig> = {
-  in_classroom: { label: 'In Classroom', icon: UserCheck, className: 'bg-accent/20 text-accent-foreground' },
-  absent: { label: 'Absent', icon: UserX, className: 'bg-destructive/15 text-destructive' },
-  on_playground: { label: 'Playground', icon: TreePine, className: 'bg-green-500/15 text-green-700 dark:text-green-400' },
-  with_student: { label: 'With Student', icon: UserCog, className: 'bg-primary/15 text-primary' },
-  in_office: { label: 'In Office', icon: Briefcase, className: 'bg-secondary text-secondary-foreground' },
-  on_break: { label: 'On Break', icon: Coffee, className: 'bg-muted text-muted-foreground' },
-  sub_covering: { label: 'Sub Covering', icon: ShieldCheck, className: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400' },
+export const PRESENCE_STATUS_MAP: Record<PresenceStatus, PresenceStatusConfig> = {
+  in_room:      { label: 'In Room',       icon: UserCheck,    dot: 'bg-green-500' },
+  out:          { label: 'Out',           icon: UserX,        dot: 'bg-muted-foreground' },
+  on_break:     { label: 'On Break',      icon: Coffee,       dot: 'bg-amber-500' },
+  in_office:    { label: 'In Office',     icon: Briefcase,    dot: 'bg-blue-500' },
+  floating:     { label: 'Floating',      icon: Radio,        dot: 'bg-purple-500' },
+  covering:     { label: 'Covering',      icon: ShieldCheck,  dot: 'bg-yellow-500' },
+  with_student: { label: 'With Student',  icon: UserCog,      dot: 'bg-primary' },
+  unavailable:  { label: 'Unavailable',   icon: HelpCircle,   dot: 'bg-destructive' },
 };
 
-const STAFF_STATUS_ORDER: StaffStatus[] = [
-  'in_classroom', 'on_playground', 'with_student', 'in_office', 'on_break', 'sub_covering', 'absent',
+export const PRESENCE_STATUS_ORDER: PresenceStatus[] = [
+  'in_room', 'floating', 'covering', 'with_student', 'on_break', 'in_office', 'out', 'unavailable',
 ];
+
+interface StaffPresenceRow {
+  id: string;
+  user_id: string;
+  status: PresenceStatus;
+  location_type: string;
+  location_label: string | null;
+  availability_status: string;
+  available_for_support: boolean;
+  assigned_student_id: string | null;
+  classroom_group_id: string | null;
+  note: string | null;
+  updated_at: string;
+}
 
 interface StaffPresencePanelProps {
   groupId: string;
   agencyId: string;
+  /** Optional list of student names for display */
+  studentMap?: Record<string, string>;
 }
 
-export function StaffPresencePanel({ groupId, agencyId }: StaffPresencePanelProps) {
+export function StaffPresencePanel({ groupId, agencyId, studentMap }: StaffPresencePanelProps) {
   const { user } = useAuth();
-  const [myStatus, setMyStatus] = useState<StaffStatus>('in_classroom');
-  const [saving, setSaving] = useState(false);
+  const [presenceRows, setPresenceRows] = useState<StaffPresenceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionSheetUserId, setActionSheetUserId] = useState<string | null>(null);
+
+  const loadPresence = useCallback(async () => {
+    try {
+      // Use the view for classroom-scoped presence
+      const { data } = await cloudSupabase
+        .from('v_classroom_staff_presence' as any)
+        .select('*')
+        .eq('classroom_group_id', groupId);
+      
+      const rows = (data || []) as any as StaffPresenceRow[];
+      
+      // Also load agency-wide staff who are available for support but not in this room
+      const { data: available } = await cloudSupabase
+        .from('v_available_support_staff' as any)
+        .select('*')
+        .eq('agency_id', agencyId)
+        .neq('classroom_group_id', groupId);
+      
+      const availableRows = (available || []) as any as StaffPresenceRow[];
+      
+      // Merge, deduplicate by user_id
+      const seen = new Set(rows.map(r => r.user_id));
+      const merged = [...rows];
+      for (const r of availableRows) {
+        if (!seen.has(r.user_id)) {
+          seen.add(r.user_id);
+          merged.push(r);
+        }
+      }
+      
+      setPresenceRows(merged);
+    } catch (e) {
+      console.warn('[StaffPresence] load failed:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [groupId, agencyId]);
 
   useEffect(() => {
-    if (!user || !groupId) return;
     loadPresence();
-  }, [user, groupId]);
+    // Poll every 30s for live updates
+    const interval = setInterval(loadPresence, 30000);
+    return () => clearInterval(interval);
+  }, [loadPresence]);
 
-  const loadPresence = async () => {
-    if (!user) return;
-    try {
-      // Core-owned table: staff_presence_status
-      const { data } = await supabase
-        .from('staff_presence_status' as any)
-        .select('status')
-        .eq('user_id', user.id)
-        .eq('classroom_id', groupId)
-        .maybeSingle();
-      if (data?.status) setMyStatus(data.status as StaffStatus);
-    } catch { /* silent — table may not exist yet on Core */ }
-  };
+  // Subscribe to realtime changes on staff_presence
+  useEffect(() => {
+    const channel = cloudSupabase
+      .channel('staff_presence_live')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'staff_presence',
+        filter: `agency_id=eq.${agencyId}`,
+      }, () => {
+        loadPresence();
+      })
+      .subscribe();
 
-  const updateStatus = useCallback(async (newStatus: StaffStatus) => {
-    if (!user || newStatus === myStatus) return;
-    setSaving(true);
-    setMyStatus(newStatus);
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [agencyId, loadPresence]);
 
-    try {
-      // Core-owned table: staff_presence_status
-      // Upsert by user + classroom
-      const { error } = await supabase
-        .from('staff_presence_status' as any)
-        .upsert(
-          {
-            user_id: user.id,
-            classroom_id: groupId,
-            agency_id: agencyId,
-            status: newStatus,
-            changed_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,classroom_id' }
-        );
-      if (error) console.warn('[StaffPresence] upsert failed:', error.message);
-    } catch (err) {
-      console.warn('[StaffPresence] save failed:', err);
-    } finally {
-      setSaving(false);
-    }
-  }, [user, groupId, agencyId, myStatus]);
+  const inRoom = presenceRows.filter(r => r.classroom_group_id === groupId && r.status === 'in_room');
+  const withStudent = presenceRows.filter(r => r.status === 'with_student');
+  const floatingCovering = presenceRows.filter(r => r.status === 'floating' || r.status === 'covering');
+  const available = presenceRows.filter(r => r.available_for_support && r.classroom_group_id !== groupId);
+  const away = presenceRows.filter(r => ['out', 'on_break', 'in_office', 'unavailable'].includes(r.status));
 
-  const config = STAFF_STATUS_MAP[myStatus];
-  const Icon = config.icon;
+  const myPresence = presenceRows.find(r => r.user_id === user?.id);
 
   return (
     <Card className="border-border/40">
-      <CardContent className="flex items-center gap-3 py-3 px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <Users2 className="h-4 w-4 text-primary" />
+      <CardContent className="p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users2 className="h-4 w-4 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Who's Here</span>
+            <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{inRoom.length} in room</Badge>
+          </div>
+          {user && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-[10px] px-2"
+              onClick={() => setActionSheetUserId(user.id)}
+            >
+              <MapPin className="h-3 w-3 mr-1" />
+              {myPresence ? PRESENCE_STATUS_MAP[myPresence.status]?.label || myPresence.status : 'Set Status'}
+            </Button>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-muted-foreground">My Status</p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                disabled={saving}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:opacity-80 active:scale-95 mt-0.5',
-                  config.className,
-                  saving && 'opacity-50',
-                )}
-              >
-                <Icon className="h-3 w-3" />
-                {config.label}
-                <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[160px]">
-              {STAFF_STATUS_ORDER.map((s) => {
-                const sc = STAFF_STATUS_MAP[s];
-                const SIcon = sc.icon;
-                return (
-                  <DropdownMenuItem
-                    key={s}
-                    onClick={() => updateStatus(s)}
-                    className={cn('gap-2 text-xs', s === myStatus && 'bg-accent/20')}
-                  >
-                    <SIcon className="h-3 w-3" />
-                    {sc.label}
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : presenceRows.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">No staff presence data yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {/* In Room */}
+            {inRoom.length > 0 && (
+              <PresenceGroup label="In Room" rows={inRoom} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+            )}
+            {/* With Student */}
+            {withStudent.length > 0 && (
+              <PresenceGroup label="With Student" rows={withStudent} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+            )}
+            {/* Floating / Covering */}
+            {floatingCovering.length > 0 && (
+              <PresenceGroup label="Floating / Covering" rows={floatingCovering} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+            )}
+            {/* Available for Support (other rooms) */}
+            {available.length > 0 && (
+              <PresenceGroup label="Available Nearby" rows={available} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+            )}
+            {/* Away */}
+            {away.length > 0 && (
+              <PresenceGroup label="Away" rows={away} studentMap={studentMap} onSelect={setActionSheetUserId} currentUserId={user?.id} />
+            )}
+          </div>
+        )}
       </CardContent>
+
+      {/* Staff Action Sheet */}
+      {actionSheetUserId && (
+        <StaffActionSheet
+          open={!!actionSheetUserId}
+          onOpenChange={(open) => { if (!open) setActionSheetUserId(null); }}
+          userId={actionSheetUserId}
+          agencyId={agencyId}
+          currentGroupId={groupId}
+          currentPresence={presenceRows.find(r => r.user_id === actionSheetUserId) || null}
+          onUpdated={loadPresence}
+          studentMap={studentMap}
+        />
+      )}
     </Card>
+  );
+}
+
+/* ── Presence group section ── */
+function PresenceGroup({ label, rows, studentMap, onSelect, currentUserId }: {
+  label: string;
+  rows: StaffPresenceRow[];
+  studentMap?: Record<string, string>;
+  onSelect: (userId: string) => void;
+  currentUserId?: string;
+}) {
+  return (
+    <div>
+      <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+      <div className="space-y-1">
+        {rows.map(row => {
+          const config = PRESENCE_STATUS_MAP[row.status] || PRESENCE_STATUS_MAP.in_room;
+          const Icon = config.icon;
+          const isMe = row.user_id === currentUserId;
+          return (
+            <button
+              key={row.id || row.user_id}
+              onClick={() => onSelect(row.user_id)}
+              className={cn(
+                "flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50",
+                isMe && "bg-primary/5 border border-primary/20"
+              )}
+            >
+              <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">
+                  {isMe ? 'You' : row.user_id.slice(0, 8)}
+                  {row.available_for_support && (
+                    <span className="ml-1 text-[9px] text-green-600 dark:text-green-400">● available</span>
+                  )}
+                </p>
+                <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                  {row.location_label && <span>{row.location_label}</span>}
+                  {row.assigned_student_id && (
+                    <span>→ {studentMap?.[row.assigned_student_id] || 'Student'}</span>
+                  )}
+                  {row.note && <span className="italic truncate max-w-[100px]">"{row.note}"</span>}
+                </div>
+              </div>
+              <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
