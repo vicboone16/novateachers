@@ -887,6 +887,20 @@ const ClassroomView = () => {
         />
       )}
 
+      {/* Student Presence Sheet */}
+      {presenceSheetStudent && activeGroupId && (
+        <StudentPresenceSheet
+          open={!!presenceSheetStudent}
+          onOpenChange={(open) => { if (!open) setPresenceSheetStudent(null); }}
+          studentId={presenceSheetStudent.id}
+          studentName={displayName(presenceSheetStudent)}
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          currentPresence={studentPresence[presenceSheetStudent.id] || null}
+          onPresenceUpdate={handleStudentPresenceUpdate}
+        />
+      )}
+
       {/* Undo Toast */}
       <UndoToast action={pendingAction} onUndo={handleUndoComplete} onDismiss={dismissAction} />
     </div>
