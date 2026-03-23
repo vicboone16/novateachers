@@ -365,6 +365,14 @@ export function StudentQuickActionModal({
       studentName={studentName}
       agencyId={agencyId}
     />
+
+    <BeaconTeacherSupportPanel
+      open={supportPanelOpen}
+      onOpenChange={setSupportPanelOpen}
+      studentId={studentId}
+      studentName={studentName}
+      agencyId={agencyId}
+    />
     </>
   );
 }
