@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { ExternalAccessSheet } from '@/components/ExternalAccessSheet';
+import { BeaconTeacherSupportPanel } from '@/components/BeaconTeacherSupportPanel';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -23,7 +24,7 @@ import {
   Star, Plus, Minus, Check, X, Play, ExternalLink,
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Timer, Clock, Pause, Square,
-  Gift, KeyRound, Copy, Gamepad2, Camera, Link2,
+  Gift, KeyRound, Copy, Gamepad2, Camera, Link2, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +63,7 @@ export function StudentQuickActionModal({
   const [studentCode, setStudentCode] = useState<string | null>(null);
   const [codeLoading, setCodeLoading] = useState(false);
   const [externalSheetOpen, setExternalSheetOpen] = useState(false);
+  const [supportPanelOpen, setSupportPanelOpen] = useState(false);
 
   // Duration timer state
   const [timerRunning, setTimerRunning] = useState(false);
@@ -330,6 +332,10 @@ export function StudentQuickActionModal({
                 onClick={() => setExternalSheetOpen(true)}>
                 <Link2 className="h-3.5 w-3.5" /> Share Links
               </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8 col-span-2"
+                onClick={() => setSupportPanelOpen(true)}>
+                <Shield className="h-3.5 w-3.5 text-primary" /> Support Plan
+              </Button>
             </div>
           </Section>
 
@@ -355,6 +361,14 @@ export function StudentQuickActionModal({
     <ExternalAccessSheet
       open={externalSheetOpen}
       onOpenChange={setExternalSheetOpen}
+      studentId={studentId}
+      studentName={studentName}
+      agencyId={agencyId}
+    />
+
+    <BeaconTeacherSupportPanel
+      open={supportPanelOpen}
+      onOpenChange={setSupportPanelOpen}
       studentId={studentId}
       studentName={studentName}
       agencyId={agencyId}
