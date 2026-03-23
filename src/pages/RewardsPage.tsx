@@ -59,9 +59,12 @@ const RewardsPage = () => {
     return () => { cloudSupabase.removeChannel(channel); };
   }, [user, clients]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const loadData = async () => {
     if (!currentWorkspace || !user) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await fetchAccessibleClients({ currentWorkspace, isSoloMode, userId: user.id });
       const normalized = normalizeClients(data);
@@ -89,10 +92,9 @@ const RewardsPage = () => {
         }
       }
       setRedemptions(recs);
-
-      // activeGroupId now comes from shared context — no need to resolve here
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[Rewards] loadData error:', err);
+      setLoadError(err.message || 'Failed to load rewards data.');
     }
     setLoading(false);
   };
