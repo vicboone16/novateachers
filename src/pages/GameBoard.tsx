@@ -133,7 +133,7 @@ const GameBoard = () => {
   useEffect(() => {
     if (!user) return;
     const channel = cloudSupabase.channel('game-board-live').on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'beacon_points_ledger', filter: `staff_id=eq.${user.id}`,
+      event: 'INSERT', schema: 'public', table: 'beacon_points_ledger',
     }, (payload: any) => {
       const sid = payload.new?.student_id;
       const pts = payload.new?.points || 0;
