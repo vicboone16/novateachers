@@ -350,6 +350,15 @@ export function StudentQuickActionModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    <ExternalAccessSheet
+      open={externalSheetOpen}
+      onOpenChange={setExternalSheetOpen}
+      studentId={studentId}
+      studentName={studentName}
+      agencyId={agencyId}
+    />
+    </>
   );
 }
 
