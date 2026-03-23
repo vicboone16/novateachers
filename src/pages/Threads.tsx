@@ -104,9 +104,9 @@ const Threads = () => {
         .order('updated_at', { ascending: false });
       if (error) throw error;
       setThreads((data || []) as any as Thread[]);
-    } catch {
+    } catch (coreErr) {
       // Fallback: use teacher_messages as thread source
-      console.log('[Threads] Core threads unavailable, using local message threads');
+      console.log('[Threads] Core threads unavailable, using local message threads:', coreErr);
       setUseLocalMode(true);
       try {
         const { data: msgs } = await cloudSupabase
