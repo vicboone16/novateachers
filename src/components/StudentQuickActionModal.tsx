@@ -1,6 +1,6 @@
 /**
  * StudentQuickActionModal — Full-featured modal opened on student card tap.
- * Sections: Behavior, Engagement, Points, Probe, ABC, Prompt Status.
+ * Sections: Behavior, Engagement, Points, Probe, ABC, Tools (with External Links), Prompt Status.
  * All writes go to Core-owned tables. Auto-save on action.
  */
 import { useState, useRef } from 'react';
@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
 import { writeUnifiedEvent } from '@/lib/unified-events';
+import { ExternalAccessSheet } from '@/components/ExternalAccessSheet';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -22,7 +23,7 @@ import {
   Star, Plus, Minus, Check, X, Play, ExternalLink,
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Timer, Clock, Pause, Square,
-  Gift, KeyRound, Copy, Gamepad2, Camera,
+  Gift, KeyRound, Copy, Gamepad2, Camera, Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
