@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { ExternalAccessSheet } from '@/components/ExternalAccessSheet';
+import { BeaconTeacherSupportPanel } from '@/components/BeaconTeacherSupportPanel';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
