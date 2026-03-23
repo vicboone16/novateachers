@@ -1,6 +1,6 @@
 /**
  * StudentQuickActionModal — Full-featured modal opened on student card tap.
- * Sections: Behavior, Engagement, Points, Probe, ABC, Prompt Status.
+ * Sections: Behavior, Engagement, Points, Probe, ABC, Tools (with External Links), Prompt Status.
  * All writes go to Core-owned tables. Auto-save on action.
  */
 import { useState, useRef } from 'react';
@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
 import { writeUnifiedEvent } from '@/lib/unified-events';
+import { ExternalAccessSheet } from '@/components/ExternalAccessSheet';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -22,7 +23,7 @@ import {
   Star, Plus, Minus, Check, X, Play, ExternalLink,
   Hand, DoorOpen, Bomb, Megaphone, ShieldX,
   Timer, Clock, Pause, Square,
-  Gift, KeyRound, Copy, Gamepad2, Camera,
+  Gift, KeyRound, Copy, Gamepad2, Camera, Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +61,7 @@ export function StudentQuickActionModal({
   const [customPoints, setCustomPoints] = useState('');
   const [studentCode, setStudentCode] = useState<string | null>(null);
   const [codeLoading, setCodeLoading] = useState(false);
+  const [externalSheetOpen, setExternalSheetOpen] = useState(false);
 
   // Duration timer state
   const [timerRunning, setTimerRunning] = useState(false);
@@ -167,6 +169,7 @@ export function StudentQuickActionModal({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4">
         {/* Header */}
@@ -282,7 +285,7 @@ export function StudentQuickActionModal({
             </Button>
           </Section>
 
-          {/* §6 TOOLS: Rewards, Game, Portal, Code */}
+          {/* §6 TOOLS: Rewards, Game, Portal, Code, External Links */}
           <Section label="Tools">
             <div className="grid grid-cols-2 gap-1.5">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
@@ -323,6 +326,10 @@ export function StudentQuickActionModal({
                 onClick={() => { onOpenChange(false); navigate('/parent-reports'); }}>
                 <Camera className="h-3.5 w-3.5 text-primary" /> Parent Snapshot
               </Button>
+              <Button size="sm" variant="default" className="gap-1.5 text-xs h-8"
+                onClick={() => setExternalSheetOpen(true)}>
+                <Link2 className="h-3.5 w-3.5" /> Share Links
+              </Button>
             </div>
           </Section>
 
@@ -344,6 +351,15 @@ export function StudentQuickActionModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    <ExternalAccessSheet
+      open={externalSheetOpen}
+      onOpenChange={setExternalSheetOpen}
+      studentId={studentId}
+      studentName={studentName}
+      agencyId={agencyId}
+    />
+    </>
   );
 }
 

@@ -38,6 +38,8 @@ import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
 import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
 import ParentSnapshot from "@/pages/ParentSnapshot";
+import ExternalParentPortal from "@/pages/ExternalParentPortal";
+import ExternalStudentPortal from "@/pages/ExternalStudentPortal";
 import RewardsPage from "@/pages/RewardsPage";
 import ClassroomFeed from "@/pages/ClassroomFeed";
 import BoardConfig from "@/pages/BoardConfig";
@@ -149,6 +151,8 @@ const App = () => (
             <Route path="/portal" element={<StudentPortalEnhanced />} />
             <Route path="/class/:slug/live" element={<ClassroomLive />} />
             <Route path="/snapshot/:token" element={<ParentSnapshot />} />
+            <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
+            <Route path="/external/student/:token" element={<ExternalStudentPortal />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
