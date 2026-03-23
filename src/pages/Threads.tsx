@@ -98,6 +98,7 @@ const Threads = () => {
     if (!user) return;
     setLoading(true);
     setLoadError(null);
+    try {
       const { data, error } = await supabase
         .from('threads' as any)
         .select('*')
@@ -117,7 +118,6 @@ const Threads = () => {
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
           .limit(50);
-        // Group messages by thread_id or subject into virtual threads
         const threadMap = new Map<string, Thread>();
         for (const m of (msgs || []) as any[]) {
           const tid = m.thread_id || m.id;
@@ -136,8 +136,9 @@ const Threads = () => {
           }
         }
         setThreads(Array.from(threadMap.values()));
-      } catch (localErr) {
+      } catch (localErr: any) {
         console.warn('[Threads] Local fallback also failed:', localErr);
+        setLoadError(localErr.message || 'Could not load threads.');
         setThreads([]);
       }
     }
