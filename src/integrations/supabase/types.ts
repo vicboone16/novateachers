@@ -265,6 +265,132 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_student_day_state: {
+        Row: {
+          classroom_id: string | null
+          created_at: string
+          day_state: string
+          id: string
+          notes: string | null
+          selected_by: string | null
+          selected_by_user_id: string | null
+          state_date: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          classroom_id?: string | null
+          created_at?: string
+          day_state: string
+          id?: string
+          notes?: string | null
+          selected_by?: string | null
+          selected_by_user_id?: string | null
+          state_date?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          classroom_id?: string | null
+          created_at?: string
+          day_state?: string
+          id?: string
+          notes?: string | null
+          selected_by?: string | null
+          selected_by_user_id?: string | null
+          state_date?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      beacon_teacher_feedback: {
+        Row: {
+          classroom_id: string | null
+          created_at: string
+          feedback_date: string
+          id: string
+          selected_day_state: string | null
+          sent_to_nova: boolean
+          student_id: string
+          summary: string | null
+          teacher_name: string | null
+        }
+        Insert: {
+          classroom_id?: string | null
+          created_at?: string
+          feedback_date?: string
+          id?: string
+          selected_day_state?: string | null
+          sent_to_nova?: boolean
+          student_id: string
+          summary?: string | null
+          teacher_name?: string | null
+        }
+        Update: {
+          classroom_id?: string | null
+          created_at?: string
+          feedback_date?: string
+          id?: string
+          selected_day_state?: string | null
+          sent_to_nova?: boolean
+          student_id?: string
+          summary?: string | null
+          teacher_name?: string | null
+        }
+        Relationships: []
+      }
+      beacon_teacher_plans: {
+        Row: {
+          antecedents: Json
+          classroom_id: string | null
+          created_at: string
+          created_by: string | null
+          day_state: string
+          id: string
+          plan_date: string
+          reactives: Json
+          reinforcement: string | null
+          selected_program_ids: Json
+          student_id: string
+          targets: Json
+          teacher_summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          antecedents?: Json
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          day_state: string
+          id?: string
+          plan_date?: string
+          reactives?: Json
+          reinforcement?: string | null
+          selected_program_ids?: Json
+          student_id: string
+          targets?: Json
+          teacher_summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          antecedents?: Json
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          day_state?: string
+          id?: string
+          plan_date?: string
+          reactives?: Json
+          reinforcement?: string | null
+          selected_program_ids?: Json
+          student_id?: string
+          targets?: Json
+          teacher_summary?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       behavior_categories: {
         Row: {
           client_id: string
@@ -2182,6 +2308,35 @@ export type Database = {
         }
         Relationships: []
       }
+      v_beacon_current_day_state: {
+        Row: {
+          classroom_id: string | null
+          day_state: string | null
+          notes: string | null
+          selected_by: string | null
+          state_date: string | null
+          student_id: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      v_beacon_current_teacher_plan: {
+        Row: {
+          antecedents: Json | null
+          classroom_id: string | null
+          created_by: string | null
+          day_state: string | null
+          plan_date: string | null
+          reactives: Json | null
+          reinforcement: string | null
+          selected_program_ids: Json | null
+          student_id: string | null
+          targets: Json | null
+          teacher_summary: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       v_beacon_points_audit: {
         Row: {
           abc_log_id: string | null
@@ -2309,6 +2464,17 @@ export type Database = {
             }
             Returns: string
           }
+      generate_beacon_teacher_plan: {
+        Args: {
+          p_classroom_id?: string
+          p_date: string
+          p_notes?: string
+          p_selected_by?: string
+          p_state: string
+          p_student: string
+        }
+        Returns: undefined
+      }
       get_matching_teacher_point_rule: {
         Args: {
           p_agency_id: string
