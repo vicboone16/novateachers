@@ -97,7 +97,7 @@ const Threads = () => {
   const loadThreads = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    try {
+    setLoadError(null);
       const { data, error } = await supabase
         .from('threads' as any)
         .select('*')
