@@ -14,6 +14,7 @@ import { getStudentBalances } from '@/lib/beacon-points';
 import { ReinforcerStore } from '@/components/ReinforcerStore';
 import { TokenBoard } from '@/components/TokenBoard';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Star, Gift, History, Trophy, Sparkles, ShoppingBag } from 'lucide-react';
@@ -59,9 +60,12 @@ const RewardsPage = () => {
     return () => { cloudSupabase.removeChannel(channel); };
   }, [user, clients]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const loadData = async () => {
     if (!currentWorkspace || !user) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await fetchAccessibleClients({ currentWorkspace, isSoloMode, userId: user.id });
       const normalized = normalizeClients(data);
@@ -89,10 +93,9 @@ const RewardsPage = () => {
         }
       }
       setRedemptions(recs);
-
-      // activeGroupId now comes from shared context — no need to resolve here
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[Rewards] loadData error:', err);
+      setLoadError(err.message || 'Failed to load rewards data.');
     }
     setLoading(false);
   };
@@ -105,6 +108,27 @@ const RewardsPage = () => {
     <div className="flex items-center justify-center py-16 flex-col gap-2">
       <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       <p className="text-xs text-muted-foreground">Loading rewards…</p>
+    </div>
+  );
+
+  if (loadError) return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center space-y-3 max-w-xs mx-auto">
+        <Gift className="h-10 w-10 mx-auto text-destructive/60" />
+        <p className="text-sm font-medium text-destructive">{loadError}</p>
+        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+      </div>
+    </div>
+  );
+
+  if (!loading && clients.length === 0) return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center space-y-3">
+        <Star className="h-10 w-10 mx-auto text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground">No students found.</p>
+        <p className="text-xs text-muted-foreground">Add students to your classroom to start using rewards.</p>
+        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+      </div>
     </div>
   );
 

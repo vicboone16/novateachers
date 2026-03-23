@@ -78,6 +78,7 @@ const Threads = () => {
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -96,6 +97,7 @@ const Threads = () => {
   const loadThreads = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const { data, error } = await supabase
         .from('threads' as any)
@@ -116,7 +118,6 @@ const Threads = () => {
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
           .limit(50);
-        // Group messages by thread_id or subject into virtual threads
         const threadMap = new Map<string, Thread>();
         for (const m of (msgs || []) as any[]) {
           const tid = m.thread_id || m.id;
@@ -135,8 +136,9 @@ const Threads = () => {
           }
         }
         setThreads(Array.from(threadMap.values()));
-      } catch (localErr) {
+      } catch (localErr: any) {
         console.warn('[Threads] Local fallback also failed:', localErr);
+        setLoadError(localErr.message || 'Could not load threads.');
         setThreads([]);
       }
     }
@@ -477,6 +479,12 @@ const Threads = () => {
         <div className="flex justify-center py-12 flex-col items-center gap-2">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-xs text-muted-foreground">Loading threads…</p>
+        </div>
+      ) : loadError ? (
+        <div className="py-12 text-center space-y-3">
+          <MessageCircle className="mx-auto h-10 w-10 text-destructive/60" />
+          <p className="text-sm font-medium text-destructive">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => loadThreads()} className="gap-1">Retry</Button>
         </div>
       ) : threads.length === 0 ? (
         <div className="py-12 text-center space-y-3">
