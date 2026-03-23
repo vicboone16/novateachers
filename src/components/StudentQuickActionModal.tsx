@@ -284,7 +284,7 @@ export function StudentQuickActionModal({
             </Button>
           </Section>
 
-          {/* §6 TOOLS: Rewards, Game, Portal, Code */}
+          {/* §6 TOOLS: Rewards, Game, Portal, Code, External Links */}
           <Section label="Tools">
             <div className="grid grid-cols-2 gap-1.5">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
@@ -324,6 +324,10 @@ export function StudentQuickActionModal({
               <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8"
                 onClick={() => { onOpenChange(false); navigate('/parent-reports'); }}>
                 <Camera className="h-3.5 w-3.5 text-primary" /> Parent Snapshot
+              </Button>
+              <Button size="sm" variant="default" className="gap-1.5 text-xs h-8"
+                onClick={() => setExternalSheetOpen(true)}>
+                <Link2 className="h-3.5 w-3.5" /> Share Links
               </Button>
             </div>
           </Section>
