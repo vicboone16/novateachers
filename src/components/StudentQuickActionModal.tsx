@@ -169,6 +169,7 @@ export function StudentQuickActionModal({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto p-4">
         {/* Header */}
