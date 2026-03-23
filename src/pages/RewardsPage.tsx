@@ -45,6 +45,20 @@ const RewardsPage = () => {
 
   useEffect(() => { if (currentWorkspace) loadData(); }, [currentWorkspace]);
 
+  // Realtime: refresh balances when ledger changes
+  useEffect(() => {
+    if (!user) return;
+    const channel = cloudSupabase.channel('rewards-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'beacon_points_ledger' }, () => {
+        if (clients.length > 0) {
+          const ids = clients.map(c => c.id);
+          getStudentBalances(user.id, ids).then(setBalances);
+        }
+      })
+      .subscribe();
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [user, clients]);
+
   const loadData = async () => {
     if (!currentWorkspace || !user) return;
     setLoading(true);
@@ -77,7 +91,9 @@ const RewardsPage = () => {
       setRedemptions(recs);
 
       // activeGroupId now comes from shared context — no need to resolve here
-    } catch { /* silent */ }
+    } catch (err) {
+      console.warn('[Rewards] loadData error:', err);
+    }
     setLoading(false);
   };
 
@@ -85,7 +101,12 @@ const RewardsPage = () => {
     setBalances(prev => ({ ...prev, [studentId]: (prev[studentId] || 0) + delta }));
   };
 
-  if (loading) return <div className="flex items-center justify-center py-16"><div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-16 flex-col gap-2">
+      <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <p className="text-xs text-muted-foreground">Loading rewards…</p>
+    </div>
+  );
 
   const totalPoints = Object.values(balances).reduce((s, v) => s + v, 0);
   const studentOptions = clients.map(c => ({ id: c.id, name: displayName(c), balance: balances[c.id] || 0 }));
