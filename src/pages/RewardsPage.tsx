@@ -77,7 +77,9 @@ const RewardsPage = () => {
       setRedemptions(recs);
 
       // activeGroupId now comes from shared context — no need to resolve here
-    } catch { /* silent */ }
+    } catch (err) {
+      console.warn('[Rewards] loadData error:', err);
+    }
     setLoading(false);
   };
 
