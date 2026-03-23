@@ -87,7 +87,12 @@ const RewardsPage = () => {
     setBalances(prev => ({ ...prev, [studentId]: (prev[studentId] || 0) + delta }));
   };
 
-  if (loading) return <div className="flex items-center justify-center py-16"><div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-16 flex-col gap-2">
+      <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <p className="text-xs text-muted-foreground">Loading rewards…</p>
+    </div>
+  );
 
   const totalPoints = Object.values(balances).reduce((s, v) => s + v, 0);
   const studentOptions = clients.map(c => ({ id: c.id, name: displayName(c), balance: balances[c.id] || 0 }));

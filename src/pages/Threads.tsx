@@ -474,13 +474,15 @@ const Threads = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-12 flex-col items-center gap-2">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-xs text-muted-foreground">Loading threads…</p>
         </div>
       ) : threads.length === 0 ? (
-        <div className="py-12 text-center">
+        <div className="py-12 text-center space-y-3">
           <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground/40" />
           <p className="mt-3 text-sm text-muted-foreground">No threads yet. Start one!</p>
+          <Button variant="outline" size="sm" onClick={() => loadThreads()} className="gap-1">Retry</Button>
         </div>
       ) : (
         <div className="space-y-2">

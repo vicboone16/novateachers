@@ -183,7 +183,12 @@ const GameBoard = () => {
     return s.first_name || '';
   };
 
-  if (classroomLoading || (loading && activeGroupId)) return <div className="flex min-h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
+  if (classroomLoading || (loading && activeGroupId)) return (
+    <div className="flex min-h-[60vh] items-center justify-center flex-col gap-3">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <p className="text-xs text-muted-foreground">Loading race board…</p>
+    </div>
+  );
 
   if (loadError) return (
     <div className="flex min-h-[60vh] items-center justify-center">

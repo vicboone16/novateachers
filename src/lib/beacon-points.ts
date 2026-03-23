@@ -73,15 +73,16 @@ export async function writePointEntry(entry: PointEntry): Promise<{ ok: boolean;
  * Get point balances for a list of students.
  */
 export async function getStudentBalances(
-  staffId: string,
+  _staffId: string,
   studentIds: string[],
 ): Promise<Record<string, number>> {
   if (studentIds.length === 0) return {};
   try {
+    // Query ALL ledger rows for these students (not filtered by staff)
+    // so balances reflect awards from all staff members
     const { data, error } = await cloudSupabase
       .from('beacon_points_ledger')
       .select('student_id, points')
-      .eq('staff_id', staffId)
       .in('student_id', studentIds);
 
     if (error) {
