@@ -61,6 +61,7 @@ export function StudentQuickActionModal({
   const [customPoints, setCustomPoints] = useState('');
   const [studentCode, setStudentCode] = useState<string | null>(null);
   const [codeLoading, setCodeLoading] = useState(false);
+  const [externalSheetOpen, setExternalSheetOpen] = useState(false);
 
   // Duration timer state
   const [timerRunning, setTimerRunning] = useState(false);
