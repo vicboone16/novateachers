@@ -38,6 +38,8 @@ import NotificationSettings from "@/pages/NotificationSettings";
 import StudentPortal from "@/pages/StudentPortal";
 import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
 import ParentSnapshot from "@/pages/ParentSnapshot";
+import ExternalParentPortal from "@/pages/ExternalParentPortal";
+import ExternalStudentPortal from "@/pages/ExternalStudentPortal";
 import RewardsPage from "@/pages/RewardsPage";
 import ClassroomFeed from "@/pages/ClassroomFeed";
 import BoardConfig from "@/pages/BoardConfig";
