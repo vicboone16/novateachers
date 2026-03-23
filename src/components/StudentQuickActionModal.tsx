@@ -332,6 +332,10 @@ export function StudentQuickActionModal({
                 onClick={() => setExternalSheetOpen(true)}>
                 <Link2 className="h-3.5 w-3.5" /> Share Links
               </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8 col-span-2"
+                onClick={() => setSupportPanelOpen(true)}>
+                <Shield className="h-3.5 w-3.5 text-primary" /> Support Plan
+              </Button>
             </div>
           </Section>
 
