@@ -15,6 +15,15 @@
     <link rel="apple-touch-icon" href="/pwa-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
 
+    <!-- Preconnect to font origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Load Google Fonts non-render-blocking -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Grotesk:wght@300..700&display=swap" /></noscript>
+
     <!-- OG Tags -->
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d4ce2ecd-af61-4ad1-a630-6fb8a24430e8/id-preview-5dd69ea0--6055da66-0f22-4b0d-8c81-4947579c8bc5.lovable.app-1772324877838.png">
