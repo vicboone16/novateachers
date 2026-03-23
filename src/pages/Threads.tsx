@@ -135,7 +135,10 @@ const Threads = () => {
           }
         }
         setThreads(Array.from(threadMap.values()));
-      } catch { setThreads([]); }
+      } catch (localErr) {
+        console.warn('[Threads] Local fallback also failed:', localErr);
+        setThreads([]);
+      }
     }
     setLoading(false);
   }, [user, agencyId]);
