@@ -449,10 +449,29 @@ const ClassroomView = () => {
   const behaviorActions = teacherActions.filter(a => a.action_group === 'behavior');
   const manualActions = teacherActions.filter(a => a.action_group === 'manual');
 
-  if (loading) {
+  if (loading || classroomLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
+      <div className="flex items-center justify-center py-16 flex-col gap-3">
         <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-xs text-muted-foreground">Loading classroom…</p>
+      </div>
+    );
+  }
+
+  if (!activeGroupId && !loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-center space-y-3 max-w-xs mx-auto">
+          <AlertTriangle className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <p className="text-sm font-medium">No classroom found</p>
+          <p className="text-xs text-muted-foreground">
+            You're not assigned to a classroom yet, or no classrooms exist. Create one to get started.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button variant="outline" size="sm" onClick={loadClients}>Retry</Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/classrooms')}>Classroom Manager</Button>
+          </div>
+        </div>
       </div>
     );
   }

@@ -110,6 +110,27 @@ const RewardsPage = () => {
     </div>
   );
 
+  if (loadError) return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center space-y-3 max-w-xs mx-auto">
+        <Gift className="h-10 w-10 mx-auto text-destructive/60" />
+        <p className="text-sm font-medium text-destructive">{loadError}</p>
+        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+      </div>
+    </div>
+  );
+
+  if (!loading && clients.length === 0) return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center space-y-3">
+        <Star className="h-10 w-10 mx-auto text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground">No students found.</p>
+        <p className="text-xs text-muted-foreground">Add students to your classroom to start using rewards.</p>
+        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+      </div>
+    </div>
+  );
+
   const totalPoints = Object.values(balances).reduce((s, v) => s + v, 0);
   const studentOptions = clients.map(c => ({ id: c.id, name: displayName(c), balance: balances[c.id] || 0 }));
 
