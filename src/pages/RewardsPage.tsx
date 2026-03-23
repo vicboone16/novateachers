@@ -45,6 +45,20 @@ const RewardsPage = () => {
 
   useEffect(() => { if (currentWorkspace) loadData(); }, [currentWorkspace]);
 
+  // Realtime: refresh balances when ledger changes
+  useEffect(() => {
+    if (!user) return;
+    const channel = cloudSupabase.channel('rewards-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'beacon_points_ledger' }, () => {
+        if (clients.length > 0) {
+          const ids = clients.map(c => c.id);
+          getStudentBalances(user.id, ids).then(setBalances);
+        }
+      })
+      .subscribe();
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [user, clients]);
+
   const loadData = async () => {
     if (!currentWorkspace || !user) return;
     setLoading(true);
