@@ -480,6 +480,12 @@ const Threads = () => {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-xs text-muted-foreground">Loading threads…</p>
         </div>
+      ) : loadError ? (
+        <div className="py-12 text-center space-y-3">
+          <MessageCircle className="mx-auto h-10 w-10 text-destructive/60" />
+          <p className="text-sm font-medium text-destructive">{loadError}</p>
+          <Button variant="outline" size="sm" onClick={() => loadThreads()} className="gap-1">Retry</Button>
+        </div>
       ) : threads.length === 0 ? (
         <div className="py-12 text-center space-y-3">
           <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground/40" />
