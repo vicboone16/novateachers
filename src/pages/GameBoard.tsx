@@ -217,8 +217,10 @@ const GameBoard = () => {
   const getDisplayName = (s: StudentGameProgress) => {
     const mode = settings?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
-    if (mode === 'initials') return `${(s.first_name || '')[0] || ''}${(s.last_name || '')[0] || ''}`;
-    return s.first_name || s.last_name || '';
+    const first = s.first_name || '';
+    const last = s.last_name || '';
+    if (mode === 'initials') return `${first[0] || ''}${last[0] || ''}`.toUpperCase() || s.student_id.slice(0, 4);
+    return first || last || s.student_id.slice(0, 6);
   };
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
