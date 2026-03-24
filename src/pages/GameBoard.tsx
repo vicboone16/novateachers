@@ -132,9 +132,10 @@ const GameBoard = () => {
       // Direct ID lookup fallback
       if (nameMap.size < studentIds.length) {
         try {
-          const { data: clients } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', studentIds);
+          const { data: clients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').in('client_id', studentIds);
           for (const c of (clients || []) as any[]) {
-            if (!nameMap.has(c.id)) nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            const cid = c.client_id || c.id;
+            if (!nameMap.has(cid)) nameMap.set(cid, { first_name: c.first_name || '', last_name: c.last_name || '' });
           }
         } catch { /* silent */ }
       }

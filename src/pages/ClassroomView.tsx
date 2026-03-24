@@ -15,6 +15,7 @@ import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { useToast } from '@/hooks/use-toast';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName, displayInitials } from '@/lib/student-utils';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { writeWithRetry } from '@/lib/sync-queue';
 import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForReinforcementGap } from '@/lib/supervisorSignals';
