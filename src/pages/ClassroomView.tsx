@@ -1041,11 +1041,11 @@ function CelebrationFeedStrip({ groupId }: { groupId: string | null }) {
 
   if (posts.length === 0) return <p className="text-xs text-muted-foreground">No celebrations yet today. 🎉</p>;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {posts.map(p => (
-        <div key={p.id} className="rounded-lg bg-muted/20 px-2.5 py-1.5">
-          {p.title && <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">{p.title}</p>}
-          <p className="text-[10px] text-foreground/80 leading-snug">{p.body}</p>
+        <div key={p.id} className="rounded-xl bg-secondary/50 px-3 py-2">
+          {p.title && <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{p.title}</p>}
+          <p className="text-[11px] text-foreground/80 leading-snug">{p.body}</p>
         </div>
       ))}
     </div>
