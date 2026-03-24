@@ -107,8 +107,8 @@ export default function ExternalParentPortal() {
         const { data: rd } = await supabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, redeemed_at').eq('student_id', studentId).order('redeemed_at', { ascending: false }).limit(5);
         if (rd && (rd as any[]).length > 0) {
           const rewardIds = [...new Set((rd as any[]).map(r => r.reward_id))];
-          const { data: rwds } = await supabase.from('beacon_rewards' as any).select('id, name, emoji').in('id', rewardIds);
-          const rwMap = new Map((rwds || []).map((r: any) => [r.id, r]));
+          const { data: rwds } = await supabase.from('beacon_rewards' as any).select('id, name, image_url').in('id', rewardIds);
+          const rwMap = new Map((rwds || []).map((r: any) => [r.id, { ...r, emoji: r.image_url || '🎁' }]));
           redemptions = (rd as any[]).map(r => {
             const rw = rwMap.get(r.reward_id) as any;
             return { reward_name: rw?.name || 'Reward', reward_emoji: rw?.emoji || '🎁', points_spent: r.points_spent, created_at: r.redeemed_at || r.created_at };

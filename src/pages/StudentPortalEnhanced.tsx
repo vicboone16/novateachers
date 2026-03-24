@@ -81,8 +81,8 @@ export default function StudentPortalEnhanced() {
       const total = (ledger || []).reduce((sum: number, r: any) => sum + (r.points || 0), 0);
       setBalance(total);
 
-      const { data: rewardData } = await supabase.from('beacon_rewards' as any).select('id, name, emoji, cost').eq('active', true).order('cost');
-      setRewards((rewardData || []).map((r: any) => ({ ...r, point_cost: r.cost })) as any[]);
+      const { data: rewardData } = await supabase.from('beacon_rewards' as any).select('id, name, image_url, cost').eq('active', true).order('cost');
+      setRewards((rewardData || []).map((r: any) => ({ ...r, emoji: r.image_url || '🎁', point_cost: r.cost })) as any[]);
 
       const { data: streakData } = await supabase.from('student_streaks' as any).select('current_count').eq('student_id', sid).order('current_count', { ascending: false }).limit(1);
       if (streakData?.length) setStreakCount((streakData[0] as any).current_count || 0);
