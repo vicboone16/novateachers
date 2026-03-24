@@ -604,7 +604,7 @@ const ClassroomView = () => {
           group_id: activeGroupId, agency_id: effectiveAgencyId, mission_text: val,
         }, { onConflict: 'group_id' });
       } catch {
-        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+        try { await cloudSupabase.from('classroom_board_settings').upsert({ classroom_id: activeGroupId, mission_text: val } as any, { onConflict: 'classroom_id' }); } catch {}
       }
     }
   };

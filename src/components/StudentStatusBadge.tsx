@@ -69,8 +69,8 @@ export function StudentStatusBadge({
       const today = new Date().toISOString().slice(0, 10);
       // Core-owned table: student_attendance_status
       // Upsert by student + classroom + date
-      const { error } = await supabase
-        .from('student_attendance_status' as any)
+      const { error } = await cloudSupabase
+        .from('student_attendance_status')
         .upsert(
           {
             student_id: studentId,

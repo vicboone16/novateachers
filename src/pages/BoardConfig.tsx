@@ -134,14 +134,14 @@ const BoardConfig = () => {
     setSaving(true);
     try {
       if (settings.id) {
-        await supabase
-          .from('classroom_board_settings' as any)
-          .update(settings)
+        await cloudSupabase
+          .from('classroom_board_settings')
+          .update(settings as any)
           .eq('id', settings.id);
       } else {
-        await supabase
-          .from('classroom_board_settings' as any)
-          .insert({ ...settings, created_by: user.id });
+        await cloudSupabase
+          .from('classroom_board_settings')
+          .insert({ ...settings, created_by: user.id } as any);
       }
       toast({ title: 'Board settings saved' });
     } catch (err: any) {
