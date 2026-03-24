@@ -589,7 +589,7 @@ const ClassroomView = () => {
           group_id: activeGroupId, agency_id: effectiveAgencyId, word_of_week: val,
         }, { onConflict: 'group_id' });
       } catch {
-        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+        try { await cloudSupabase.from('classroom_board_settings').upsert({ classroom_id: activeGroupId, word_of_week: val } as any, { onConflict: 'classroom_id' }); } catch {}
       }
     }
   };
