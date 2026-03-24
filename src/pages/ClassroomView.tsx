@@ -919,26 +919,26 @@ const ClassroomView = () => {
       )}
 
       {/* ─── BOTTOM BAND: Reward Preview + Celebration Feed ─── */}
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Reward preview strip */}
-        <Card className="border-border/40">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Gift className="h-3.5 w-3.5 text-pink-500" />
+        <Card className="rounded-2xl border-border/60 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Gift className="h-4 w-4 text-pink-500" />
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rewards</span>
-              <button onClick={() => navigate('/rewards')} className="ml-auto text-[10px] text-primary hover:underline">View All</button>
+              <button onClick={() => navigate('/rewards')} className="ml-auto text-xs text-primary font-medium hover:underline">View All</button>
             </div>
             <RewardPreviewStrip agencyId={effectiveAgencyId} />
           </CardContent>
         </Card>
 
         {/* Celebration / kid-safe feed */}
-        <Card className="border-border/40">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+        <Card className="rounded-2xl border-border/60 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-4 w-4 text-amber-500" />
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Celebrations</span>
-              <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-[10px] text-primary hover:underline">Feed</button>
+              <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-xs text-primary font-medium hover:underline">Feed</button>
             </div>
             <CelebrationFeedStrip groupId={activeGroupId} />
           </CardContent>
