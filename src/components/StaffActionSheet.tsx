@@ -103,7 +103,7 @@ export function StaffActionSheet({
       // Upsert into Lovable Cloud staff_presence table
       const { error } = await cloudSupabase
         .from('staff_presence')
-        .upsert(payload, { onConflict: 'user_id' });
+        .upsert(payload, { onConflict: 'agency_id,user_id' });
 
       if (error) {
         // Fallback: try insert if upsert fails (no existing row with unique constraint)
