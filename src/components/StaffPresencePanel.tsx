@@ -128,19 +128,18 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
 
   // Realtime subscription
   useEffect(() => {
-    const channel = supabase
+    const channel = cloudSupabase
       .channel('staff_presence_live')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'staff_presence',
-        filter: `agency_id=eq.${agencyId}`,
       }, () => {
         loadPresence();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { cloudSupabase.removeChannel(channel); };
   }, [agencyId, loadPresence]);
 
   const myPresence = presenceRows.find(r => r.user_id === user?.id);
