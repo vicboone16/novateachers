@@ -50,7 +50,7 @@ const STATE_CONFIG: Record<AvailabilityState, { label: string; dot: string; bg: 
   nearby:    { label: 'Nearby',    dot: 'bg-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/30' },
   assigned:  { label: 'Assigned',  dot: 'bg-blue-500', bg: 'bg-blue-500/10 border-blue-500/30' },
   busy:      { label: 'Busy',      dot: 'bg-red-500', bg: 'bg-red-500/10 border-red-500/30' },
-  offline:   { label: 'Offline',   dot: 'bg-muted-foreground', bg: 'bg-muted/30 border-muted' },
+  offline:   { label: 'Offline',   dot: 'bg-foreground', bg: 'bg-foreground/5 border-foreground/20' },
 };
 
 function deriveState(entry: StaffEntry, currentClassroomId?: string | null): AvailabilityState {
