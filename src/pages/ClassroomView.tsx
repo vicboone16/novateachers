@@ -696,6 +696,9 @@ const ClassroomView = () => {
             <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setBulkAwardOpen(true)} title="Award all students">
               <Users className="h-3.5 w-3.5" /> Award All
             </Button>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
+              <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+            </Button>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
               <ExternalLink className="h-4 w-4" />
             </Button>
