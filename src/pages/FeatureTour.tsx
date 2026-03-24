@@ -23,6 +23,7 @@ import {
   Heart,
   Clock,
   CheckCircle2,
+  HelpCircle,
 } from 'lucide-react';
 
 // Tour images
@@ -498,18 +499,29 @@ const FeatureTour = () => {
         </div>
 
         {/* CTA */}
-        <div className="text-center py-6 space-y-3">
+        <div className="text-center py-6 space-y-4">
           <p className="text-muted-foreground text-sm">
             Ready to simplify your classroom?
           </p>
-          <Button
-            size="lg"
-            onClick={() => navigate('/login')}
-            className="gap-2 px-8"
-          >
-            <LogIn className="h-5 w-5" />
-            Sign In to Get Started
-          </Button>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <Button
+              size="lg"
+              onClick={() => navigate('/login')}
+              className="gap-2 px-8"
+            >
+              <LogIn className="h-5 w-5" />
+              Sign In to Get Started
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => navigate('/faq')}
+              className="gap-2 px-6"
+            >
+              <HelpCircle className="h-5 w-5" />
+              FAQ & Tutorials
+            </Button>
+          </div>
         </div>
       </div>
     </div>

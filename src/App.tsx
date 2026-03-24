@@ -50,6 +50,7 @@ import ClassroomLive from "@/pages/ClassroomLive";
 import AvatarUnlocks from "@/pages/AvatarUnlocks";
 import PointRulesManager from "@/pages/PointRulesManager";
 import FeatureTour from "@/pages/FeatureTour";
+import FAQTutorial from "@/pages/FAQTutorial";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +156,7 @@ const App = () => (
             <Route path="/snapshot/:token" element={<ParentSnapshot />} />
             <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
             <Route path="/tour" element={<FeatureTour />} />
+            <Route path="/faq" element={<FAQTutorial />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
