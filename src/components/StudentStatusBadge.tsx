@@ -31,13 +31,13 @@ interface StatusConfig {
 }
 
 const STATUS_MAP: Record<StudentStatus, StatusConfig> = {
-  present: { label: 'Present', icon: Check, className: 'bg-accent/20 text-accent-foreground border-accent/40' },
-  absent: { label: 'Absent', icon: X, className: 'bg-destructive/15 text-destructive border-destructive/30' },
-  late: { label: 'Late', icon: Clock, className: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30' },
-  with_therapist: { label: 'Therapist', icon: Stethoscope, className: 'bg-primary/15 text-primary border-primary/30' },
-  on_playground: { label: 'Playground', icon: TreePine, className: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30' },
-  on_break: { label: 'Break', icon: Coffee, className: 'bg-muted text-muted-foreground border-border' },
-  picked_up: { label: 'Picked Up', icon: CarFront, className: 'bg-secondary text-secondary-foreground border-border' },
+  present: { label: 'Present', icon: Check, className: 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900/30 dark:text-green-200 dark:border-green-700' },
+  absent: { label: 'Absent', icon: X, className: 'bg-red-100 text-red-900 border-red-300 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700' },
+  late: { label: 'Late', icon: Clock, className: 'bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-700' },
+  with_therapist: { label: 'Therapist', icon: Stethoscope, className: 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700' },
+  on_playground: { label: 'Playground', icon: TreePine, className: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700' },
+  on_break: { label: 'Break', icon: Coffee, className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600' },
+  picked_up: { label: 'Picked Up', icon: CarFront, className: 'bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-700' },
 };
 
 const STATUS_ORDER: StudentStatus[] = [

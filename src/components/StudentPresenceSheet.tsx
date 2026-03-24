@@ -121,13 +121,13 @@ export function StudentPresenceSheet({
                     key={loc.value}
                     onClick={() => setLocationType(loc.value)}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-all',
+                      'flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs transition-all',
                       selected
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border/60 bg-card hover:bg-muted/50 text-foreground',
+                        ? 'border-primary bg-primary/10 text-foreground font-bold'
+                        : 'border-border/60 bg-card hover:bg-muted/50 text-foreground font-medium',
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <Icon className={cn("h-3.5 w-3.5 shrink-0", selected ? "text-primary" : "text-foreground/70")} />
                     {loc.label}
                   </button>
                 );
@@ -155,10 +155,10 @@ export function StudentPresenceSheet({
                   key={s.value}
                   onClick={() => setStatus(s.value)}
                   className={cn(
-                    'flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all text-center',
+                    'flex-1 rounded-lg border px-2 py-1.5 text-xs transition-all text-center',
                     status === s.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/60 bg-card hover:bg-muted/50 text-foreground',
+                      ? 'border-primary bg-primary/10 text-foreground font-bold'
+                      : 'border-border/60 bg-card hover:bg-muted/50 text-foreground font-medium',
                   )}
                 >
                   {s.label}

@@ -33,14 +33,14 @@ interface PresenceStatusConfig {
 }
 
 export const PRESENCE_STATUS_MAP: Record<PresenceStatus, PresenceStatusConfig> = {
-  in_room:      { label: 'In Room',       icon: UserCheck,    dot: 'bg-green-500' },
-  out:          { label: 'Out',           icon: UserX,        dot: 'bg-muted-foreground' },
-  on_break:     { label: 'On Break',      icon: Coffee,       dot: 'bg-amber-500' },
-  in_office:    { label: 'In Office',     icon: Briefcase,    dot: 'bg-blue-500' },
-  floating:     { label: 'Floating',      icon: Radio,        dot: 'bg-purple-500' },
-  covering:     { label: 'Covering',      icon: ShieldCheck,  dot: 'bg-yellow-500' },
-  with_student: { label: 'With Student',  icon: UserCog,      dot: 'bg-primary' },
-  unavailable:  { label: 'Unavailable',   icon: HelpCircle,   dot: 'bg-destructive' },
+  in_room:      { label: 'In Room',       icon: UserCheck,    dot: 'bg-green-600' },
+  out:          { label: 'Out',           icon: UserX,        dot: 'bg-slate-500' },
+  on_break:     { label: 'On Break',      icon: Coffee,       dot: 'bg-amber-600' },
+  in_office:    { label: 'In Office',     icon: Briefcase,    dot: 'bg-blue-600' },
+  floating:     { label: 'Floating',      icon: Radio,        dot: 'bg-purple-600' },
+  covering:     { label: 'Covering',      icon: ShieldCheck,  dot: 'bg-yellow-600' },
+  with_student: { label: 'With Student',  icon: UserCog,      dot: 'bg-indigo-600' },
+  unavailable:  { label: 'Unavailable',   icon: HelpCircle,   dot: 'bg-red-600' },
 };
 
 export const PRESENCE_STATUS_ORDER: PresenceStatus[] = [
