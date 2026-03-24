@@ -254,7 +254,7 @@ const ClassroomView = () => {
         .eq('classroom_id', activeGroupId);
       const progress: TokenProgress = {};
       for (const row of (data || []) as any[]) {
-        progress[row.student_id] = { current: row.current_tokens || 0, target: row.target_tokens || 10 };
+        progress[row.student_id] = { current: row.current_tokens || 0, target: row.token_target || 10 };
       }
       setTokenProgress(progress);
     } catch { /* silent */ }
