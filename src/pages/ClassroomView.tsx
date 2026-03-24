@@ -987,12 +987,12 @@ function SummaryChip({ icon: Icon, label, value, color, draggable, onDragStart, 
   draggable?: boolean; onDragStart?: () => void; onDragOver?: (e: React.DragEvent) => void; onDrop?: () => void;
 }) {
   return (
-    <div className={cn("flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0", draggable && "cursor-grab")}
+    <div className={cn("flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card shadow-sm px-3.5 py-2.5 shrink-0", draggable && "cursor-grab")}
       draggable={draggable} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop}>
-      <Icon className={cn('h-3.5 w-3.5', color)} />
+      <Icon className={cn('h-4 w-4', color)} />
       <div>
-        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>
-        <p className="text-sm font-bold leading-none">{value}</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</p>
+        <p className="text-sm font-bold leading-none text-foreground">{value}</p>
       </div>
     </div>
   );
