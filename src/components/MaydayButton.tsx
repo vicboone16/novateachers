@@ -261,7 +261,12 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       const updateFields: any = { status: newStatus };
       if (newStatus === 'acknowledged') { updateFields.acknowledged_at = new Date().toISOString(); updateFields.acknowledged_by = user.id; }
       if (newStatus === 'resolved') { updateFields.resolved_at = new Date().toISOString(); updateFields.resolved_by = user.id; }
-      await supabase.from('mayday_alerts' as any).update(updateFields).eq('id', alertId);
+      const { error } = await supabase.from('mayday_alerts' as any).update(updateFields).eq('id', alertId);
+      if (error) {
+        console.warn('[Mayday] updateAlertStatus failed:', error.message);
+        toast({ title: 'Could not update alert', description: error.message, variant: 'destructive' });
+        return;
+      }
       toast({ title: newStatus === 'acknowledged' ? '✓ Alert acknowledged' : '✓ Alert resolved' });
       loadAlerts();
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
