@@ -409,13 +409,13 @@ const ClassroomView = () => {
   useEffect(() => {
     if (!activeGroupId) return;
     loadStudentPresence();
-    const channel = supabase
+    const channel = cloudSupabase
       .channel(`student_presence_${activeGroupId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_presence' }, () => {
         loadStudentPresence();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { cloudSupabase.removeChannel(channel); };
   }, [activeGroupId, loadStudentPresence]);
 
   const handlePointChange = (studentId: string, delta: number) => {
