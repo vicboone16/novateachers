@@ -50,6 +50,7 @@ import ClassroomLive from "@/pages/ClassroomLive";
 import AvatarUnlocks from "@/pages/AvatarUnlocks";
 import PointRulesManager from "@/pages/PointRulesManager";
 import FeatureTour from "@/pages/FeatureTour";
+import FAQTutorial from "@/pages/FAQTutorial";
 
 const queryClient = new QueryClient();
 
