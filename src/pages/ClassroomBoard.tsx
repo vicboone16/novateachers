@@ -319,25 +319,25 @@ export default function ClassroomBoard() {
   if (!classroomId) {
     if (resolveState === 'empty') {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
+        <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
           <div className="text-center space-y-4">
             <Sparkles className="h-12 w-12 mx-auto text-amber-400/50" />
-            <p className="text-xl font-bold">No Classroom Found</p>
-            <p className="text-sm text-white/50 max-w-xs mx-auto">Could not find a classroom to display. Make sure you are assigned to a classroom group.</p>
+            <p className="text-xl font-bold text-foreground">No Classroom Found</p>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">Could not find a classroom to display. Make sure you are assigned to a classroom group.</p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => { setResolveState('loading'); window.location.reload(); }} className="rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-sm font-medium hover:bg-white/20 transition-colors">Retry</button>
-              <button onClick={() => window.history.back()} className="rounded-lg bg-white/5 border border-white/10 px-4 py-2 text-sm text-white/60 hover:bg-white/10 transition-colors">Go Back</button>
+              <button onClick={() => { setResolveState('loading'); window.location.reload(); }} className="rounded-xl bg-secondary border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary/80 transition-colors">Retry</button>
+              <button onClick={() => window.history.back()} className="rounded-xl bg-muted border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted/80 transition-colors">Go Back</button>
             </div>
           </div>
         </div>
       );
     }
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="text-center space-y-3">
           <Sparkles className="h-12 w-12 mx-auto text-amber-400 animate-pulse" />
-          <p className="text-xl font-bold">Classroom Board</p>
-          <p className="text-sm text-white/60">Finding your classroom…</p>
+          <p className="text-xl font-bold text-foreground">Classroom Board</p>
+          <p className="text-sm text-muted-foreground">Finding your classroom…</p>
         </div>
       </div>
     );
