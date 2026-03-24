@@ -1,7 +1,9 @@
 /**
- * WhosHerePanel — Real-time staff availability engine.
- * Primary system: behavior-driven availability (not self-reported status).
- * 5 states: available (green), nearby (yellow), assigned (blue), busy (red), offline (gray).
+ * WhosHerePanel — Real-time staff visibility panel.
+ * Uses the SAME status options as "Update My Status" (StaffActionSheet):
+ *   In Room, Out, On Break, In Office, Floating, Covering, With Student, Unavailable
+ * Plus availability: Available, Limited, Unavailable
+ * Admin can override any staff member's status.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -13,11 +15,10 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
 import {
-  Users2, MessageSquarePlus, Bell, Zap, MoreHorizontal, MapPin, UserCog,
+  Users2, Bell, Zap, MoreHorizontal, UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-export type AvailabilityState = 'available' | 'nearby' | 'assigned' | 'busy' | 'offline';
+import { PRESENCE_STATUS_MAP, PRESENCE_STATUS_ORDER, type PresenceStatus } from './StaffPresencePanel';
 
 interface StaffEntry {
   user_id: string;
@@ -33,7 +34,8 @@ interface StaffEntry {
 
 interface ResolvedStaff extends StaffEntry {
   displayName: string;
-  state: AvailabilityState;
+  presenceStatus: PresenceStatus;
+  isOffline: boolean;
 }
 
 interface WhosHerePanelProps {
@@ -45,50 +47,18 @@ interface WhosHerePanelProps {
   onNotifyRoom?: (staffIds: string[]) => void;
 }
 
-const STATE_CONFIG: Record<AvailabilityState, { label: string; dot: string; bg: string }> = {
-  available: { label: 'Available', dot: 'bg-green-500', bg: 'bg-green-500/10 border-green-500/30' },
-  nearby:    { label: 'Nearby',    dot: 'bg-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/30' },
-  assigned:  { label: 'Assigned',  dot: 'bg-blue-500', bg: 'bg-blue-500/10 border-blue-500/30' },
-  busy:      { label: 'Busy',      dot: 'bg-red-500', bg: 'bg-red-500/10 border-red-500/30' },
-  offline:   { label: 'Offline',   dot: 'bg-foreground', bg: 'bg-foreground/5 border-foreground/20' },
-};
-
-/**
- * Maps self-reported staff status → Who's Here availability state.
- * This is NOT purely behavior-driven — staff set their own status/location,
- * and the system maps it to the 5 availability states.
- * Admins can override any staff member's status.
- */
-function deriveState(entry: StaffEntry, currentClassroomId?: string | null): AvailabilityState {
+/** Availability dot colors matching StaffActionSheet */
+function getAvailabilityDot(entry: StaffEntry): string {
   const minutesSinceUpdate = (Date.now() - new Date(entry.updated_at).getTime()) / 60000;
+  if (minutesSinceUpdate > 60) return 'bg-foreground';
+  if (entry.availability_status === 'available' || entry.available_for_support) return 'bg-green-500';
+  if (entry.availability_status === 'limited') return 'bg-amber-500';
+  return 'bg-muted-foreground';
+}
 
-  // Offline: no update in 60 min, or explicitly set to 'out'
-  if (minutesSinceUpdate > 60) return 'offline';
-  if (entry.status === 'out') return 'offline';
-
-  // Assigned: with a student
-  if (entry.status === 'with_student' || entry.assigned_student_id) return 'assigned';
-
-  // Busy: explicitly unavailable, on break, or in office
-  if (entry.status === 'unavailable' || entry.availability_status === 'unavailable') return 'busy';
-  if (entry.status === 'on_break') return 'busy';
-  if (entry.status === 'in_office' && !entry.available_for_support) return 'busy';
-
-  // Available: in the current classroom
-  if (currentClassroomId && entry.classroom_group_id === currentClassroomId && entry.status === 'in_room') return 'available';
-
-  // Available: explicitly marked available
-  if (entry.available_for_support && entry.status === 'in_room' && !currentClassroomId) return 'available';
-
-  // Nearby: in a different room but available, floating, covering
-  if (entry.available_for_support && entry.status === 'in_room') return 'nearby';
-  if (entry.status === 'floating' || entry.status === 'covering') return 'nearby';
-  if (entry.status === 'in_office' && entry.available_for_support) return 'nearby';
-
-  // Fallback: if available_for_support is true, they're available
-  if (entry.available_for_support) return 'available';
-
-  return 'busy';
+function isStaffOffline(entry: StaffEntry): boolean {
+  const minutesSinceUpdate = (Date.now() - new Date(entry.updated_at).getTime()) / 60000;
+  return minutesSinceUpdate > 60;
 }
 
 export function WhosHerePanel({
@@ -115,13 +85,19 @@ export function WhosHerePanel({
 
       const resolved: ResolvedStaff[] = rows.map(r => ({
         ...r,
-        displayName: nameMap.get(r.user_id)?.split(' ')[0] || `Staff`,
-        state: deriveState(r, classroomId),
+        displayName: nameMap.get(r.user_id)?.split(' ')[0] || 'Staff',
+        presenceStatus: (PRESENCE_STATUS_MAP[r.status as PresenceStatus] ? r.status : 'in_room') as PresenceStatus,
+        isOffline: isStaffOffline(r),
       }));
 
-      // Sort: available > nearby > assigned > busy > offline
-      const order: AvailabilityState[] = ['available', 'nearby', 'assigned', 'busy', 'offline'];
-      resolved.sort((a, b) => order.indexOf(a.state) - order.indexOf(b.state));
+      // Sort: available first, then by status order, offline last
+      resolved.sort((a, b) => {
+        if (a.isOffline !== b.isOffline) return a.isOffline ? 1 : -1;
+        const availA = a.available_for_support ? 0 : 1;
+        const availB = b.available_for_support ? 0 : 1;
+        if (availA !== availB) return availA - availB;
+        return PRESENCE_STATUS_ORDER.indexOf(a.presenceStatus) - PRESENCE_STATUS_ORDER.indexOf(b.presenceStatus);
+      });
 
       setStaff(resolved);
     } catch { /* silent */ }
@@ -136,40 +112,34 @@ export function WhosHerePanel({
     return () => { cloudSupabase.removeChannel(channel); };
   }, [agencyId, load]);
 
-  const available = staff.filter(s => s.state === 'available');
-  const nearby = staff.filter(s => s.state === 'nearby');
-  const assigned = staff.filter(s => s.state === 'assigned');
-  const busy = staff.filter(s => s.state === 'busy');
-  const offline = staff.filter(s => s.state === 'offline');
-
   if (staff.length === 0) return null;
 
+  const availableStaff = staff.filter(s => !s.isOffline && s.available_for_support);
+  const onlineStaff = staff.filter(s => !s.isOffline);
   const hasActions = onRequestHelp || onNotifyRoom;
 
   // ── Strip variant (for thread headers) ──
   if (variant === 'strip') {
     return (
       <div className="flex items-center gap-1.5 flex-wrap py-1.5">
-        {available.slice(0, 3).map(s => (
-          <Badge key={s.user_id} variant="secondary" className="text-[9px] h-5 px-1.5 gap-1 cursor-pointer hover:bg-accent/20"
-            onClick={() => onMessageStaff?.(s.user_id)}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', STATE_CONFIG.available.dot)} />
-            {s.displayName}
-          </Badge>
-        ))}
-        {available.length > 3 && (
-          <Badge variant="outline" className="text-[9px] h-5 px-1.5">+{available.length - 3}</Badge>
+        {availableStaff.slice(0, 3).map(s => {
+          const cfg = PRESENCE_STATUS_MAP[s.presenceStatus];
+          return (
+            <Badge key={s.user_id} variant="secondary" className="text-[9px] h-5 px-1.5 gap-1 cursor-pointer hover:bg-accent/20"
+              onClick={() => onMessageStaff?.(s.user_id)}>
+              <span className={cn('h-1.5 w-1.5 rounded-full', getAvailabilityDot(s))} />
+              {s.displayName}
+              <span className="text-muted-foreground">{cfg.label}</span>
+            </Badge>
+          );
+        })}
+        {availableStaff.length > 3 && (
+          <Badge variant="outline" className="text-[9px] h-5 px-1.5">+{availableStaff.length - 3}</Badge>
         )}
-        {nearby.length > 0 && (
+        {onlineStaff.length > availableStaff.length && (
           <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1">
-            <span className={cn('h-1.5 w-1.5 rounded-full', STATE_CONFIG.nearby.dot)} />
-            {nearby.length} nearby
-          </Badge>
-        )}
-        {assigned.length > 0 && (
-          <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1">
-            <UserCog className="h-2.5 w-2.5 text-blue-500" />
-            {assigned.length} assigned
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground inline-block" />
+            {onlineStaff.length - availableStaff.length} busy
           </Badge>
         )}
 
@@ -181,14 +151,14 @@ export function WhosHerePanel({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-44 p-1.5 space-y-0.5" align="end" side="bottom">
-              {onRequestHelp && available.length > 0 && (
-                <button onClick={() => onRequestHelp(available.map(s => s.user_id))}
+              {onRequestHelp && availableStaff.length > 0 && (
+                <button onClick={() => onRequestHelp(availableStaff.map(s => s.user_id))}
                   className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left">
-                  <Zap className="h-3 w-3 text-primary" /> Request help ({available.length})
+                  <Zap className="h-3 w-3 text-primary" /> Request help ({availableStaff.length})
                 </button>
               )}
               {onNotifyRoom && (
-                <button onClick={() => onNotifyRoom(staff.filter(s => s.state !== 'offline').map(s => s.user_id))}
+                <button onClick={() => onNotifyRoom(onlineStaff.map(s => s.user_id))}
                   className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left">
                   <Bell className="h-3 w-3 text-primary" /> Notify all staff
                 </button>
@@ -200,14 +170,16 @@ export function WhosHerePanel({
     );
   }
 
-  // ── Full / compact variant ──
-  const groups = [
-    { state: 'available' as const, items: available, label: 'Available Now' },
-    { state: 'nearby' as const, items: nearby, label: 'Nearby' },
-    { state: 'assigned' as const, items: assigned, label: 'With Student' },
-    { state: 'busy' as const, items: busy, label: 'Busy' },
-    ...(variant === 'full' ? [{ state: 'offline' as const, items: offline, label: 'Offline' }] : []),
-  ].filter(g => g.items.length > 0);
+  // ── Full / compact variant — group by actual status ──
+  const statusGroups = PRESENCE_STATUS_ORDER
+    .map(statusKey => ({
+      statusKey,
+      cfg: PRESENCE_STATUS_MAP[statusKey],
+      items: staff.filter(s => !s.isOffline && s.presenceStatus === statusKey),
+    }))
+    .filter(g => g.items.length > 0);
+
+  const offlineItems = staff.filter(s => s.isOffline);
 
   return (
     <div className="space-y-2">
@@ -217,46 +189,71 @@ export function WhosHerePanel({
         <div className="flex items-center gap-1 ml-auto">
           <Badge variant="secondary" className="text-[9px] h-4 px-1.5 gap-0.5">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-            {available.length}
+            {availableStaff.length}
           </Badge>
-          {nearby.length > 0 && (
-            <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-500 inline-block" />
-              {nearby.length}
-            </Badge>
-          )}
+          <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
+            {onlineStaff.length} online
+          </Badge>
         </div>
       </div>
 
-      {groups.map(({ state, items, label }) => (
-        <div key={state}>
-          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
-          <div className="space-y-0.5">
-            {items.map(s => {
-              const cfg = STATE_CONFIG[s.state];
-              return (
+      {statusGroups.map(({ statusKey, cfg, items }) => {
+        const Icon = cfg.icon;
+        return (
+          <div key={statusKey}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dot)} />
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{cfg.label}</p>
+            </div>
+            <div className="space-y-0.5">
+              {items.map(s => (
                 <button key={s.user_id}
                   onClick={() => onMessageStaff?.(s.user_id)}
                   className="flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50">
-                  <span className={cn('h-2 w-2 rounded-full shrink-0', cfg.dot)} />
+                  <span className={cn('h-2 w-2 rounded-full shrink-0', getAvailabilityDot(s))} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">
-                      {s.user_id === user?.id ? 'You' : s.displayName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-medium truncate">
+                        {s.user_id === user?.id ? 'You' : s.displayName}
+                      </p>
+                      {s.available_for_support && (
+                        <span className="text-[8px] text-green-600 dark:text-green-400 shrink-0">● available</span>
+                      )}
+                      {s.availability_status === 'limited' && (
+                        <span className="text-[8px] text-amber-600 dark:text-amber-400 shrink-0">● limited</span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
                       {s.location_label && <span>{s.location_label}</span>}
                       {s.note && <span className="italic truncate max-w-[100px]">"{s.note}"</span>}
                     </div>
                   </div>
-                  <Badge variant="outline" className={cn('text-[8px] h-3.5 px-1 shrink-0 border', cfg.bg)}>
-                    {cfg.label}
-                  </Badge>
+                  <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {variant === 'full' && offlineItems.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Offline</p>
+          </div>
+          <div className="space-y-0.5">
+            {offlineItems.map(s => (
+              <div key={s.user_id} className="flex items-center gap-2 px-2 py-1.5 opacity-50">
+                <span className="h-2 w-2 rounded-full shrink-0 bg-foreground" />
+                <p className="text-xs text-muted-foreground truncate">
+                  {s.user_id === user?.id ? 'You' : s.displayName}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
