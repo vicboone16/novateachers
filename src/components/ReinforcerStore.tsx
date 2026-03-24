@@ -98,32 +98,33 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
-      // Core beacon_rewards uses scope_type/scope_id instead of agency_id
-      let q = supabase
-        .from('beacon_rewards' as any)
-        .select('*')
-        .eq('scope_type', 'agency')
-        .eq('scope_id', agencyId)
-        .order('cost', { ascending: true });
-      if (!showInactive) q = q.eq('active', true);
-      const { data, error } = await q;
-      if (error) {
-        console.warn('[ReinforcerStore] loadRewards error:', error.message);
-        setRewards([]);
-      } else {
-        setRewards((data || []) as any as Reward[]);
-      }
+      // Use core-bridge to read rewards (bypasses Core RLS)
+      const result = await invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
+        action: 'list_rewards',
+        scope_type: 'agency',
+        scope_id: agencyId,
+        include_inactive: !!showInactive,
+      });
+      setRewards((result?.rewards || []) as any as Reward[]);
 
-      // Load recent redemptions
-      const { data: redeemData } = await supabase
-        .from('beacon_reward_redemptions' as any)
-        .select('*')
-        .eq('agency_id', agencyId)
-        .order('redeemed_at', { ascending: false })
-        .limit(30);
-      setRedemptions((redeemData || []) as any as Redemption[]);
+      // Load redemptions via core-bridge
+      const redeemResult = await invokeCloudFunction<{ redemptions: any[] }>('core-bridge', {
+        action: 'list_redemptions',
+        agency_id: agencyId,
+      });
+      setRedemptions((redeemResult?.redemptions || []) as any as Redemption[]);
     } catch (err: any) {
       console.warn('[ReinforcerStore] loadRewards exception:', err.message);
+      // Fallback: try direct read (may work for SELECT even if INSERT is blocked)
+      try {
+        const { data } = await supabase
+          .from('beacon_rewards' as any)
+          .select('*')
+          .eq('scope_type', 'agency')
+          .eq('scope_id', agencyId)
+          .order('cost', { ascending: true });
+        setRewards((data || []) as any as Reward[]);
+      } catch { setRewards([]); }
     }
     setLoading(false);
   }, [agencyId, showInactive]);
