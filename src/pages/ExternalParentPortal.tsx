@@ -124,7 +124,7 @@ export default function ExternalParentPortal() {
   };
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950">
       <div className="text-center space-y-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
         <p className="text-sm text-muted-foreground">Loading…</p>
