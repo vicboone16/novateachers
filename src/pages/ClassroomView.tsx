@@ -967,9 +967,9 @@ const ClassroomView = () => {
                     )}
                     <button
                       onClick={() => navigate(`/collect?student=${client.id}`)}
-                      className="flex items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 px-2 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
+                      className="flex items-center gap-0.5 rounded-lg border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
                     >
-                      <Target className="h-3 w-3" />Add Data
+                      <Target className="h-2.5 w-2.5" />Data
                     </button>
                     <div className="ml-auto flex gap-1">
                       <button onClick={() => logEngagement(client.id, true)} title="Engaged"
