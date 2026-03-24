@@ -156,6 +156,7 @@ const App = () => (
             <Route path="/snapshot/:token" element={<ParentSnapshot />} />
             <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
             <Route path="/tour" element={<FeatureTour />} />
+            <Route path="/faq" element={<FAQTutorial />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

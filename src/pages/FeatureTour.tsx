@@ -23,6 +23,7 @@ import {
   Heart,
   Clock,
   CheckCircle2,
+  HelpCircle,
 } from 'lucide-react';
 
 // Tour images
