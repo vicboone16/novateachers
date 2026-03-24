@@ -28,6 +28,7 @@ import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
 import { BulkAwardPanel } from '@/components/BulkAwardPanel';
 import { ReinforcementAssignPanel } from '@/components/ReinforcementAssignPanel';
+import { ClassroomReinforcementPanel } from '@/components/ClassroomReinforcementPanel';
 import { StudentPresenceChip, type StudentPresenceData } from '@/components/StudentPresenceChip';
 import { StudentPresenceSheet } from '@/components/StudentPresenceSheet';
 import { MaydayButton } from '@/components/MaydayButton';
@@ -100,6 +101,7 @@ const ClassroomView = () => {
   const [flashCard, setFlashCard] = useState<string | null>(null);
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
   const [bulkAwardOpen, setBulkAwardOpen] = useState(false);
+  const [classReinforcementOpen, setClassReinforcementOpen] = useState(false);
   const [reinforceStudent, setReinforceStudent] = useState<Client | null>(null);
   const [presenceSheetStudent, setPresenceSheetStudent] = useState<Client | null>(null);
   const [studentPresence, setStudentPresence] = useState<StudentPresenceMap>({});
@@ -694,6 +696,9 @@ const ClassroomView = () => {
             <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setBulkAwardOpen(true)} title="Award all students">
               <Users className="h-3.5 w-3.5" /> Award All
             </Button>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
+              <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+            </Button>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
               <ExternalLink className="h-4 w-4" />
             </Button>
@@ -1227,6 +1232,17 @@ const ClassroomView = () => {
           studentId={reinforceStudent.id}
           studentName={displayName(reinforceStudent)}
           agencyId={effectiveAgencyId}
+        />
+      )}
+
+      {/* Classroom Reinforcement Panel */}
+      {activeGroupId && (
+        <ClassroomReinforcementPanel
+          open={classReinforcementOpen}
+          onOpenChange={setClassReinforcementOpen}
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          students={clients.map(c => ({ id: c.id, name: displayName(c) }))}
         />
       )}
     </div>
