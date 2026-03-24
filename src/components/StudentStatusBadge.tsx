@@ -1,9 +1,9 @@
 /**
  * StudentStatusBadge — Brightwheel-style tap-to-toggle student attendance status.
- * Reads/writes to Core-owned `student_attendance_status` table.
+ * Reads/writes to Lovable Cloud `student_attendance_status` table.
  */
 import { useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
