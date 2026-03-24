@@ -146,8 +146,8 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     try {
       const result = await invokeCloudFunction('core-bridge', {
         action: 'create_reward',
-        scope_type: 'agency',
-        scope_id: agencyId,
+        scope_type: scopeType,
+        scope_id: scopeId,
         name: formName.trim(),
         description: formDescription.trim() || null,
         cost: parseInt(formCost) || 10,
