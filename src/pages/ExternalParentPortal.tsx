@@ -145,7 +145,7 @@ export default function ExternalParentPortal() {
   if (!data) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800 px-4 py-6 safe-top safe-bottom">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4 py-6 safe-top safe-bottom">
       <div className="max-w-md mx-auto space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">

@@ -98,7 +98,7 @@ export default function ExternalStudentPortal() {
   const finished = position >= TRACK_LENGTH;
 
   return (
-    <div className="min-h-screen bg-[#0f0f23] text-white px-4 py-6 safe-top safe-bottom" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 text-white px-4 py-6 safe-top safe-bottom" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
       <div className="max-w-md mx-auto space-y-6">
         {/* Avatar + Name */}
         <div className="text-center space-y-2">
