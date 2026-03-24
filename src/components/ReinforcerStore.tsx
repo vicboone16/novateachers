@@ -11,6 +11,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
 import { Card, CardContent } from '@/components/ui/card';
