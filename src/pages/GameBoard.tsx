@@ -338,9 +338,9 @@ const GameBoard = () => {
               <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/classrooms')}>Add Students</Button>
             </div>
           ) : (
-            <div className="relative bg-muted/30 rounded-2xl p-4 min-h-[180px] overflow-hidden border border-border/30">
+            <div className="relative bg-muted/30 rounded-2xl p-4 overflow-hidden border border-border/30">
               {/* Track line */}
-              <div className="absolute left-8 right-8 top-1/2 h-3 bg-border/60 rounded-full -translate-y-1/2">
+              <div className="relative mx-4 h-3 bg-border/60 rounded-full mb-4">
                 {CHECKPOINTS.map(cp => (
                   <div key={cp} className={cn(
                     "absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 transition-all duration-500",
@@ -353,9 +353,9 @@ const GameBoard = () => {
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 text-lg">🏁</div>
               </div>
 
-              {/* Student avatars */}
-              <div className="relative" style={{ minHeight: students.length > 6 ? '180px' : '100px' }}>
-                {students.map((s, idx) => {
+              {/* Student grid — card-based layout instead of absolute positioning */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {sortedStudents.map((s) => {
                   const bal = getEffectiveBalance(s);
                   const pos = getPosition(bal);
                   const laps = getLaps(bal);
@@ -363,25 +363,30 @@ const GameBoard = () => {
                   const isFlashing = flash === s.student_id;
                   const isCheckpoint = recentCheckpoint === s.student_id;
                   const hasLapped = laps > 0;
-                  const yOffset = (idx % 3) * 36 + 8;
 
                   return (
                     <div key={s.student_id} className={cn(
-                      "absolute flex flex-col items-center transition-all duration-700 ease-out",
-                      isFlashing && "scale-125 z-20",
-                      isCheckpoint && "scale-150 z-30",
-                    )} style={{ left: `calc(${Math.max(3, Math.min(93, pct))}% - 16px)`, top: `${yOffset}px` }}>
-                      {isFlashing && <div className="absolute inset-0 -m-3 rounded-full bg-amber-400/30 animate-ping" />}
-                      {isCheckpoint && <div className="absolute -top-6 text-sm animate-bounce">⭐</div>}
-                      {hasLapped && <div className="absolute -top-5 text-[9px] font-bold text-accent">🏆×{laps}</div>}
-                      <div className={cn(
-                        "relative z-10 flex items-center justify-center w-9 h-9 rounded-full transition-all duration-500",
-                        isFlashing ? "shadow-lg shadow-amber-400/40 ring-2 ring-amber-400" : "shadow-sm",
-                        hasLapped && "ring-2 ring-accent shadow-accent/30",
-                      )} style={s.team_color ? { borderColor: s.team_color } : {}}>
-                        <span className="text-xl">{s.avatar_emoji || '👤'}</span>
+                      "flex flex-col items-center gap-1 rounded-xl border p-2.5 transition-all duration-500",
+                      isFlashing && "scale-105 z-20 ring-2 ring-amber-400 bg-amber-50 dark:bg-amber-900/20",
+                      isCheckpoint && "scale-110 z-30 ring-2 ring-accent",
+                      hasLapped ? "border-accent/40 bg-accent/5" : "border-border/40 bg-card/50",
+                    )}>
+                      {isCheckpoint && <span className="text-sm animate-bounce">⭐</span>}
+                      <div className="relative">
+                        {hasLapped && <span className="absolute -top-2 -right-2 text-[8px] font-bold bg-accent text-accent-foreground rounded-full px-1">🏆{laps}</span>}
+                        <div className={cn(
+                          "flex items-center justify-center w-10 h-10 rounded-full transition-all",
+                          isFlashing ? "shadow-lg shadow-amber-400/40" : "shadow-sm",
+                          hasLapped && "ring-2 ring-accent shadow-accent/30",
+                        )} style={s.team_color ? { borderColor: s.team_color, borderWidth: 2 } : {}}>
+                          <span className="text-2xl">{s.avatar_emoji || '👤'}</span>
+                        </div>
                       </div>
-                      <span className="text-[9px] font-bold mt-0.5 whitespace-nowrap text-foreground">{getDisplayName(s)}</span>
+                      <span className="text-[10px] font-bold text-center truncate w-full text-foreground">{getDisplayName(s)}</span>
+                      <Badge variant="outline" className="text-[9px] tabular-nums gap-0.5 h-4 px-1.5">
+                        {skin.icon} {bal}
+                      </Badge>
+                      <Progress value={pct} className="h-1.5 w-full" />
                     </div>
                   );
                 })}
