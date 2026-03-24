@@ -203,21 +203,25 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     }
     setRedeeming(true);
     try {
-      const { error: redeemErr } = await supabase.from('beacon_reward_redemptions' as any).insert({
+      const redeemResult = await invokeCloudFunction('core-bridge', {
+        action: 'create_redemption',
         student_id: selectedStudentId,
         reward_id: selectedReward.id,
         agency_id: agencyId,
         staff_id: user.id,
         points_spent: selectedReward.cost,
-        status: 'completed',
       });
-      if (redeemErr) throw redeemErr;
+      if (redeemResult.error) throw redeemResult.error;
       await writePointEntry({
         studentId: selectedStudentId, staffId: user.id, agencyId,
         points: -selectedReward.cost, reason: `Redeemed: ${selectedReward.name}`, source: 'reward_redeem',
       });
       if (selectedReward.stock_count !== null) {
-        await supabase.from('beacon_rewards' as any).update({ stock_count: Math.max(0, selectedReward.stock_count - 1) }).eq('id', selectedReward.id);
+        await invokeCloudFunction('core-bridge', {
+          action: 'update_reward',
+          reward_id: selectedReward.id,
+          stock_count: Math.max(0, selectedReward.stock_count - 1),
+        });
       }
       setRedeemSuccess(true);
       toast({ title: '🎉 Reward redeemed!', description: `${student.name} exchanged ${selectedReward.cost} pts for ${selectedReward.name}` });
