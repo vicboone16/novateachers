@@ -1,17 +1,20 @@
 /**
- * Threads — Slack-like threaded messaging page.
- * Reads/writes to Core-owned threads, messages, reactions, mentions tables.
- * Falls back to local teacher_messages if Core tables unavailable.
- * Shows presence context in thread header via ThreadPresenceHeader.
+ * Threads — Slack-style threaded messaging with responsive sidebar layout.
+ * Uses local Cloud tables: threads, thread_messages, thread_members, thread_message_reactions.
+ * Who's Here panel integrated at top. Auto-creates agency + classroom threads.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import { useToast } from '@/hooks/use-toast';
-import { ThreadPresenceHeader } from '@/components/ThreadPresenceHeader';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { WhosHerePanel } from '@/components/WhosHerePanel';
+import {
+  ensureAgencyThread, backfillClassroomThreads, createDMThread,
+  type ThreadRow, type ThreadMessageRow, type ThreadReactionRow,
+} from '@/lib/thread-helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,49 +28,14 @@ import {
 } from '@/components/ui/select';
 import {
   MessageCircle, Plus, ArrowLeft, Send, Hash, Lock,
-  Users, User, Smile, Loader2,
+  Users, User, Smile, Loader2, School, Heart, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
-interface Thread {
-  id: string;
-  agency_id: string;
-  classroom_id: string | null;
-  thread_type: string;
-  title: string | null;
-  is_private: boolean;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Message {
-  id: string;
-  thread_id: string;
-  sender_id: string;
-  parent_id: string | null;
-  body: string;
-  message_type: string;
-  metadata: Record<string, any>;
-  created_at: string;
-}
-
-interface Reaction {
-  id: string;
-  message_id: string;
-  user_id: string;
-  emoji: string;
-}
-
-const THREAD_TYPES: { value: string; label: string; icon: typeof Hash }[] = [
-  { value: 'team', label: 'Team', icon: Users },
-  { value: 'teacher_only', label: 'Teacher Only', icon: Lock },
-  { value: 'aide', label: 'Aide / Coverage', icon: Users },
-  { value: 'student', label: 'Student-Specific', icon: User },
-  { value: 'one_to_one', label: 'Direct Message', icon: MessageCircle },
-  { value: 'announcement', label: 'Announcement', icon: Hash },
-];
+const THREAD_TYPE_ICONS: Record<string, typeof Hash> = {
+  agency: Hash, classroom: School, dm: User, group: Users, parent: Heart, team: Users,
+};
 
 const QUICK_EMOJIS = ['👍', '❤️', '🎉', '👀', '✅', '🙏'];
 
@@ -75,161 +43,118 @@ const Threads = () => {
   const { user, session } = useAuth();
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeThread, setActiveThread] = useState<Thread | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [activeThread, setActiveThread] = useState<ThreadRow | null>(null);
+  const [messages, setMessages] = useState<ThreadMessageRow[]>([]);
+  const [reactions, setReactions] = useState<ThreadReactionRow[]>([]);
   const [msgText, setMsgText] = useState('');
   const [sending, setSending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newType, setNewType] = useState('team');
+  const [newType, setNewType] = useState('group');
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
-  const [useLocalMode, setUseLocalMode] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
 
+  // ── Initialize: ensure agency thread + backfill classroom threads ──
+  useEffect(() => {
+    if (!user || !agencyId || initialized) return;
+    const init = async () => {
+      await ensureAgencyThread(agencyId, user.id);
+      await backfillClassroomThreads(agencyId, user.id);
+      setInitialized(true);
+    };
+    init();
+  }, [user, agencyId, initialized]);
+
   // ── Load threads ──
   const loadThreads = useCallback(async () => {
-    if (!user) return;
+    if (!user || !agencyId) return;
     setLoading(true);
-    setLoadError(null);
     try {
-      const { data, error } = await supabase
-        .from('threads' as any)
+      const { data, error } = await cloudSupabase
+        .from('threads')
         .select('*')
         .eq('agency_id', agencyId)
-        .order('updated_at', { ascending: false });
+        .eq('is_archived', false)
+        .order('last_message_at', { ascending: false });
       if (error) throw error;
-      setThreads((data || []) as any as Thread[]);
-    } catch (coreErr) {
-      // Fallback: use teacher_messages as thread source
-      console.log('[Threads] Core threads unavailable, using local message threads:', coreErr);
-      setUseLocalMode(true);
-      try {
-        // Load ALL agency messages — any same-agency staff can see threads
-        const { data: msgs } = await cloudSupabase
-          .from('teacher_messages')
-          .select('*')
-          .eq('agency_id', agencyId)
-          .order('created_at', { ascending: false })
-          .limit(100);
-        const threadMap = new Map<string, Thread>();
-        for (const m of (msgs || []) as any[]) {
-          const tid = m.thread_id || m.id;
-          if (!threadMap.has(tid)) {
-            threadMap.set(tid, {
-              id: tid,
-              agency_id: agencyId,
-              classroom_id: null,
-              thread_type: (m.metadata as any)?.thread_type || 'team',
-              title: m.subject || 'Conversation',
-              is_private: false,
-              created_by: m.sender_id,
-              created_at: m.created_at,
-              updated_at: m.created_at,
-            });
-          }
-        }
-        setThreads(Array.from(threadMap.values()));
-      } catch (localErr: any) {
-        console.warn('[Threads] Local fallback also failed:', localErr);
-        setLoadError(localErr.message || 'Could not load threads.');
-        setThreads([]);
-      }
+      setThreads((data || []) as ThreadRow[]);
+    } catch (err: any) {
+      console.warn('[Threads] load error:', err);
+      setThreads([]);
     }
     setLoading(false);
   }, [user, agencyId]);
 
-  useEffect(() => { loadThreads(); }, [loadThreads]);
+  useEffect(() => { if (initialized) loadThreads(); }, [initialized, loadThreads]);
 
   // ── Realtime on messages ──
   useEffect(() => {
-    const table = useLocalMode ? 'teacher_messages' : 'messages';
-    const client = useLocalMode ? cloudSupabase : supabase;
-    const channel = client
-      .channel('thread-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, () => {
-        if (activeThread) loadMessages(activeThread.id);
+    const channel = cloudSupabase
+      .channel('thread-messages-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'thread_messages' }, (payload) => {
+        const newMsg = payload.new as ThreadMessageRow;
+        if (activeThread && newMsg.thread_id === activeThread.id) {
+          setMessages(prev => [...prev, newMsg]);
+          resolveNames([newMsg.sender_id]);
+          setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
         loadThreads();
       })
       .subscribe();
-    return () => { client.removeChannel(channel); };
-  }, [activeThread, loadThreads, useLocalMode]);
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [activeThread, loadThreads]);
 
   // ── Resolve user names ──
   const resolveNames = useCallback(async (ids: string[]) => {
     const unknown = ids.filter(id => !userNames.has(id));
     if (unknown.length === 0) return;
-    const resolved = await resolveDisplayNames(unknown, session?.access_token);
-    setUserNames(prev => {
-      const m = new Map(prev);
-      resolved.forEach((n, id) => m.set(id, n));
-      return m;
-    });
+    try {
+      const resolved = await resolveDisplayNames(unknown, session?.access_token);
+      setUserNames(prev => {
+        const m = new Map(prev);
+        resolved.forEach((n, id) => m.set(id, n));
+        return m;
+      });
+    } catch { /* silent */ }
   }, [userNames, session?.access_token]);
 
-  // ── Load messages for a thread ──
+  // ── Load messages ──
   const loadMessages = async (threadId: string) => {
     try {
-      if (useLocalMode) {
-        // Load ALL messages for this thread in the agency — any staff can read
-        const { data } = await cloudSupabase
-          .from('teacher_messages')
-          .select('*')
-          .eq('agency_id', agencyId)
-          .eq('thread_id', threadId)
-          .order('created_at', { ascending: true });
-        const msgs = (data || []).map((m: any) => ({
-          id: m.id,
-          thread_id: m.thread_id || threadId,
-          sender_id: m.sender_id,
-          parent_id: m.parent_id,
-          body: m.body,
-          message_type: m.message_type || 'text',
-          metadata: m.metadata || {},
-          created_at: m.created_at,
-        })) as Message[];
-        setMessages(msgs);
-        resolveNames(msgs.map(m => m.sender_id));
-        setReactions([]);
-      } else {
-        let query = supabase
-          .from('messages' as any)
-          .select('*')
-          .eq('thread_id', threadId)
-          .order('created_at', { ascending: true });
-        // Try with is_deleted filter, fall back without it
-        const { data, error: msgErr } = await query;
-        let msgs: Message[];
-        if (msgErr) {
-          // Column might not exist — retry without filter
-          const { data: d2 } = await supabase.from('messages' as any).select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
-          msgs = (d2 || []) as any as Message[];
-        } else {
-          msgs = ((data || []) as any[]).filter((m: any) => m.is_deleted !== true) as Message[];
-        }
-        setMessages(msgs);
-        resolveNames(msgs.map(m => m.sender_id));
+      const { data } = await cloudSupabase
+        .from('thread_messages')
+        .select('*')
+        .eq('thread_id', threadId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: true });
+      const msgs = (data || []) as ThreadMessageRow[];
+      setMessages(msgs);
+      resolveNames(msgs.map(m => m.sender_id));
 
-        const msgIds = msgs.map(m => m.id);
-        if (msgIds.length > 0) {
-          const { data: rxns } = await supabase
-            .from('message_reactions' as any)
-            .select('*')
-            .in('message_id', msgIds);
-          setReactions((rxns || []) as any as Reaction[]);
-        }
+      // Load reactions
+      const msgIds = msgs.map(m => m.id);
+      if (msgIds.length > 0) {
+        const { data: rxns } = await cloudSupabase
+          .from('thread_message_reactions')
+          .select('*')
+          .in('message_id', msgIds);
+        setReactions((rxns || []) as ThreadReactionRow[]);
+      } else {
+        setReactions([]);
       }
+
       setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch { /* silent */ }
   };
 
-  const openThread = (thread: Thread) => {
+  const openThread = (thread: ThreadRow) => {
     setActiveThread(thread);
     loadMessages(thread.id);
   };
@@ -239,34 +164,18 @@ const Threads = () => {
     if (!msgText.trim() || !activeThread || !user) return;
     setSending(true);
     try {
-      if (useLocalMode) {
-        const { error } = await cloudSupabase
-          .from('teacher_messages')
-          .insert({
-            agency_id: agencyId,
-            sender_id: user.id,
-            recipient_id: agencyId, // agency-scoped broadcast — not self
-            body: msgText.trim(),
-            thread_id: activeThread.id,
-            message_type: 'note',
-            subject: activeThread.title,
-            metadata: { app_source: 'beacon_thread', thread_type: activeThread.thread_type },
-          });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('messages' as any)
-          .insert({
-            thread_id: activeThread.id,
-            sender_id: user.id,
-            body: msgText.trim(),
-            message_type: 'text',
-            metadata: { app_source: 'beacon' },
-          });
-        if (error) throw error;
-      }
+      const { error } = await cloudSupabase
+        .from('thread_messages')
+        .insert({
+          thread_id: activeThread.id,
+          sender_id: user.id,
+          body: msgText.trim(),
+          message_type: 'text',
+          metadata: { app_source: 'beacon' },
+        });
+      if (error) throw error;
       setMsgText('');
-      loadMessages(activeThread.id);
+      // Realtime will add the message
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
     } finally {
@@ -278,45 +187,31 @@ const Threads = () => {
   const handleCreateThread = async () => {
     if (!newTitle.trim() || !user) return;
     try {
-      if (useLocalMode) {
-        // Create a "thread" via teacher_messages with a thread_id = new uuid
-        const threadId = crypto.randomUUID();
-        const { error } = await cloudSupabase
-          .from('teacher_messages')
-          .insert({
-            id: threadId,
-            agency_id: agencyId,
-            sender_id: user.id,
-            recipient_id: agencyId, // agency-scoped broadcast
-            body: `Thread created: ${newTitle.trim()}`,
-            thread_id: threadId,
-            message_type: 'note',
-            subject: newTitle.trim(),
-            metadata: { app_source: 'beacon_thread', thread_type: newType },
-          });
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('threads' as any)
-          .insert({
-            agency_id: agencyId,
-            thread_type: newType,
-            title: newTitle.trim(),
-            is_private: newType === 'teacher_only' || newType === 'one_to_one',
-            created_by: user.id,
-          })
-          .select()
-          .single();
-        if (error) throw error;
+      const { data, error } = await cloudSupabase
+        .from('threads')
+        .insert({
+          agency_id: agencyId,
+          thread_type: newType,
+          title: newTitle.trim(),
+          is_private: newType === 'dm' || newType === 'parent',
+          created_by: user.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
 
-        await supabase
-          .from('thread_members' as any)
-          .insert({ thread_id: (data as any).id, user_id: user.id, role: 'admin' });
+      // Add creator as member
+      if (data) {
+        await cloudSupabase.from('thread_members').insert({
+          thread_id: data.id,
+          user_id: user.id,
+          role: 'admin',
+        });
       }
 
       setCreateOpen(false);
       setNewTitle('');
-      setNewType('team');
+      setNewType('group');
       loadThreads();
       toast({ title: 'Thread created' });
     } catch (err: any) {
@@ -329,15 +224,15 @@ const Threads = () => {
     if (!user) return;
     const existing = reactions.find(r => r.message_id === messageId && r.user_id === user.id && r.emoji === emoji);
     if (existing) {
-      await supabase.from('message_reactions' as any).delete().eq('id', existing.id);
+      await cloudSupabase.from('thread_message_reactions').delete().eq('id', existing.id);
       setReactions(prev => prev.filter(r => r.id !== existing.id));
     } else {
-      const { data } = await supabase
-        .from('message_reactions' as any)
+      const { data } = await cloudSupabase
+        .from('thread_message_reactions')
         .insert({ message_id: messageId, user_id: user.id, emoji })
         .select()
         .single();
-      if (data) setReactions(prev => [...prev, data as any as Reaction]);
+      if (data) setReactions(prev => [...prev, data as ThreadReactionRow]);
     }
   };
 
@@ -346,66 +241,128 @@ const Threads = () => {
       <div className="py-12 text-center">
         <MessageCircle className="mx-auto h-12 w-12 text-muted-foreground/40" />
         <h3 className="mt-4 text-lg font-medium">Threads</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Threads are available when connected to an agency.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Threads are available when connected to an agency.</p>
       </div>
     );
   }
 
-  // ── Thread detail view ──
-  if (activeThread) {
-    const typeConfig = THREAD_TYPES.find(t => t.value === activeThread.thread_type);
-    const TypeIcon = typeConfig?.icon || Hash;
+  // ── Group threads by type ──
+  const agencyThreads = threads.filter(t => t.thread_type === 'agency');
+  const classroomThreads = threads.filter(t => t.thread_type === 'classroom');
+  const dmThreads = threads.filter(t => t.thread_type === 'dm');
+  const groupThreads = threads.filter(t => t.thread_type === 'group' || t.thread_type === 'team');
+  const parentThreads = threads.filter(t => t.thread_type === 'parent');
+
+  // ── Sidebar ──
+  const ThreadSidebar = () => (
+    <div className={cn(
+      'flex flex-col border-r border-border/40 bg-card/50',
+      isMobile ? 'w-full' : 'w-64 shrink-0'
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-border/40">
+        <h2 className="text-sm font-bold font-heading">Threads</h2>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Who's Here (compact) */}
+      <div className="px-3 py-2 border-b border-border/40">
+        <WhosHerePanel agencyId={agencyId} variant="strip" />
+      </div>
+
+      {/* Thread groups */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="py-1">
+            <ThreadGroup label="Agency" threads={agencyThreads} onSelect={openThread} activeId={activeThread?.id} />
+            <ThreadGroup label="Classrooms" threads={classroomThreads} onSelect={openThread} activeId={activeThread?.id} />
+            <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} />
+            <ThreadGroup label="Groups" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} />
+            {parentThreads.length > 0 && (
+              <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Message view ──
+  const MessageView = () => {
+    if (!activeThread) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">Select a thread to start messaging</p>
+          </div>
+        </div>
+      );
+    }
+
+    const TypeIcon = THREAD_TYPE_ICONS[activeThread.thread_type] || Hash;
 
     return (
-      <div className="flex flex-col h-[calc(100vh-12rem)]">
-        {/* Header */}
-        <div className="pb-3 border-b border-border/40">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Thread header */}
+        <div className="px-4 py-3 border-b border-border/40 bg-card/30">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => { setActiveThread(null); setMessages([]); }}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <TypeIcon className="h-4 w-4 text-muted-foreground" />
+            {isMobile && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setActiveThread(null)}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <TypeIcon className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold truncate">{activeThread.title || 'Untitled'}</h3>
-              <p className="text-xs text-muted-foreground">{typeConfig?.label} thread</p>
+              <h3 className="font-semibold text-sm truncate">{activeThread.title || 'Untitled'}</h3>
+              <p className="text-[10px] text-muted-foreground capitalize">{activeThread.thread_type} thread</p>
             </div>
-            {activeThread.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
+            {activeThread.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
           </div>
-          {/* Presence strip */}
-          <ThreadPresenceHeader
+
+          {/* Who's Here strip in thread */}
+          <WhosHerePanel
             agencyId={agencyId}
             classroomId={activeThread.classroom_id}
-            onPingAvailable={() => {
+            variant="strip"
+            onRequestHelp={(staffIds) => {
               setMsgText('🔔 Requesting support — anyone available?');
             }}
-            onStartSupportThread={(staffIds) => {
-              toast({ title: `Support thread with ${staffIds.length} staff`, description: 'Creating thread…' });
-              // Could auto-create a support thread — for now pre-fill compose
-              setMsgText(`🆘 Support needed in ${activeThread.title || 'this classroom'}`);
-            }}
             onNotifyRoom={(staffIds) => {
-              toast({ title: `Notifying ${staffIds.length} room staff` });
               setMsgText(`📢 Room notification: `);
             }}
           />
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-3 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {messages.map(msg => {
             const isMine = msg.sender_id === user?.id;
+            const isSystem = msg.message_type === 'system';
             const msgReactions = reactions.filter(r => r.message_id === msg.id);
             const reactionCounts = new Map<string, number>();
             msgReactions.forEach(r => reactionCounts.set(r.emoji, (reactionCounts.get(r.emoji) || 0) + 1));
+
+            if (isSystem) {
+              return (
+                <div key={msg.id} className="flex justify-center py-1">
+                  <p className="text-[10px] text-muted-foreground bg-muted/50 rounded-full px-3 py-1">{msg.body}</p>
+                </div>
+              );
+            }
 
             return (
               <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
                 <div className={cn('max-w-[80%] rounded-2xl px-4 py-2.5', isMine ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
                   {!isMine && (
                     <p className="text-[10px] font-semibold mb-0.5 opacity-70">
-                      {userNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}
+                      {userNames.get(msg.sender_id) || 'Staff'}
                     </p>
                   )}
                   <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
@@ -413,34 +370,25 @@ const Threads = () => {
                     {format(new Date(msg.created_at), 'h:mm a')}
                   </p>
 
-                  {/* Reactions */}
                   {reactionCounts.size > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {Array.from(reactionCounts.entries()).map(([emoji, count]) => (
-                        <button
-                          key={emoji}
-                          onClick={() => toggleReaction(msg.id, emoji)}
+                        <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)}
                           className={cn(
                             'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs border transition-colors',
                             msgReactions.some(r => r.emoji === emoji && r.user_id === user?.id)
-                              ? 'border-primary/50 bg-primary/10'
-                              : 'border-border/50 bg-background/50'
-                          )}
-                        >
+                              ? 'border-primary/50 bg-primary/10' : 'border-border/50 bg-background/50'
+                          )}>
                           {emoji} {count > 1 && <span className="text-[10px]">{count}</span>}
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {/* Quick react row */}
                   <div className="flex gap-0.5 mt-1 opacity-0 hover:opacity-100 transition-opacity">
                     {QUICK_EMOJIS.map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => toggleReaction(msg.id, emoji)}
-                        className="text-xs hover:scale-125 transition-transform p-0.5"
-                      >
+                      <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)}
+                        className="text-xs hover:scale-125 transition-transform p-0.5">
                         {emoji}
                       </button>
                     ))}
@@ -453,7 +401,7 @@ const Threads = () => {
         </div>
 
         {/* Compose */}
-        <div className="flex gap-2 pt-3 border-t border-border/40">
+        <div className="flex gap-2 px-4 py-3 border-t border-border/40 bg-card/30">
           <Textarea
             value={msgText}
             onChange={e => setMsgText(e.target.value)}
@@ -468,105 +416,111 @@ const Threads = () => {
         </div>
       </div>
     );
+  };
+
+  // ── Responsive layout ──
+  // Mobile: show sidebar OR messages, not both
+  // Desktop: sidebar + messages side by side
+  if (isMobile) {
+    return (
+      <div className="h-[calc(100vh-12rem)]">
+        {activeThread ? <MessageView /> : <ThreadSidebar />}
+
+        {/* Create Thread Dialog */}
+        <CreateThreadDialog
+          open={createOpen} onOpenChange={setCreateOpen}
+          title={newTitle} onTitleChange={setNewTitle}
+          type={newType} onTypeChange={setNewType}
+          onCreate={handleCreateThread}
+        />
+      </div>
+    );
   }
 
-  // ── Thread list ──
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight font-heading">Threads</h2>
-          <p className="text-xs text-muted-foreground">Classroom team conversations</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />
-          New Thread
-        </Button>
-      </div>
+    <div className="flex h-[calc(100vh-12rem)] rounded-xl border border-border/40 overflow-hidden bg-background">
+      <ThreadSidebar />
+      <MessageView />
 
-      {loading ? (
-        <div className="flex justify-center py-12 flex-col items-center gap-2">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-xs text-muted-foreground">Loading threads…</p>
-        </div>
-      ) : loadError ? (
-        <div className="py-12 text-center space-y-3">
-          <MessageCircle className="mx-auto h-10 w-10 text-destructive/60" />
-          <p className="text-sm font-medium text-destructive">{loadError}</p>
-          <Button variant="outline" size="sm" onClick={() => loadThreads()} className="gap-1">Retry</Button>
-        </div>
-      ) : threads.length === 0 ? (
-        <div className="py-12 text-center space-y-3">
-          <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <p className="mt-3 text-sm text-muted-foreground">No threads yet. Start one!</p>
-          <Button variant="outline" size="sm" onClick={() => loadThreads()} className="gap-1">Retry</Button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {threads.map(thread => {
-            const tc = THREAD_TYPES.find(t => t.value === thread.thread_type);
-            const TIcon = tc?.icon || Hash;
-            return (
-              <Card
-                key={thread.id}
-                className="cursor-pointer transition-colors hover:bg-accent/50"
-                onClick={() => openThread(thread)}
-              >
-                <CardContent className="flex items-center gap-3 p-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                    <TIcon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm truncate">{thread.title || 'Untitled'}</p>
-                      {thread.is_private && <Lock className="h-3 w-3 text-muted-foreground" />}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {tc?.label} · {format(new Date(thread.updated_at), 'MMM d, h:mm a')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Create Thread Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading">New Thread</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              placeholder="Thread name…"
-            />
-            <Select value={newType} onValueChange={setNewType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {THREAD_TYPES.map(t => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex justify-end">
-              <Button onClick={handleCreateThread} disabled={!newTitle.trim()} className="gap-1.5">
-                <Plus className="h-4 w-4" />
-                Create Thread
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateThreadDialog
+        open={createOpen} onOpenChange={setCreateOpen}
+        title={newTitle} onTitleChange={setNewTitle}
+        type={newType} onTypeChange={setNewType}
+        onCreate={handleCreateThread}
+      />
     </div>
   );
 };
 
 export default Threads;
+
+// ── Thread Group Component ──
+function ThreadGroup({ label, threads, onSelect, activeId }: {
+  label: string;
+  threads: ThreadRow[];
+  onSelect: (t: ThreadRow) => void;
+  activeId?: string;
+}) {
+  if (threads.length === 0) return null;
+
+  return (
+    <div className="mb-1">
+      <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      {threads.map(thread => {
+        const Icon = THREAD_TYPE_ICONS[thread.thread_type] || Hash;
+        const isActive = thread.id === activeId;
+        return (
+          <button key={thread.id} onClick={() => onSelect(thread)}
+            className={cn(
+              'flex items-center gap-2 w-full px-3 py-2 text-left transition-colors text-sm',
+              isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground/80 hover:bg-muted/50'
+            )}>
+            <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate text-xs">{thread.title || 'Untitled'}</span>
+            {thread.is_private && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
+            {thread.last_message_preview && (
+              <span className="text-[9px] text-muted-foreground truncate max-w-[60px] hidden sm:inline">
+                {thread.last_message_preview}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Create Thread Dialog ──
+function CreateThreadDialog({ open, onOpenChange, title, onTitleChange, type, onTypeChange, onCreate }: {
+  open: boolean; onOpenChange: (v: boolean) => void;
+  title: string; onTitleChange: (v: string) => void;
+  type: string; onTypeChange: (v: string) => void;
+  onCreate: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-heading">New Thread</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <Input value={title} onChange={e => onTitleChange(e.target.value)} placeholder="Thread name…" />
+          <Select value={type} onValueChange={onTypeChange}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="group">Group</SelectItem>
+              <SelectItem value="team">Team</SelectItem>
+              <SelectItem value="dm">Direct Message</SelectItem>
+              <SelectItem value="parent">Parent</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex justify-end">
+            <Button onClick={onCreate} disabled={!title.trim()} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Create Thread
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
