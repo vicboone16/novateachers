@@ -193,6 +193,7 @@ const ClassroomView = () => {
       loadEngagementData();
       loadStaffCount();
       loadResponseCostSettings();
+      loadStudentTargets();
       setDataLoaded(true);
     }
   }, [clients, user, activeGroupId]);
