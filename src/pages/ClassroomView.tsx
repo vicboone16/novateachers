@@ -177,17 +177,39 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
+  // Load data once when clients/group settle (not on every render)
+  const [dataLoaded, setDataLoaded] = useState(false);
   useEffect(() => {
     if (!user || clients.length === 0) return;
-    loadTodayCounts();
-    loadPointBalances();
-    loadAttendance();
-    loadTokenProgress();
-    loadBoardSettings();
-    loadEngagementData();
-    loadStaffCount();
-    loadResponseCostSettings();
+    if (!dataLoaded) {
+      loadTodayCounts();
+      loadPointBalances();
+      loadAttendance();
+      loadTokenProgress();
+      loadBoardSettings();
+      loadEngagementData();
+      loadStaffCount();
+      loadResponseCostSettings();
+      setDataLoaded(true);
+    }
   }, [clients, user, activeGroupId]);
+
+  // Reset dataLoaded when group changes so we reload
+  useEffect(() => { setDataLoaded(false); }, [activeGroupId]);
+
+  // Realtime balance sync — refetch on ledger changes (prevents glitch)
+  useEffect(() => {
+    if (!user || clients.length === 0) return;
+    const channel = cloudSupabase.channel('classroom-balance-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'beacon_points_ledger' }, async () => {
+        const clientIds = clients.map(c => c.id);
+        const bals = await getStudentBalances(user.id, clientIds);
+        setPointBalances(bals);
+        setTotalPoints(Object.values(bals).reduce((s, v) => s + v, 0));
+      })
+      .subscribe();
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [user, clients]);
 
   const loadPointBalances = async () => {
     if (!user) return;
@@ -977,7 +999,7 @@ const ClassroomView = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rewards</span>
               <button onClick={() => navigate('/rewards')} className="ml-auto text-xs text-primary font-medium hover:underline">View All</button>
             </div>
-            <RewardPreviewStrip agencyId={effectiveAgencyId} />
+            <RewardPreviewStrip agencyId={effectiveAgencyId} classroomId={activeGroupId} />
           </CardContent>
         </Card>
 
@@ -1048,15 +1070,27 @@ function SummaryChip({ icon: Icon, label, value, color, draggable, onDragStart, 
 }
 
 /* ── Reward preview strip (bottom band left) ── */
-function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
+function RewardPreviewStrip({ agencyId, classroomId }: { agencyId: string; classroomId?: string | null }) {
   const [rewards, setRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   useEffect(() => {
     if (!agencyId) return;
-    supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).order('cost', { ascending: true }).limit(5)
+    // Try classroom-scoped first, then agency-scoped
+    const scopeType = classroomId ? 'classroom' : 'agency';
+    const scopeId = classroomId || agencyId;
+    supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).eq('scope_type', scopeType).eq('scope_id', scopeId).order('cost', { ascending: true }).limit(5)
       .then(({ data }: any) => {
-        setRewards((data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+        const results = (data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
+        if (results.length > 0) {
+          setRewards(results);
+        } else if (classroomId) {
+          // Fallback to agency-scoped rewards
+          supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).eq('scope_type', 'agency').eq('scope_id', agencyId).order('cost', { ascending: true }).limit(5)
+            .then(({ data: fallbackData }: any) => {
+              setRewards((fallbackData || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+            });
+        }
       });
-  }, [agencyId]);
+  }, [agencyId, classroomId]);
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
   return (

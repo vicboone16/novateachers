@@ -96,14 +96,18 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const [formEmoji, setFormEmoji] = useState('🎁');
   const [formDescription, setFormDescription] = useState('');
 
+  // Determine scope: classroom-specific if classroomId provided, else agency-wide
+  const scopeType = classroomId ? 'classroom' : 'agency';
+  const scopeId = classroomId || agencyId;
+
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
       // Use core-bridge to read rewards (bypasses Core RLS)
       const result = await invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
         action: 'list_rewards',
-        scope_type: 'agency',
-        scope_id: agencyId,
+        scope_type: scopeType,
+        scope_id: scopeId,
         include_inactive: !!showInactive,
       });
       setRewards((result?.data?.rewards || []) as any as Reward[]);
@@ -112,23 +116,24 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
       const redeemResult = await invokeCloudFunction<{ redemptions: any[] }>('core-bridge', {
         action: 'list_redemptions',
         agency_id: agencyId,
+        scope_id: scopeId,
       });
       setRedemptions((redeemResult?.data?.redemptions || []) as any as Redemption[]);
     } catch (err: any) {
       console.warn('[ReinforcerStore] loadRewards exception:', err.message);
-      // Fallback: try direct read (may work for SELECT even if INSERT is blocked)
+      // Fallback: try direct read
       try {
         const { data } = await supabase
           .from('beacon_rewards' as any)
           .select('*')
-          .eq('scope_type', 'agency')
-          .eq('scope_id', agencyId)
+          .eq('scope_type', scopeType)
+          .eq('scope_id', scopeId)
           .order('cost', { ascending: true });
         setRewards((data || []) as any as Reward[]);
       } catch { setRewards([]); }
     }
     setLoading(false);
-  }, [agencyId, showInactive]);
+  }, [agencyId, classroomId, showInactive]);
 
   useEffect(() => { loadRewards(); }, [loadRewards]);
 
@@ -141,8 +146,8 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     try {
       const result = await invokeCloudFunction('core-bridge', {
         action: 'create_reward',
-        scope_type: 'agency',
-        scope_id: agencyId,
+        scope_type: scopeType,
+        scope_id: scopeId,
         name: formName.trim(),
         description: formDescription.trim() || null,
         cost: parseInt(formCost) || 10,
