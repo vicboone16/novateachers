@@ -237,12 +237,12 @@ const Threads = () => {
           .insert({
             agency_id: agencyId,
             sender_id: user.id,
-            recipient_id: user.id, // self-thread for now
+            recipient_id: agencyId, // agency-scoped broadcast — not self
             body: msgText.trim(),
             thread_id: activeThread.id,
             message_type: 'note',
             subject: activeThread.title,
-            metadata: { app_source: 'beacon_thread' },
+            metadata: { app_source: 'beacon_thread', thread_type: activeThread.thread_type },
           });
         if (error) throw error;
       } else {
