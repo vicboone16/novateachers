@@ -393,8 +393,8 @@ const ClassroomView = () => {
   const loadStudentPresence = useCallback(async () => {
     if (!activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('v_classroom_student_presence' as any)
+      const { data } = await cloudSupabase
+        .from('v_classroom_student_presence')
         .select('student_id, location_type, location_label, status, assigned_staff_id, updated_at')
         .eq('classroom_group_id', activeGroupId);
       const map: StudentPresenceMap = {};
