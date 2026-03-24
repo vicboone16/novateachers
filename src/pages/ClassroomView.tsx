@@ -1011,13 +1011,13 @@ function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex gap-2.5 overflow-x-auto pb-1">
       {rewards.map((r, i) => (
-        <div key={i} className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/20 px-2.5 py-1.5 shrink-0">
-          <span className="text-base">{r.emoji}</span>
+        <div key={i} className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2 shrink-0">
+          <span className="text-lg">{r.emoji}</span>
           <div>
-            <p className="text-[10px] font-semibold leading-tight">{r.name}</p>
-            <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold tabular-nums">⭐ {r.cost}</p>
+            <p className="text-[11px] font-semibold leading-tight text-foreground">{r.name}</p>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold tabular-nums">⭐ {r.cost}</p>
           </div>
         </div>
       ))}
