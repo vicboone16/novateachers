@@ -120,6 +120,10 @@ const ClassroomView = () => {
   const today = new Date().toISOString().slice(0, 10);
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [groupStudentIds, setGroupStudentIds] = useState<Set<string> | null>(null); // null = "All"
+  const [showAll, setShowAll] = useState(false);
+
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
@@ -140,12 +144,33 @@ const ClassroomView = () => {
     loadTeacherPointActions(effectiveAgencyId).then(setTeacherActions);
   }, [user, effectiveAgencyId]);
 
+  // Load group student IDs when activeGroupId changes
+  useEffect(() => {
+    if (!activeGroupId || showAll) {
+      setGroupStudentIds(null);
+      return;
+    }
+    cloudSupabase
+      .from('classroom_group_students')
+      .select('client_id')
+      .eq('group_id', activeGroupId)
+      .then(({ data }) => {
+        const ids = new Set((data || []).map((r: any) => r.client_id));
+        setGroupStudentIds(ids);
+      });
+  }, [activeGroupId, showAll]);
+
+  // Filter clients by group
+  const clients = showAll || !groupStudentIds
+    ? allClients
+    : allClients.filter(c => groupStudentIds.has(c.id));
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
     try {
       const data = await fetchAccessibleClients({ currentWorkspace, isSoloMode, userId: user?.id });
-      setClients(normalizeClients(data));
+      setAllClients(normalizeClients(data));
     } catch { /* silent */ }
     setLoading(false);
   };
