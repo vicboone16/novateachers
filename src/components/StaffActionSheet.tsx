@@ -214,7 +214,7 @@ export function StaffActionSheet({
               return (
                 <button
                   key={s}
-                  onClick={() => { setStatus(s); if (isMe) quickMove(s); }}
+                  onClick={() => { setStatus(s); quickMove(s); }}
                   disabled={saving}
                   className={cn(
                     "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all active:scale-95",
