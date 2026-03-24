@@ -49,6 +49,7 @@ import GameSettings from "@/pages/GameSettings";
 import ClassroomLive from "@/pages/ClassroomLive";
 import AvatarUnlocks from "@/pages/AvatarUnlocks";
 import PointRulesManager from "@/pages/PointRulesManager";
+import FeatureTour from "@/pages/FeatureTour";
 
 const queryClient = new QueryClient();
 
