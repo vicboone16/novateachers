@@ -111,13 +111,13 @@ const Threads = () => {
       console.log('[Threads] Core threads unavailable, using local message threads:', coreErr);
       setUseLocalMode(true);
       try {
+        // Load ALL agency messages — any same-agency staff can see threads
         const { data: msgs } = await cloudSupabase
           .from('teacher_messages')
           .select('*')
           .eq('agency_id', agencyId)
-          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false })
-          .limit(50);
+          .limit(100);
         const threadMap = new Map<string, Thread>();
         for (const m of (msgs || []) as any[]) {
           const tid = m.thread_id || m.id;
@@ -126,7 +126,7 @@ const Threads = () => {
               id: tid,
               agency_id: agencyId,
               classroom_id: null,
-              thread_type: 'team',
+              thread_type: (m.metadata as any)?.thread_type || 'team',
               title: m.subject || 'Conversation',
               is_private: false,
               created_by: m.sender_id,
