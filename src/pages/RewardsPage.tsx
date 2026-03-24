@@ -125,7 +125,7 @@ const RewardsPage = () => {
         agencyId: effectiveAgencyId,
         points: pts,
         reason: adjustReason || (pts > 0 ? 'Manual adjustment (+)' : 'Manual adjustment (−)'),
-        source: 'manual_override',
+        source: 'manual',
         entryKind: 'manual',
       });
       handlePointChange(studentId, pts);
