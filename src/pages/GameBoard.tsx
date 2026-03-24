@@ -165,32 +165,34 @@ const GameBoard = () => {
     }
   };
 
-  // Realtime subscription
+  // Realtime subscription — refetch balances instead of accumulating to prevent glitches
   useEffect(() => {
     if (!user) return;
     const channel = cloudSupabase.channel('game-board-live').on('postgres_changes', {
       event: 'INSERT', schema: 'public', table: 'beacon_points_ledger',
-    }, (payload: any) => {
+    }, async (payload: any) => {
       const sid = payload.new?.student_id;
-      const pts = payload.new?.points || 0;
-      if (sid) {
+      if (sid && students.some(s => s.student_id === sid)) {
+        // Refetch all balances to get accurate totals (prevents glitch between 0 and N)
+        const studentIds = students.map(s => s.student_id);
+        const bals = await getStudentBalances(user.id, studentIds);
         setLiveBalances(prev => {
           const prevBal = prev[sid] || 0;
-          const newBal = prevBal + pts;
+          const newBal = bals[sid] || 0;
           const prevCp = getCheckpointsReached(getPosition(prevBal));
           const newCp = getCheckpointsReached(getPosition(newBal));
           if (newCp > prevCp || getLaps(newBal) > getLaps(prevBal)) {
             setRecentCheckpoint(sid);
             setTimeout(() => setRecentCheckpoint(null), 3000);
           }
-          return { ...prev, [sid]: newBal };
+          return bals;
         });
         setFlash(sid);
         setTimeout(() => setFlash(null), 1500);
       }
     }).subscribe();
     return () => { cloudSupabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, students]);
 
   const handleReset = async () => {
     if (!user || !activeGroupId) return;

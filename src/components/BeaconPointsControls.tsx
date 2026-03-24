@@ -150,17 +150,17 @@ export const BeaconPointsControls = ({
             <Star className="h-3 w-3" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-48 p-2 space-y-2" align="end" side="top">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+        <PopoverContent className="w-52 p-3 space-y-2.5 bg-card border border-border shadow-lg" align="end" side="top">
+          <p className="text-xs font-bold text-foreground uppercase tracking-wider px-0.5">
             Award Points
           </p>
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             {AWARD_OPTIONS.map(opt => (
               <Button
                 key={opt.points}
                 size="sm"
                 variant="outline"
-                className="flex-1 h-7 text-xs font-bold text-accent-foreground border-accent/30 hover:bg-accent/10"
+                className="flex-1 h-8 text-sm font-bold text-foreground border-border hover:bg-accent/20"
                 onClick={() => handleAward(opt.points)}
                 disabled={awarding}
               >
@@ -171,16 +171,16 @@ export const BeaconPointsControls = ({
 
           {responseCostEnabled && (
             <>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 pt-1">
+              <p className="text-xs font-bold text-foreground uppercase tracking-wider px-0.5 pt-1">
                 Response Cost
               </p>
-              <div className="flex gap-1">
+              <div className="flex gap-1.5">
                 {COST_OPTIONS.map(opt => (
                   <Button
                     key={opt.points}
                     size="sm"
                     variant="outline"
-                    className="flex-1 h-7 text-xs font-bold text-destructive border-destructive/30 hover:bg-destructive/10"
+                    className="flex-1 h-8 text-sm font-bold text-destructive border-destructive/40 hover:bg-destructive/10"
                     onClick={() => handleAward(opt.points, 'response_cost', 'Response cost')}
                     disabled={awarding}
                   >
