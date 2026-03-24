@@ -878,12 +878,12 @@ const ClassroomView = () => {
                         </button>
                       ))
                     )}
-                    <div className="ml-auto flex gap-1.5">
+                    <div className="ml-auto flex gap-1">
                       {manualActions.length > 0 && (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <button title="Manual points" className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                              <Zap className="h-3.5 w-3.5" />
+                            <button title="Manual points" className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                              <Zap className="h-3 w-3" />
                             </button>
                           </PopoverTrigger>
                           <PopoverContent className="w-44 p-2 space-y-1" align="end" side="top">
