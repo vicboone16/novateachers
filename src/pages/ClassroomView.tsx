@@ -101,7 +101,12 @@ const ClassroomView = () => {
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
   const [staffCount, setStaffCount] = useState(0);
   const [teacherActions, setTeacherActions] = useState<TeacherPointAction[]>([]);
-  const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
+  const [editingWord, setEditingWord] = useState(false);
+  const [editingMission, setEditingMission] = useState(false);
+  const [wordDraft, setWordDraft] = useState('');
+  const [missionDraft, setMissionDraft] = useState('');
+  const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
+  const [dragChip, setDragChip] = useState<string | null>(null);
 
   const handleUndoComplete = async () => {
     const ok = await undoAction();
