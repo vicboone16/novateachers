@@ -74,7 +74,7 @@ export default function ExternalStudentPortal() {
   };
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-950 to-slate-900 text-white">
       <div className="text-center space-y-3">
         <Loader2 className="h-8 w-8 animate-spin text-amber-400 mx-auto" />
         <p className="text-sm text-white/60">Loading your board…</p>
