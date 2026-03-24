@@ -53,33 +53,42 @@ const STATE_CONFIG: Record<AvailabilityState, { label: string; dot: string; bg: 
   offline:   { label: 'Offline',   dot: 'bg-foreground', bg: 'bg-foreground/5 border-foreground/20' },
 };
 
+/**
+ * Maps self-reported staff status → Who's Here availability state.
+ * This is NOT purely behavior-driven — staff set their own status/location,
+ * and the system maps it to the 5 availability states.
+ * Admins can override any staff member's status.
+ */
 function deriveState(entry: StaffEntry, currentClassroomId?: string | null): AvailabilityState {
   const minutesSinceUpdate = (Date.now() - new Date(entry.updated_at).getTime()) / 60000;
 
-  // Offline if no update in 60 minutes
+  // Offline: no update in 60 min, or explicitly set to 'out'
   if (minutesSinceUpdate > 60) return 'offline';
+  if (entry.status === 'out') return 'offline';
 
-  // Busy states
-  if (entry.status === 'unavailable' || entry.availability_status === 'unavailable') return 'busy';
-  if (entry.status === 'on_break' || entry.status === 'out') return 'busy';
-
-  // Assigned to student
+  // Assigned: with a student
   if (entry.status === 'with_student' || entry.assigned_student_id) return 'assigned';
 
-  // In current classroom = available
+  // Busy: explicitly unavailable, on break, or in office
+  if (entry.status === 'unavailable' || entry.availability_status === 'unavailable') return 'busy';
+  if (entry.status === 'on_break') return 'busy';
+  if (entry.status === 'in_office' && !entry.available_for_support) return 'busy';
+
+  // Available: in the current classroom
   if (currentClassroomId && entry.classroom_group_id === currentClassroomId && entry.status === 'in_room') return 'available';
 
-  // In another classroom but available for support = nearby
+  // Available: explicitly marked available
+  if (entry.available_for_support && entry.status === 'in_room' && !currentClassroomId) return 'available';
+
+  // Nearby: in a different room but available, floating, covering
   if (entry.available_for_support && entry.status === 'in_room') return 'nearby';
   if (entry.status === 'floating' || entry.status === 'covering') return 'nearby';
+  if (entry.status === 'in_office' && entry.available_for_support) return 'nearby';
 
-  // Available for support generally
+  // Fallback: if available_for_support is true, they're available
   if (entry.available_for_support) return 'available';
 
-  // In office / other = busy
-  if (entry.status === 'in_office') return 'busy';
-
-  return 'nearby';
+  return 'busy';
 }
 
 export function WhosHerePanel({
