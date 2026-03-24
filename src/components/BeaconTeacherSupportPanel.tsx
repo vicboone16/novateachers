@@ -205,6 +205,13 @@ export function BeaconTeacherSupportPanel({
               </div>
             )}
 
+            {/* ── TEACHER TRANSLATION ── */}
+            <TeacherTranslationCard
+              studentId={studentId}
+              studentName={studentName}
+              dayState={currentState?.day_state}
+            />
+
             {/* ── DAY STATE SELECTOR ── */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
