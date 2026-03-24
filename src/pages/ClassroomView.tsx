@@ -451,6 +451,38 @@ const ClassroomView = () => {
   const engagementPct = engagement.total > 0 ? Math.round((engagement.engaged / engagement.total) * 100) : 0;
   const classGoalPct = classGoal.target > 0 ? Math.round((classGoal.current / classGoal.target) * 100) : 0;
 
+  const saveWord = async () => {
+    const val = wordDraft.trim() || wordOfWeek;
+    setWordOfWeek(val);
+    setEditingWord(false);
+    if (activeGroupId) {
+      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+    }
+  };
+
+  const saveMission = async () => {
+    const val = missionDraft.trim() || missionText;
+    setMissionText(val);
+    setEditingMission(false);
+    if (activeGroupId) {
+      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+    }
+  };
+
+  const handleChipDrop = (targetKey: string) => {
+    if (!dragChip || dragChip === targetKey) return;
+    setSummaryChipOrder(prev => {
+      const arr = [...prev];
+      const from = arr.indexOf(dragChip);
+      const to = arr.indexOf(targetKey);
+      if (from < 0 || to < 0) return prev;
+      arr.splice(from, 1);
+      arr.splice(to, 0, dragChip);
+      return arr;
+    });
+    setDragChip(null);
+  };
+
   // Group teacher actions by category
   const positiveActions = teacherActions.filter(a => a.action_group === 'positive');
   const behaviorActions = teacherActions.filter(a => a.action_group === 'behavior');
