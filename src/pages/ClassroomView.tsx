@@ -901,16 +901,16 @@ const ClassroomView = () => {
                         </Popover>
                       )}
                       <button onClick={() => navigate('/rewards')} title="Rewards"
-                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <Gift className="h-3.5 w-3.5" />
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gift className="h-3 w-3" />
                       </button>
                       <button onClick={() => navigate('/game-board')} title="Game Board"
-                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <Gamepad2 className="h-3.5 w-3.5" />
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gamepad2 className="h-3 w-3" />
                       </button>
                       <button onClick={() => setQuickActionStudent(client)} title="Student code & more"
-                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <KeyRound className="h-3.5 w-3.5" />
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <KeyRound className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
