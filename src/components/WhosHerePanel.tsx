@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PRESENCE_STATUS_MAP, PRESENCE_STATUS_ORDER, type PresenceStatus } from './StaffPresencePanel';
+import {
+  Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from '@/components/ui/tooltip';
 
 interface StaffEntry {
   user_id: string;

@@ -150,7 +150,7 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
 
   const getDisplayName = (userId: string) => {
     if (userId === user?.id) return 'You';
-    return nameMap.get(userId) || `Staff ${userId.slice(0, 6)}`;
+    return nameMap.get(userId) || userId.slice(0, 8) + '…';
   };
   const getRole = (userId: string) => roleMap[userId] || null;
 
