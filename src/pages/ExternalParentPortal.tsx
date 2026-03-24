@@ -111,7 +111,7 @@ export default function ExternalParentPortal() {
           const rwMap = new Map((rwds || []).map((r: any) => [r.id, r]));
           redemptions = (rd as any[]).map(r => {
             const rw = rwMap.get(r.reward_id) as any;
-            return { reward_name: rw?.name || 'Reward', reward_emoji: rw?.emoji || '🎁', points_spent: r.points_spent, created_at: r.created_at };
+            return { reward_name: rw?.name || 'Reward', reward_emoji: rw?.emoji || '🎁', points_spent: r.points_spent, created_at: r.redeemed_at || r.created_at };
           });
         }
       } catch {}
