@@ -1399,6 +1399,33 @@ export type Database = {
         }
         Relationships: []
       }
+      student_response_cost_settings: {
+        Row: {
+          agency_id: string
+          id: string
+          response_cost_enabled: boolean
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agency_id: string
+          id?: string
+          response_cost_enabled?: boolean
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agency_id?: string
+          id?: string
+          response_cost_enabled?: boolean
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       teacher_data_events: {
         Row: {
           agency_id: string | null
