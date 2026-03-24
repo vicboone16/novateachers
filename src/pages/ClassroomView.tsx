@@ -859,7 +859,7 @@ const ClassroomView = () => {
                             className="flex items-center gap-0.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-1.5 py-1 text-[9px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
                           >
                             <span className="text-[10px]">{action.action_icon}</span>
-                            {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 8)}
+                            {action.action_label.replace(/\s*[+-]\d+$/, '')}
                           </button>
                         ))}
                         {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).length > 3 && (
