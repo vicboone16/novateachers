@@ -94,12 +94,25 @@ const GameBoard = () => {
       const bals = await getStudentBalances(user.id, studentIds);
       setLiveBalances(bals);
 
-      // Load names from Core
+      // Load names from Core — try by ID first, then by agency fallback
       let nameMap = new Map<string, { first_name: string; last_name: string }>();
       try {
         const { data: clients } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', studentIds);
         for (const c of (clients || []) as any[]) nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
       } catch { /* silent */ }
+      // Agency fallback if some names not resolved
+      if (nameMap.size < studentIds.length && activeGroupId) {
+        try {
+          const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
+          const aid = (grpData as any)?.agency_id;
+          if (aid) {
+            const { data: allClients } = await supabase.from('clients' as any).select('id, first_name, last_name').eq('agency_id', aid);
+            for (const c of (allClients || []) as any[]) {
+              if (studentIds.includes(c.id) && !nameMap.has(c.id)) nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            }
+          }
+        } catch { /* silent */ }
+      }
 
       // Load avatars
       let avatarMap = new Map<string, string>();
