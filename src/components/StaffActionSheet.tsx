@@ -291,7 +291,7 @@ export function StaffActionSheet({
         {studentEntries.length > 0 && (
           <div className="space-y-1.5 pt-4 border-t border-border/30 mt-4">
             <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Assigned Student (optional)</Label>
-            <Select value={assignedStudentId} onValueChange={setAssignedStudentId}>
+            <Select value={assignedStudentId || '__none__'} onValueChange={v => setAssignedStudentId(v === '__none__' ? '' : v)}>
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="None" />
               </SelectTrigger>
