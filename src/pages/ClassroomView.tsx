@@ -1077,19 +1077,21 @@ function RewardPreviewStrip({ agencyId, classroomId }: { agencyId: string; class
     // Try classroom-scoped first, then agency-scoped
     const scopeType = classroomId ? 'classroom' : 'agency';
     const scopeId = classroomId || agencyId;
-    supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).eq('scope_type', scopeType).eq('scope_id', scopeId).order('cost', { ascending: true }).limit(5)
-      .then(({ data }: any) => {
-        const results = (data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
-        if (results.length > 0) {
-          setRewards(results);
-        } else if (classroomId) {
-          // Fallback to agency-scoped rewards
-          supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).eq('scope_type', 'agency').eq('scope_id', agencyId).order('cost', { ascending: true }).limit(5)
-            .then(({ data: fallbackData }: any) => {
-              setRewards((fallbackData || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
-            });
-        }
-      });
+    // Use core-bridge to load rewards (avoids Core column mismatch)
+    invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
+      action: 'list_rewards', scope_type: scopeType, scope_id: scopeId, include_inactive: false,
+    }).then(result => {
+      const items = (result?.data?.rewards || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost }));
+      if (items.length > 0) {
+        setRewards(items);
+      } else if (classroomId) {
+        invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
+          action: 'list_rewards', scope_type: 'agency', scope_id: agencyId, include_inactive: false,
+        }).then(fallback => {
+          setRewards((fallback?.data?.rewards || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost })));
+        }).catch(() => {});
+      }
+    }).catch(() => {});
   }, [agencyId, classroomId]);
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
