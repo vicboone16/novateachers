@@ -66,6 +66,7 @@ const Threads = () => {
     if (!user || !agencyId || initialized) return;
     const init = async () => {
       await ensureAgencyThread(agencyId, user.id);
+      await ensureAgencyFeedThread(agencyId, user.id);
       await backfillClassroomThreads(agencyId, user.id);
       setInitialized(true);
     };
