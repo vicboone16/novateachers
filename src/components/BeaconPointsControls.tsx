@@ -112,29 +112,29 @@ export const BeaconPointsControls = ({
             <Plus className="h-3 w-3" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-48 p-2 space-y-1.5" align="start" side="top">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+        <PopoverContent className="w-52 p-3 space-y-1.5 bg-card border border-border shadow-lg" align="start" side="top">
+          <p className="text-xs font-bold text-foreground uppercase tracking-wider px-0.5">
             Log to ⭐
           </p>
           <button
             onClick={() => { handleAward(1, 'manual', 'Replacement behavior'); }}
-            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10 transition-colors text-left"
+            className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-accent/10 transition-colors text-left"
           >
-            <span>🟢</span>
+            <span className="text-base">🟢</span>
             <span>Replacement Behavior</span>
           </button>
           <button
             onClick={() => { handleAward(1, 'manual', 'Positive behavior'); }}
-            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10 transition-colors text-left"
+            className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-accent/10 transition-colors text-left"
           >
-            <span>⭐</span>
+            <span className="text-base">⭐</span>
             <span>Positive Behavior</span>
           </button>
           <button
             onClick={() => handleAward(1)}
-            className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10 transition-colors text-left"
+            className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-accent/10 transition-colors text-left"
           >
-            <span>➕</span>
+            <span className="text-base">➕</span>
             <span>Quick +1</span>
           </button>
         </PopoverContent>
