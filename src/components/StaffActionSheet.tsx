@@ -162,7 +162,7 @@ export function StaffActionSheet({
 
       const { error } = await cloudSupabase
         .from('staff_presence')
-        .upsert(payload, { onConflict: 'user_id' });
+        .upsert(payload, { onConflict: 'agency_id,user_id' });
 
       if (error) {
         await cloudSupabase.from('staff_presence').insert(payload);
