@@ -165,12 +165,12 @@ export function StaffActionSheet({
                   className={cn(
                     "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all active:scale-95",
                     active
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border/50 bg-card text-muted-foreground hover:bg-muted/50"
+                      ? "border-primary bg-primary/10 text-foreground font-bold"
+                      : "border-border/50 bg-card text-foreground hover:bg-muted/50"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span className="text-[8px] font-medium leading-tight">{cfg.label}</span>
+                  <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-foreground/70")} />
+                  <span className="text-[9px] font-semibold leading-tight">{cfg.label}</span>
                 </button>
               );
             })}
