@@ -1070,15 +1070,27 @@ function SummaryChip({ icon: Icon, label, value, color, draggable, onDragStart, 
 }
 
 /* ── Reward preview strip (bottom band left) ── */
-function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
+function RewardPreviewStrip({ agencyId, classroomId }: { agencyId: string; classroomId?: string | null }) {
   const [rewards, setRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   useEffect(() => {
     if (!agencyId) return;
-    supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).order('cost', { ascending: true }).limit(5)
+    // Try classroom-scoped first, then agency-scoped
+    const scopeType = classroomId ? 'classroom' : 'agency';
+    const scopeId = classroomId || agencyId;
+    supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).eq('scope_type', scopeType).eq('scope_id', scopeId).order('cost', { ascending: true }).limit(5)
       .then(({ data }: any) => {
-        setRewards((data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+        const results = (data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
+        if (results.length > 0) {
+          setRewards(results);
+        } else if (classroomId) {
+          // Fallback to agency-scoped rewards
+          supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).eq('scope_type', 'agency').eq('scope_id', agencyId).order('cost', { ascending: true }).limit(5)
+            .then(({ data: fallbackData }: any) => {
+              setRewards((fallbackData || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+            });
+        }
       });
-  }, [agencyId]);
+  }, [agencyId, classroomId]);
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
   return (
