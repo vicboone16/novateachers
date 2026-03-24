@@ -28,6 +28,7 @@ import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
 import { BulkAwardPanel } from '@/components/BulkAwardPanel';
 import { ReinforcementAssignPanel } from '@/components/ReinforcementAssignPanel';
+import { ClassroomReinforcementPanel } from '@/components/ClassroomReinforcementPanel';
 import { StudentPresenceChip, type StudentPresenceData } from '@/components/StudentPresenceChip';
 import { StudentPresenceSheet } from '@/components/StudentPresenceSheet';
 import { MaydayButton } from '@/components/MaydayButton';
