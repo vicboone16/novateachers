@@ -1,13 +1,11 @@
 /**
  * TokenBoard — Per-student visual star/token progress with auto-reset on redemption.
- * Reads from Core: token_boards, beacon_points_ledger.
+ * Uses Lovable Cloud token_boards table.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { writePointEntry } from '@/lib/beacon-points';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +20,7 @@ interface TokenBoardConfig {
   current_tokens: number;
   reward_name: string;
   reward_emoji: string;
-  skin: string; // 'stars' | 'points' | 'xp' | 'credits'
+  skin: string;
   auto_reset: boolean;
 }
 
@@ -50,62 +48,78 @@ export function TokenBoard({ studentId, studentName, agencyId, classroomId, bala
 
   const loadBoard = useCallback(async () => {
     try {
-      const { data } = await supabase
-        .from('token_boards' as any)
+      const { data } = await cloudSupabase
+        .from('token_boards')
         .select('*')
         .eq('student_id', studentId)
         .eq('classroom_id', classroomId)
         .maybeSingle();
-      if (data) setBoard(data as any);
+      if (data) {
+        setBoard(data as any);
+      } else {
+        // Auto-create a default board
+        const { data: created } = await cloudSupabase
+          .from('token_boards')
+          .insert({
+            student_id: studentId,
+            classroom_id: classroomId,
+            agency_id: agencyId,
+            token_target: 10,
+            current_tokens: 0,
+            reward_name: 'Free Choice',
+            reward_emoji: '🎁',
+            skin: 'stars',
+            auto_reset: true,
+          })
+          .select()
+          .single();
+        if (created) setBoard(created as any);
+      }
     } catch { /* silent */ }
-  }, [studentId, classroomId]);
+  }, [studentId, classroomId, agencyId]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
+
+  const updateTokens = async (newTokens: number) => {
+    if (!board) return;
+    await cloudSupabase
+      .from('token_boards')
+      .update({ current_tokens: newTokens, updated_at: new Date().toISOString() })
+      .eq('id', board.id);
+    setBoard(prev => prev ? { ...prev, current_tokens: newTokens } : null);
+  };
 
   const addToken = async () => {
     if (!board || !user) return;
     const newTokens = board.current_tokens + 1;
 
-    // Check if target reached
     if (newTokens >= board.token_target) {
       setCelebrating(true);
       toast({ title: `🎉 ${studentName} earned: ${board.reward_emoji} ${board.reward_name}!` });
-
-      // Auto-reset
       if (board.auto_reset) {
-        await supabase
-          .from('token_boards' as any)
-          .update({ current_tokens: 0 })
-          .eq('id', board.id);
-        setBoard(prev => prev ? { ...prev, current_tokens: 0 } : null);
+        await updateTokens(0);
       } else {
-        await supabase
-          .from('token_boards' as any)
-          .update({ current_tokens: newTokens })
-          .eq('id', board.id);
-        setBoard(prev => prev ? { ...prev, current_tokens: newTokens } : null);
+        await updateTokens(newTokens);
       }
       setTimeout(() => setCelebrating(false), 2000);
     } else {
-      await supabase
-        .from('token_boards' as any)
-        .update({ current_tokens: newTokens })
-        .eq('id', board.id);
-      setBoard(prev => prev ? { ...prev, current_tokens: newTokens } : null);
+      await updateTokens(newTokens);
     }
   };
 
   const resetBoard = async () => {
     if (!board) return;
-    await supabase
-      .from('token_boards' as any)
-      .update({ current_tokens: 0 })
-      .eq('id', board.id);
-    setBoard(prev => prev ? { ...prev, current_tokens: 0 } : null);
+    await updateTokens(0);
     toast({ title: 'Token board reset' });
   };
 
-  if (!board) return null;
+  if (!board) return (
+    <Card className="border-border/40">
+      <CardContent className="p-3 text-center text-xs text-muted-foreground py-6">
+        Loading token board…
+      </CardContent>
+    </Card>
+  );
 
   const skin = SKIN_CONFIG[board.skin] || SKIN_CONFIG.stars;
   const pct = board.token_target > 0 ? Math.min(100, Math.round((board.current_tokens / board.token_target) * 100)) : 0;
@@ -134,7 +148,6 @@ export function TokenBoard({ studentId, studentName, agencyId, classroomId, bala
           </div>
         </div>
 
-        {/* Visual token grid */}
         <div className="flex flex-wrap gap-1">
           {tokensArray.map((filled, i) => (
             <button
@@ -152,10 +165,8 @@ export function TokenBoard({ studentId, studentName, agencyId, classroomId, bala
           ))}
         </div>
 
-        {/* Progress bar */}
         <Progress value={pct} className="h-1.5" />
 
-        {/* Reward target */}
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <Gift className="h-3 w-3 text-primary" />
           Goal: <strong className="text-foreground">{board.reward_emoji} {board.reward_name}</strong>

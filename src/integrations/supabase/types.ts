@@ -2524,6 +2524,51 @@ export type Database = {
           },
         ]
       }
+      token_boards: {
+        Row: {
+          agency_id: string
+          auto_reset: boolean
+          classroom_id: string
+          created_at: string
+          current_tokens: number
+          id: string
+          reward_emoji: string
+          reward_name: string
+          skin: string
+          student_id: string
+          token_target: number
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          auto_reset?: boolean
+          classroom_id: string
+          created_at?: string
+          current_tokens?: number
+          id?: string
+          reward_emoji?: string
+          reward_name?: string
+          skin?: string
+          student_id: string
+          token_target?: number
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          auto_reset?: boolean
+          classroom_id?: string
+          created_at?: string
+          current_tokens?: number
+          id?: string
+          reward_emoji?: string
+          reward_name?: string
+          skin?: string
+          student_id?: string
+          token_target?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_reminder_overrides: {
         Row: {
           created_at: string
