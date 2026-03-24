@@ -42,7 +42,9 @@ import {
   BarChart3, AlertTriangle, Users, Star, Sparkles,
   Target, BookOpen, MessageSquare, Zap, ChevronDown,
   Gamepad2, Gift, KeyRound, Copy, MoreHorizontal,
+  Pencil, GripVertical,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
 
