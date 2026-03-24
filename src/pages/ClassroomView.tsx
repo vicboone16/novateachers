@@ -177,17 +177,39 @@ const ClassroomView = () => {
     setLoading(false);
   };
 
+  // Load data once when clients/group settle (not on every render)
+  const [dataLoaded, setDataLoaded] = useState(false);
   useEffect(() => {
     if (!user || clients.length === 0) return;
-    loadTodayCounts();
-    loadPointBalances();
-    loadAttendance();
-    loadTokenProgress();
-    loadBoardSettings();
-    loadEngagementData();
-    loadStaffCount();
-    loadResponseCostSettings();
+    if (!dataLoaded) {
+      loadTodayCounts();
+      loadPointBalances();
+      loadAttendance();
+      loadTokenProgress();
+      loadBoardSettings();
+      loadEngagementData();
+      loadStaffCount();
+      loadResponseCostSettings();
+      setDataLoaded(true);
+    }
   }, [clients, user, activeGroupId]);
+
+  // Reset dataLoaded when group changes so we reload
+  useEffect(() => { setDataLoaded(false); }, [activeGroupId]);
+
+  // Realtime balance sync — refetch on ledger changes (prevents glitch)
+  useEffect(() => {
+    if (!user || clients.length === 0) return;
+    const channel = cloudSupabase.channel('classroom-balance-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'beacon_points_ledger' }, async () => {
+        const clientIds = clients.map(c => c.id);
+        const bals = await getStudentBalances(user.id, clientIds);
+        setPointBalances(bals);
+        setTotalPoints(Object.values(bals).reduce((s, v) => s + v, 0));
+      })
+      .subscribe();
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [user, clients]);
 
   const loadPointBalances = async () => {
     if (!user) return;
