@@ -105,10 +105,20 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'DM Sans', system-ui, sans-serif;
     -webkit-overflow-scrolling: touch;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6, .font-heading {
     font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  /* Brightwheel-style card polish */
+  .bw-card {
+    @apply bg-card rounded-2xl shadow-sm border border-border/60 p-4;
+  }
+  .bw-section {
+    @apply space-y-6;
   }
 
   /* iOS Safe Area support */
