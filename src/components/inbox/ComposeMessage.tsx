@@ -68,9 +68,15 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
     if (!currentWorkspace || !user) return;
     setLoadingRecipients(true);
     try {
-      const { data, error } = await listRecipients({ agencyId: currentWorkspace.agency_id, excludeUserId: user.id });
-      if (error) throw error;
-      const userIds = data?.user_ids || [];
+      // Query team members from Lovable Cloud instead of Nova Core
+      const { data: teachers } = await cloudSupabase
+        .from('classroom_group_teachers')
+        .select('user_id')
+        .neq('user_id', user.id);
+
+      // Deduplicate user IDs
+      const userIds = [...new Set((teachers || []).map(t => t.user_id))];
+
       if (userIds.length > 0) {
         const resolved = await resolveDisplayNames(userIds, session?.access_token);
         setRecipients(
