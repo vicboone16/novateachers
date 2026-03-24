@@ -106,8 +106,8 @@ const ClassroomManager = () => {
   const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
-    if (currentWorkspace && isAdmin) loadAll();
-  }, [currentWorkspace, isAdmin]);
+    if (currentWorkspace) loadAll();
+  }, [currentWorkspace]);
 
   // ── Data loading ──
 
