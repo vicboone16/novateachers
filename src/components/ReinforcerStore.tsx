@@ -106,14 +106,14 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
         scope_id: agencyId,
         include_inactive: !!showInactive,
       });
-      setRewards((result?.rewards || []) as any as Reward[]);
+      setRewards((result?.data?.rewards || []) as any as Reward[]);
 
       // Load redemptions via core-bridge
       const redeemResult = await invokeCloudFunction<{ redemptions: any[] }>('core-bridge', {
         action: 'list_redemptions',
         agency_id: agencyId,
       });
-      setRedemptions((redeemResult?.redemptions || []) as any as Redemption[]);
+      setRedemptions((redeemResult?.data?.redemptions || []) as any as Redemption[]);
     } catch (err: any) {
       console.warn('[ReinforcerStore] loadRewards exception:', err.message);
       // Fallback: try direct read (may work for SELECT even if INSERT is blocked)
