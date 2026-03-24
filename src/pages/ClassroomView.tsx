@@ -99,6 +99,8 @@ const ClassroomView = () => {
   const [totalPoints, setTotalPoints] = useState(0);
   const [flashCard, setFlashCard] = useState<string | null>(null);
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
+  const [bulkAwardOpen, setBulkAwardOpen] = useState(false);
+  const [reinforceStudent, setReinforceStudent] = useState<Client | null>(null);
   const [presenceSheetStudent, setPresenceSheetStudent] = useState<Client | null>(null);
   const [studentPresence, setStudentPresence] = useState<StudentPresenceMap>({});
   const [responseCostMap, setResponseCostMap] = useState<ResponseCostMap>({});
