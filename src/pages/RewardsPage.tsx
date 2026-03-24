@@ -103,8 +103,41 @@ const RewardsPage = () => {
     setLoading(false);
   };
 
+  const { toast } = useToast();
+  const [adjustStudent, setAdjustStudent] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+
   const handlePointChange = (studentId: string, delta: number) => {
     setBalances(prev => ({ ...prev, [studentId]: (prev[studentId] || 0) + delta }));
+  };
+
+  const handlePointOverride = async (studentId: string) => {
+    if (!user || !adjustAmount) return;
+    const pts = parseInt(adjustAmount);
+    if (isNaN(pts) || pts === 0) return;
+    setAdjusting(true);
+    try {
+      await writePointEntry({
+        studentId,
+        staffId: user.id,
+        agencyId: effectiveAgencyId,
+        points: pts,
+        reason: adjustReason || (pts > 0 ? 'Manual adjustment (+)' : 'Manual adjustment (−)'),
+        source: 'manual_override',
+        entryKind: 'manual',
+      });
+      handlePointChange(studentId, pts);
+      const name = clients.find(c => c.id === studentId);
+      toast({ title: `${pts > 0 ? '+' : ''}${pts} pts → ${name ? displayName(name) : 'Student'}` });
+      setAdjustStudent(null);
+      setAdjustAmount('');
+      setAdjustReason('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+    setAdjusting(false);
   };
 
   if (loading) return (
