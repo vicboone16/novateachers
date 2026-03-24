@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { WhosHerePanel } from '@/components/WhosHerePanel';
 import {
-  ensureAgencyThread, backfillClassroomThreads, createDMThread,
+  ensureAgencyThread, ensureAgencyFeedThread, backfillClassroomThreads, createDMThread,
   type ThreadRow, type ThreadMessageRow, type ThreadReactionRow,
 } from '@/lib/thread-helpers';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,7 @@ const Threads = () => {
     if (!user || !agencyId || initialized) return;
     const init = async () => {
       await ensureAgencyThread(agencyId, user.id);
+      await ensureAgencyFeedThread(agencyId, user.id);
       await backfillClassroomThreads(agencyId, user.id);
       setInitialized(true);
     };

@@ -26,6 +26,8 @@ import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
 import { StudentQuickActionModal } from '@/components/StudentQuickActionModal';
+import { BulkAwardPanel } from '@/components/BulkAwardPanel';
+import { ReinforcementAssignPanel } from '@/components/ReinforcementAssignPanel';
 import { StudentPresenceChip, type StudentPresenceData } from '@/components/StudentPresenceChip';
 import { StudentPresenceSheet } from '@/components/StudentPresenceSheet';
 import { MaydayButton } from '@/components/MaydayButton';
@@ -43,7 +45,7 @@ import {
   BarChart3, AlertTriangle, Users, Star, Sparkles,
   Target, BookOpen, MessageSquare, Zap, ChevronDown,
   Gamepad2, Gift, KeyRound, Copy, MoreHorizontal,
-  Pencil, GripVertical,
+  Pencil, GripVertical, Settings2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -97,6 +99,8 @@ const ClassroomView = () => {
   const [totalPoints, setTotalPoints] = useState(0);
   const [flashCard, setFlashCard] = useState<string | null>(null);
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
+  const [bulkAwardOpen, setBulkAwardOpen] = useState(false);
+  const [reinforceStudent, setReinforceStudent] = useState<Client | null>(null);
   const [presenceSheetStudent, setPresenceSheetStudent] = useState<Client | null>(null);
   const [studentPresence, setStudentPresence] = useState<StudentPresenceMap>({});
   const [responseCostMap, setResponseCostMap] = useState<ResponseCostMap>({});
@@ -258,6 +262,24 @@ const ClassroomView = () => {
   const loadBoardSettings = async () => {
     if (!activeGroupId) return;
     try {
+      // Try classroom_settings on Lovable Cloud first
+      const { data: settings } = await cloudSupabase
+        .from('classroom_settings')
+        .select('point_goal, point_goal_label, mission_text, word_of_week')
+        .eq('group_id', activeGroupId)
+        .maybeSingle();
+      if (settings) {
+        const s = settings as any;
+        if (s.mission_text) setMissionText(s.mission_text);
+        if (s.word_of_week) setWordOfWeek(s.word_of_week);
+        setClassGoal({
+          current: totalPoints,
+          target: s.point_goal || 500,
+          label: s.point_goal_label || 'Class Goal',
+        });
+        return;
+      }
+      // Fallback to Core board settings
       const { data } = await supabase
         .from('classroom_board_settings' as any)
         .select('mission_text, word_of_week, class_goal_label, class_goal_target, class_goal_current')
@@ -561,7 +583,13 @@ const ClassroomView = () => {
     setWordOfWeek(val);
     setEditingWord(false);
     if (activeGroupId) {
-      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+      try {
+        await cloudSupabase.from('classroom_settings').upsert({
+          group_id: activeGroupId, agency_id: effectiveAgencyId, word_of_week: val,
+        }, { onConflict: 'group_id' });
+      } catch {
+        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+      }
     }
   };
 
@@ -570,7 +598,13 @@ const ClassroomView = () => {
     setMissionText(val);
     setEditingMission(false);
     if (activeGroupId) {
-      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+      try {
+        await cloudSupabase.from('classroom_settings').upsert({
+          group_id: activeGroupId, agency_id: effectiveAgencyId, mission_text: val,
+        }, { onConflict: 'group_id' });
+      } catch {
+        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+      }
     }
   };
 
@@ -656,6 +690,9 @@ const ClassroomView = () => {
             </Button>
             <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/rewards')}>
               <Gift className="h-3.5 w-3.5" /> Rewards
+            </Button>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setBulkAwardOpen(true)} title="Award all students">
+              <Users className="h-3.5 w-3.5" /> Award All
             </Button>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
               <ExternalLink className="h-4 w-4" />
@@ -1020,6 +1057,10 @@ const ClassroomView = () => {
                         className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
                         <Gamepad2 className="h-3 w-3" />
                       </button>
+                      <button onClick={() => setReinforceStudent(client)} title="Reinforcement settings"
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Settings2 className="h-3 w-3" />
+                      </button>
                       <button onClick={() => setQuickActionStudent(client)} title="Student code & more"
                         className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
                         <KeyRound className="h-3 w-3" />
@@ -1160,6 +1201,34 @@ const ClassroomView = () => {
 
       {/* Undo Toast */}
       <UndoToast action={pendingAction} onUndo={handleUndoComplete} onDismiss={dismissAction} />
+
+      {/* Bulk Award Panel */}
+      {activeGroupId && (
+        <BulkAwardPanel
+          open={bulkAwardOpen}
+          onOpenChange={setBulkAwardOpen}
+          agencyId={effectiveAgencyId}
+          groupId={activeGroupId}
+          staffId={user?.id || ''}
+          studentIds={clients.map(c => c.id)}
+          classGoal={{ target: classGoal.target, label: classGoal.label }}
+          onClassGoalChange={(g) => setClassGoal(prev => ({ ...prev, ...g }))}
+          onPointsAwarded={(pts) => {
+            clients.forEach(c => handlePointChange(c.id, pts));
+          }}
+        />
+      )}
+
+      {/* Reinforcement Assign Panel */}
+      {reinforceStudent && (
+        <ReinforcementAssignPanel
+          open={!!reinforceStudent}
+          onOpenChange={(open) => { if (!open) setReinforceStudent(null); }}
+          studentId={reinforceStudent.id}
+          studentName={displayName(reinforceStudent)}
+          agencyId={effectiveAgencyId}
+        />
+      )}
     </div>
   );
 };

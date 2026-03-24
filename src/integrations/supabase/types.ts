@@ -571,6 +571,50 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_settings: {
+        Row: {
+          agency_id: string
+          created_at: string
+          group_id: string
+          id: string
+          mission_text: string | null
+          point_goal: number
+          point_goal_label: string
+          updated_at: string
+          word_of_week: string | null
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          mission_text?: string | null
+          point_goal?: number
+          point_goal_label?: string
+          updated_at?: string
+          word_of_week?: string | null
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          mission_text?: string | null
+          point_goal?: number
+          point_goal_label?: string
+          updated_at?: string
+          word_of_week?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_settings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
       default_reminder_schedules: {
         Row: {
           allow_user_override: boolean
