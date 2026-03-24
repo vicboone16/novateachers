@@ -765,7 +765,7 @@ const ClassroomView = () => {
                             staffId: user?.id || '',
                           });
                         }}
-                        responseCostEnabled
+                        responseCostEnabled={responseCostMap[client.id] === true}
                       />
                       {todayCounts[client.id] > 0 && (
                         <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0 font-medium text-foreground">
