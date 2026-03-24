@@ -263,6 +263,24 @@ const Threads = () => {
     toast({ title: newPrivacy ? 'Thread set to private' : 'Thread set to public' });
   };
 
+  // ── Delete thread (owner only) ──
+  const handleDeleteThread = async () => {
+    if (!activeThread || !user) return;
+    if (activeThread.created_by !== user.id) {
+      toast({ title: 'Only the thread creator can delete it', variant: 'destructive' });
+      return;
+    }
+    if (!confirm(`Delete "${activeThread.title || 'this thread'}"? This cannot be undone.`)) return;
+    // Delete messages, members, reactions first
+    await cloudSupabase.from('thread_messages').delete().eq('thread_id', activeThread.id);
+    await cloudSupabase.from('thread_members').delete().eq('thread_id', activeThread.id);
+    await cloudSupabase.from('thread_message_reactions').delete().eq('message_id', activeThread.id); // best effort
+    await cloudSupabase.from('threads').delete().eq('id', activeThread.id);
+    setActiveThread(null);
+    loadThreads();
+    toast({ title: 'Thread deleted' });
+  };
+
   if (isSoloMode) {
     return (
       <div className="py-12 text-center">
@@ -274,9 +292,9 @@ const Threads = () => {
   }
 
   // ── Group threads by categories ──
-  // Staff Feed (agency type) goes first, then other channels
-  const staffFeedThreads = threads.filter(t => t.thread_type === 'agency' || t.title === '#staff-feed');
-  const groupThreads = threads.filter(t => getThreadCategory(t) === 'channel' && t.thread_type !== 'agency' && t.title !== '#staff-feed');
+  // Staff Feed: agency-type thread only (deduplicate — ignore group-type #staff-feed)
+  const staffFeedThreads = threads.filter(t => t.thread_type === 'agency');
+  const groupThreads = threads.filter(t => getThreadCategory(t) === 'channel' && t.thread_type !== 'agency');
   const dmThreads = threads.filter(t => getThreadCategory(t) === 'dm');
   const parentThreads = threads.filter(t => getThreadCategory(t) === 'parent');
 
@@ -434,6 +452,11 @@ const Threads = () => {
                       <><LockKeyhole className="h-3.5 w-3.5 mr-2" /> Make Private</>
                     )}
                   </DropdownMenuItem>
+                  {activeThread.created_by === user?.id && (
+                    <DropdownMenuItem onClick={handleDeleteThread} className="text-destructive focus:text-destructive">
+                      <span className="h-3.5 w-3.5 mr-2">🗑</span> Delete Thread
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
