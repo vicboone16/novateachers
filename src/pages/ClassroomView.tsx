@@ -1234,6 +1234,17 @@ const ClassroomView = () => {
           agencyId={effectiveAgencyId}
         />
       )}
+
+      {/* Classroom Reinforcement Panel */}
+      {activeGroupId && (
+        <ClassroomReinforcementPanel
+          open={classReinforcementOpen}
+          onOpenChange={setClassReinforcementOpen}
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          students={clients.map(c => ({ id: c.id, name: displayName(c) }))}
+        />
+      )}
     </div>
   );
 };
