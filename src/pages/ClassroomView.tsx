@@ -321,6 +321,42 @@ const ClassroomView = () => {
     } catch { /* silent */ }
   };
 
+  const loadStudentTargets = async () => {
+    if (!effectiveAgencyId) return;
+    try {
+      // Load student-specific targets (skill acquisition goals)
+      const { data: targets } = await cloudSupabase
+        .from('teacher_targets')
+        .select('id, client_id, name, icon, target_type')
+        .eq('agency_id', effectiveAgencyId)
+        .eq('active', true)
+        .not('client_id', 'is', null);
+
+      // Load student-specific reinforcement rules for point amounts
+      const { data: rules } = await cloudSupabase
+        .from('student_reinforcement_rules')
+        .select('student_id, linked_target_id, points, behavior_name, rule_scope, is_active')
+        .eq('is_active', true);
+
+      // Build per-student target map with points
+      const map: StudentTargetMap = {};
+      for (const t of (targets || []) as any[]) {
+        if (!t.client_id) continue;
+        if (!map[t.client_id]) map[t.client_id] = [];
+        // Find matching rule for points
+        const rule = (rules || []).find((r: any) => r.linked_target_id === t.id && r.student_id === t.client_id);
+        map[t.client_id].push({
+          id: t.id,
+          name: t.name,
+          icon: t.icon,
+          points: rule?.points ?? 1,
+          target_type: t.target_type,
+        });
+      }
+      setStudentTargets(map);
+    } catch { /* silent */ }
+  };
+
   const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
     setStudentStatuses(prev => ({ ...prev, [studentId]: status }));
   };
