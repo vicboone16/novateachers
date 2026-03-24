@@ -20,6 +20,7 @@ import {
   Lightbulb, AlertTriangle, CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TeacherTranslationCard } from '@/components/TeacherTranslationCard';
 
 interface DashboardData {
   student_id: string;
