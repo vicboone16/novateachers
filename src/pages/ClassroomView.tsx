@@ -516,94 +516,92 @@ const ClassroomView = () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* ─── HEADER ─── */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              {allGroups.length > 1 ? (
-                <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
-                  <SelectTrigger className="h-8 text-base font-bold font-heading border-none shadow-none px-0 gap-1 max-w-[200px]">
-                    <SelectValue placeholder="Select classroom…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allGroups.map(g => (
-                      <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <h2 className="text-lg font-bold tracking-tight font-heading">
-                  {activeGroup?.name || 'My Classroom'}
-                </h2>
-              )}
-            </div>
-            <p className="text-[10px] text-muted-foreground">
+    <div className="space-y-5 pb-6">
+      {/* ─── HEADER BAND ─── */}
+      <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {allGroups.length > 1 ? (
+              <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+                <SelectTrigger className="h-auto text-lg font-bold font-heading border-none shadow-none px-0 gap-1.5 max-w-[220px] text-foreground">
+                  <SelectValue placeholder="Select classroom…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allGroups.map(g => (
+                    <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <h1 className="text-lg font-bold tracking-tight font-heading text-foreground">
+                {activeGroup?.name || 'My Classroom'}
+              </h1>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
               {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
               {' · '}{clients.length} students
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/game-board')}>
-            <Gamepad2 className="h-3.5 w-3.5" /> Game
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/rewards')}>
-            <Gift className="h-3.5 w-3.5" /> Rewards
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
-            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/threads')} title="Threads">
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </Button>
-          {activeGroupId && (
-            <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/game-board')}>
+              <Gamepad2 className="h-3.5 w-3.5" /> Game
+            </Button>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/rewards')}>
+              <Gift className="h-3.5 w-3.5" /> Rewards
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => navigate('/threads')} title="Threads">
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            {activeGroupId && (
+              <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+            )}
+          </div>
         </div>
       </div>
 
       {/* ─── SUMMARY BAR (horizontally scrollable, drag-to-reorder) ─── */}
       <ScrollArea className="w-full">
-        <div className="flex gap-2 pb-2">
+        <div className="flex gap-2.5 pb-2">
           {summaryChipOrder.map(chipKey => {
-            if (chipKey === 'points') return <SummaryChip key={chipKey} icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-500" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
+            if (chipKey === 'points') return <SummaryChip key={chipKey} icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-600 dark:text-amber-400" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'engagement') return <SummaryChip key={chipKey} icon={Target} label="Engagement" value={engagement.total > 0 ? `${engagementPct}%` : '—'} color="text-accent" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'events') return <SummaryChip key={chipKey} icon={BarChart3} label="Events" value={String(totalToday)} color="text-primary" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'staff') return <SummaryChip key={chipKey} icon={Users} label="Staff" value={String(staffCount)} color="text-muted-foreground" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'goal') return (
-              <div key={chipKey} className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 min-w-[140px] cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
+              <div key={chipKey} className="flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card shadow-sm px-3.5 py-2.5 shrink-0 min-w-[150px] cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{classGoal.label}</p>
-                  <Progress value={classGoalPct} className="h-1.5 mt-1" />
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{classGoal.label}</p>
+                  <Progress value={classGoalPct} className="h-1.5 mt-1.5" />
                 </div>
-                <span className="text-xs font-bold">{classGoalPct}%</span>
+                <span className="text-sm font-bold text-foreground">{classGoalPct}%</span>
               </div>
             );
             if (chipKey === 'mission') return (
-              <div key={chipKey} className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 max-w-[200px] group cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
-                <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+              <div key={chipKey} className="flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card shadow-sm px-3.5 py-2.5 shrink-0 max-w-[220px] group cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
+                <Sparkles className="h-4 w-4 text-primary shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Mission</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Mission</p>
                   {editingMission ? (
-                    <Input value={missionDraft} onChange={e => setMissionDraft(e.target.value)} onBlur={() => saveMission()} onKeyDown={e => e.key === 'Enter' && saveMission()} className="h-5 text-[10px] px-1 py-0 border-0 bg-transparent focus-visible:ring-1" autoFocus />
+                    <Input value={missionDraft} onChange={e => setMissionDraft(e.target.value)} onBlur={() => saveMission()} onKeyDown={e => e.key === 'Enter' && saveMission()} className="h-5 text-[11px] px-1 py-0 border-0 bg-transparent focus-visible:ring-1" autoFocus />
                   ) : (
-                    <p className="text-[10px] font-medium truncate cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }}>{missionText}</p>
+                    <p className="text-[11px] font-medium text-foreground truncate cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }}>{missionText}</p>
                   )}
                 </div>
                 {!editingMission && <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }} />}
               </div>
             );
             if (chipKey === 'word') return (
-              <div key={chipKey} className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 group cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
-                <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+              <div key={chipKey} className="flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card shadow-sm px-3.5 py-2.5 shrink-0 group cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
+                <BookOpen className="h-4 w-4 text-primary shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Word</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Word</p>
                   {editingWord ? (
                     <Input value={wordDraft} onChange={e => setWordDraft(e.target.value)} onBlur={() => saveWord()} onKeyDown={e => e.key === 'Enter' && saveWord()} className="h-5 text-xs font-bold px-1 py-0 border-0 bg-transparent focus-visible:ring-1" autoFocus />
                   ) : (
-                    <p className="text-xs font-bold cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }}>{wordOfWeek}</p>
+                    <p className="text-xs font-bold text-foreground cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }}>{wordOfWeek}</p>
                   )}
                 </div>
                 {!editingWord && <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }} />}
@@ -637,7 +635,7 @@ const ClassroomView = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map(client => {
             const tp = tokenProgress[client.id];
             const tokenPct = tp ? Math.min(100, Math.round((tp.current / tp.target) * 100)) : 0;
@@ -648,24 +646,24 @@ const ClassroomView = () => {
               <Card
                 key={client.id}
                 className={cn(
-                  'border-border/50 transition-all duration-300 overflow-hidden relative',
-                  flashCard === client.id && 'ring-2 ring-amber-400/60 scale-[1.02] shadow-lg shadow-amber-200/30 dark:shadow-amber-900/20',
+                  'rounded-2xl border-border/60 shadow-sm transition-all duration-300 overflow-hidden relative',
+                  flashCard === client.id && 'ring-2 ring-amber-400/60 scale-[1.01] shadow-md',
                   isAbsent && 'opacity-50',
                 )}
               >
                 {/* Celebration flash overlay */}
                 {flashCard === client.id && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400/10 via-amber-200/20 to-amber-400/10 animate-pulse pointer-events-none z-10 rounded-lg" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 via-amber-200/10 to-amber-400/5 animate-pulse pointer-events-none z-10 rounded-2xl" />
                 )}
                 <CardContent className="p-0">
                   {/* Top row: name + status */}
-                  <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
-                    <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2 group text-left min-w-0">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                  <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                    <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2.5 group text-left min-w-0">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                         {displayInitials(client)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                           {displayName(client)}
                         </p>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -682,7 +680,7 @@ const ClassroomView = () => {
                       </div>
                     </button>
                     {activeGroupId && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <StudentPresenceChip
                           presence={studentPresence[client.id] || null}
                           compact
@@ -700,8 +698,8 @@ const ClassroomView = () => {
                     )}
                   </div>
 
-                  {/* Middle: Points + Race progress hint */}
-                  <div className="px-3 pb-1.5">
+                  {/* Middle: Points + Race progress */}
+                  <div className="px-4 pb-2">
                     <div className="flex items-center gap-2">
                       <BeaconPointsControls
                         studentId={client.id}
@@ -724,22 +722,22 @@ const ClassroomView = () => {
                         responseCostEnabled
                       />
                       {todayCounts[client.id] > 0 && (
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0 font-medium text-foreground">
                           {todayCounts[client.id]}
                         </Badge>
                       )}
                     </div>
                     {/* Race progress mini-bar */}
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex items-center gap-2 mt-2">
                       <Progress value={Math.min(100, ((pointBalances[client.id] || 0) / 100) * 100)} className="h-1.5 flex-1" />
-                      <span className="text-[9px] text-muted-foreground shrink-0 tabular-nums">
+                      <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums font-medium">
                         {Math.floor(Math.min(pointBalances[client.id] || 0, 100) / 20)}cp
                       </span>
                     </div>
                   </div>
 
-                  {/* Quick award row — uses teacher_point_actions if available, else fallback */}
-                  <div className="border-t border-border/30 px-2 py-1.5 flex items-center gap-1">
+                  {/* Quick award row */}
+                  <div className="border-t border-border/40 px-3 py-2 flex items-center gap-1.5">
                     {positiveActions.length > 0 ? (
                       <>
                         {positiveActions.slice(0, 3).map(action => (
@@ -747,25 +745,25 @@ const ClassroomView = () => {
                             key={action.id}
                             onClick={() => handleTeacherAction(action, client)}
                             title={action.action_label}
-                            className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
+                            className="flex items-center gap-1 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
                           >
-                            <span className="text-[10px]">{action.action_icon}</span>
+                            <span className="text-xs">{action.action_icon}</span>
                             {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 12)}
                           </button>
                         ))}
                         {positiveActions.length > 3 && (
                           <Popover>
                             <PopoverTrigger asChild>
-                              <button className="rounded border border-border/50 bg-muted/20 p-1 text-muted-foreground hover:bg-muted/40 active:scale-90 transition-colors">
-                                <MoreHorizontal className="h-3 w-3" />
+                              <button className="rounded-xl border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-44 p-1.5 space-y-0.5" align="start" side="top">
+                            <PopoverContent className="w-48 p-2 space-y-1" align="start" side="top">
                               {positiveActions.slice(3).map(action => (
                                 <button
                                   key={action.id}
                                   onClick={() => handleTeacherAction(action, client)}
-                                  className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+                                  className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
                                 >
                                   <span>{action.action_icon}</span>
                                   <span>{action.action_label}</span>
@@ -776,7 +774,7 @@ const ClassroomView = () => {
                         )}
                       </>
                     ) : (
-                      /* Fallback hardcoded +1/+5/+10 */
+                      /* Fallback +1/+5/+10 */
                       [1, 5, 10].map(n => (
                         <button
                           key={n}
@@ -803,27 +801,26 @@ const ClassroomView = () => {
                             }
                             toast({ title: `+${n} ⭐ ${displayName(client)}` });
                           }}
-                          className="flex items-center gap-0.5 rounded border border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 px-2 py-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 active:scale-95 transition-all"
+                          className="flex items-center gap-1 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
                         >
-                          <Star className="h-2.5 w-2.5" />+{n}
+                          <Star className="h-3 w-3" />+{n}
                         </button>
                       ))
                     )}
-                    <div className="ml-auto flex gap-1">
-                      {/* Manual actions popover */}
+                    <div className="ml-auto flex gap-1.5">
                       {manualActions.length > 0 && (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <button title="Manual points" className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                              <Zap className="h-3 w-3" />
+                            <button title="Manual points" className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                              <Zap className="h-3.5 w-3.5" />
                             </button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-40 p-1.5 space-y-0.5" align="end" side="top">
+                          <PopoverContent className="w-44 p-2 space-y-1" align="end" side="top">
                             {manualActions.map(action => (
                               <button
                                 key={action.id}
                                 onClick={() => handleTeacherAction(action, client)}
-                                className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left"
+                                className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
                               >
                                 <span>{action.action_icon}</span>
                                 <span>{action.action_label}</span>
@@ -833,22 +830,22 @@ const ClassroomView = () => {
                         </Popover>
                       )}
                       <button onClick={() => navigate('/rewards')} title="Rewards"
-                        className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <Gift className="h-3 w-3" />
+                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gift className="h-3.5 w-3.5" />
                       </button>
                       <button onClick={() => navigate('/game-board')} title="Game Board"
-                        className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <Gamepad2 className="h-3 w-3" />
+                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gamepad2 className="h-3.5 w-3.5" />
                       </button>
                       <button onClick={() => setQuickActionStudent(client)} title="Student code & more"
-                        className="rounded border border-border/50 bg-muted/20 p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <KeyRound className="h-3 w-3" />
+                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <KeyRound className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Behavior + engagement row — uses teacher_point_actions behavior group if available */}
-                  <div className="border-t border-border/30 px-2 py-1 flex items-center gap-1">
+                  {/* Behavior + engagement row */}
+                  <div className="border-t border-border/40 px-3 py-2 flex items-center gap-1.5">
                     {behaviorActions.length > 0 ? (
                       <>
                         {behaviorActions.slice(0, 3).map(action => (
@@ -856,25 +853,25 @@ const ClassroomView = () => {
                             key={action.id}
                             onClick={() => handleTeacherAction(action, client)}
                             title={action.action_label}
-                            className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                            className="flex items-center gap-1 rounded-xl border border-border/60 bg-secondary px-2 py-1.5 text-[10px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
                           >
-                            <span className="text-[10px]">{action.action_icon}</span>
+                            <span className="text-xs">{action.action_icon}</span>
                             {(action.default_behavior_name || action.action_label).slice(0, 4)}
                           </button>
                         ))}
                         {behaviorActions.length > 3 && (
                           <Popover>
                             <PopoverTrigger asChild>
-                              <button className="rounded border border-border/50 bg-muted/20 p-1 text-muted-foreground hover:bg-muted/40 active:scale-90 transition-colors">
-                                <MoreHorizontal className="h-3 w-3" />
+                              <button className="rounded-xl border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-48 p-1.5 space-y-0.5" align="start" side="top">
+                            <PopoverContent className="w-52 p-2 space-y-1" align="start" side="top">
                               {behaviorActions.slice(3).map(action => (
                                 <button
                                   key={action.id}
                                   onClick={() => handleTeacherAction(action, client)}
-                                  className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-destructive/10 transition-colors text-left"
+                                  className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-destructive/10 transition-colors text-left"
                                 >
                                   <span>{action.action_icon}</span>
                                   <span>{action.action_label}</span>
@@ -891,26 +888,26 @@ const ClassroomView = () => {
                           key={name}
                           onClick={() => logBehavior(client.id, name)}
                           title={name}
-                          className="flex items-center gap-0.5 rounded border border-border/50 bg-muted/20 px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                          className="flex items-center gap-1 rounded-xl border border-border/60 bg-secondary px-2 py-1.5 text-[10px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
                         >
-                          <Icon className="h-2.5 w-2.5" />{abbr}
+                          <Icon className="h-3 w-3" />{abbr}
                         </button>
                       ))
                     )}
                     <button
                       onClick={() => navigate(`/collect?student=${client.id}`)}
-                      className="flex items-center gap-0.5 rounded border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
+                      className="flex items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 px-2 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
                     >
-                      <Target className="h-2.5 w-2.5" />Add Data
+                      <Target className="h-3 w-3" />Add Data
                     </button>
-                    <div className="ml-auto flex gap-0.5">
+                    <div className="ml-auto flex gap-1">
                       <button onClick={() => logEngagement(client.id, true)} title="Engaged"
-                        className="rounded border border-accent/30 bg-accent/10 p-1 text-accent hover:bg-accent/20 active:scale-90 transition-colors">
-                        <Check className="h-2.5 w-2.5" />
+                        className="rounded-xl border border-accent/30 bg-accent/10 p-1.5 text-accent hover:bg-accent/20 active:scale-90 transition-colors">
+                        <Check className="h-3 w-3" />
                       </button>
                       <button onClick={() => logEngagement(client.id, false)} title="Not engaged"
-                        className="rounded border border-destructive/20 bg-destructive/5 p-1 text-destructive hover:bg-destructive/10 active:scale-90 transition-colors">
-                        <X className="h-2.5 w-2.5" />
+                        className="rounded-xl border border-destructive/20 bg-destructive/5 p-1.5 text-destructive hover:bg-destructive/10 active:scale-90 transition-colors">
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
@@ -922,26 +919,26 @@ const ClassroomView = () => {
       )}
 
       {/* ─── BOTTOM BAND: Reward Preview + Celebration Feed ─── */}
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Reward preview strip */}
-        <Card className="border-border/40">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Gift className="h-3.5 w-3.5 text-pink-500" />
+        <Card className="rounded-2xl border-border/60 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Gift className="h-4 w-4 text-pink-500" />
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rewards</span>
-              <button onClick={() => navigate('/rewards')} className="ml-auto text-[10px] text-primary hover:underline">View All</button>
+              <button onClick={() => navigate('/rewards')} className="ml-auto text-xs text-primary font-medium hover:underline">View All</button>
             </div>
             <RewardPreviewStrip agencyId={effectiveAgencyId} />
           </CardContent>
         </Card>
 
         {/* Celebration / kid-safe feed */}
-        <Card className="border-border/40">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+        <Card className="rounded-2xl border-border/60 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-4 w-4 text-amber-500" />
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Celebrations</span>
-              <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-[10px] text-primary hover:underline">Feed</button>
+              <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-xs text-primary font-medium hover:underline">Feed</button>
             </div>
             <CelebrationFeedStrip groupId={activeGroupId} />
           </CardContent>
@@ -990,12 +987,12 @@ function SummaryChip({ icon: Icon, label, value, color, draggable, onDragStart, 
   draggable?: boolean; onDragStart?: () => void; onDragOver?: (e: React.DragEvent) => void; onDrop?: () => void;
 }) {
   return (
-    <div className={cn("flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0", draggable && "cursor-grab")}
+    <div className={cn("flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card shadow-sm px-3.5 py-2.5 shrink-0", draggable && "cursor-grab")}
       draggable={draggable} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop}>
-      <Icon className={cn('h-3.5 w-3.5', color)} />
+      <Icon className={cn('h-4 w-4', color)} />
       <div>
-        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>
-        <p className="text-sm font-bold leading-none">{value}</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</p>
+        <p className="text-sm font-bold leading-none text-foreground">{value}</p>
       </div>
     </div>
   );
@@ -1014,13 +1011,13 @@ function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex gap-2.5 overflow-x-auto pb-1">
       {rewards.map((r, i) => (
-        <div key={i} className="flex items-center gap-1.5 rounded-lg border border-border/40 bg-muted/20 px-2.5 py-1.5 shrink-0">
-          <span className="text-base">{r.emoji}</span>
+        <div key={i} className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/50 px-3 py-2 shrink-0">
+          <span className="text-lg">{r.emoji}</span>
           <div>
-            <p className="text-[10px] font-semibold leading-tight">{r.name}</p>
-            <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold tabular-nums">⭐ {r.cost}</p>
+            <p className="text-[11px] font-semibold leading-tight text-foreground">{r.name}</p>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold tabular-nums">⭐ {r.cost}</p>
           </div>
         </div>
       ))}
@@ -1044,11 +1041,11 @@ function CelebrationFeedStrip({ groupId }: { groupId: string | null }) {
 
   if (posts.length === 0) return <p className="text-xs text-muted-foreground">No celebrations yet today. 🎉</p>;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {posts.map(p => (
-        <div key={p.id} className="rounded-lg bg-muted/20 px-2.5 py-1.5">
-          {p.title && <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">{p.title}</p>}
-          <p className="text-[10px] text-foreground/80 leading-snug">{p.body}</p>
+        <div key={p.id} className="rounded-xl bg-secondary/50 px-3 py-2">
+          {p.title && <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">{p.title}</p>}
+          <p className="text-[11px] text-foreground/80 leading-snug">{p.body}</p>
         </div>
       ))}
     </div>

@@ -7,47 +7,47 @@
 @layer base {
   :root {
     --background: 210 20% 98%;
-    --foreground: 220 25% 10%;
+    --foreground: 220 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card-foreground: 220 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover-foreground: 220 25% 12%;
 
     --primary: 220 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 94%;
-    --secondary-foreground: 220 25% 10%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 220 25% 12%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 46%;
+    --muted-foreground: 220 10% 42%;
 
-    --accent: 165 60% 40%;
+    --accent: 165 60% 38%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 90%;
-    --input: 220 13% 90%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
     --ring: 220 70% 50%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 220 20% 97%;
-    --sidebar-foreground: 220 25% 10%;
+    --sidebar-foreground: 220 25% 12%;
     --sidebar-primary: 220 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 94%;
-    --sidebar-accent-foreground: 220 25% 10%;
-    --sidebar-border: 220 13% 90%;
+    --sidebar-accent-foreground: 220 25% 12%;
+    --sidebar-border: 220 13% 91%;
     --sidebar-ring: 220 70% 50%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --success: 165 60% 40%;
+    --success: 165 60% 38%;
     --success-foreground: 0 0% 100%;
   }
 
@@ -105,10 +105,20 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'DM Sans', system-ui, sans-serif;
     -webkit-overflow-scrolling: touch;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6, .font-heading {
     font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  /* Brightwheel-style card polish */
+  .bw-card {
+    @apply bg-card rounded-2xl shadow-sm border border-border/60 p-4;
+  }
+  .bw-section {
+    @apply space-y-6;
   }
 
   /* iOS Safe Area support */

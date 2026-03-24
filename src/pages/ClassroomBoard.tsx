@@ -344,20 +344,18 @@ export default function ClassroomBoard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f23] text-white select-none overflow-hidden relative" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
-      {/* Ambient gradient */}
-      <div className="absolute inset-0 opacity-20" style={{ background: 'radial-gradient(ellipse at 20% 50%, hsl(220 70% 20%) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, hsl(165 55% 15%) 0%, transparent 60%)' }} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 text-foreground select-none overflow-hidden relative" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
 
       <div className="relative z-10 p-5 lg:p-8 space-y-5">
         {/* Header band */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-card rounded-2xl shadow-sm border border-border/60 p-5">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black tracking-tight">{classroomName || 'Classroom Board'}</h1>
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-foreground">{classroomName || 'Classroom Board'}</h1>
             <div className="flex items-center gap-3 mt-1">
               {settings.show_mission && settings.mission_text && (
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                  <span className="text-sm text-amber-300/80 font-medium">{settings.mission_text}</span>
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-sm text-muted-foreground font-medium">{settings.mission_text}</span>
                 </div>
               )}
             </div>
@@ -365,8 +363,8 @@ export default function ClassroomBoard() {
           <div className="flex items-center gap-4">
             {settings.show_word_of_week && settings.word_of_week && (
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-[0.15em] text-cyan-400/70 font-semibold">Word of the Week</p>
-                <p className="text-lg font-bold text-cyan-300">{settings.word_of_week}</p>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">Word of the Week</p>
+                <p className="text-lg font-bold text-primary">{settings.word_of_week}</p>
               </div>
             )}
           </div>
@@ -375,40 +373,40 @@ export default function ClassroomBoard() {
         {/* Score band */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* Class total */}
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/30 text-2xl">{skinIcon}</div>
+          <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-4 flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 text-2xl">{skinIcon}</div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-semibold">Class Total</p>
-              <p className="text-3xl font-black tabular-nums text-amber-400">{totalClassPoints.toLocaleString()}</p>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">Class Total</p>
+              <p className="text-3xl font-black tabular-nums text-amber-600 dark:text-amber-400">{totalClassPoints.toLocaleString()}</p>
             </div>
           </div>
 
           {/* Class goal */}
           {settings.show_class_goal && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+            <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5"><Target className="h-4 w-4 text-emerald-400" /><span className="text-sm font-semibold">{settings.class_goal_label}</span></div>
-                <span className="text-lg font-bold tabular-nums text-emerald-400">{goalPct}%</span>
+                <div className="flex items-center gap-1.5"><Target className="h-4 w-4 text-accent" /><span className="text-sm font-semibold text-foreground">{settings.class_goal_label}</span></div>
+                <span className="text-lg font-bold tabular-nums text-accent">{goalPct}%</span>
               </div>
-              <Progress value={goalPct} className="h-3 bg-white/10 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-cyan-400 [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-1000" />
+              <Progress value={goalPct} className="h-3 rounded-full [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-1000" />
             </div>
           )}
 
           {/* Race progress */}
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
-            <Flag className="h-8 w-8 text-violet-400 shrink-0" />
+          <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-4 flex items-center gap-4">
+            <Flag className="h-8 w-8 text-violet-500 shrink-0" />
             <div>
-              <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-semibold">Race</p>
-              <p className="text-lg font-bold">{finishedCount > 0 ? `${finishedCount} finished!` : `${students.length} racing`}</p>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">Race</p>
+              <p className="text-lg font-bold text-foreground">{finishedCount > 0 ? `${finishedCount} finished!` : `${students.length} racing`}</p>
             </div>
           </div>
 
           {/* Students */}
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
-            <Users className="h-8 w-8 text-blue-400 shrink-0" />
+          <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-4 flex items-center gap-4">
+            <Users className="h-8 w-8 text-primary shrink-0" />
             <div>
-              <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 font-semibold">Students</p>
-              <p className="text-lg font-bold">{students.length}</p>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold">Students</p>
+              <p className="text-lg font-bold text-foreground">{students.length}</p>
             </div>
           </div>
         </div>
@@ -426,10 +424,10 @@ export default function ClassroomBoard() {
               <div key={s.student_id}
                 className={cn(
                   'relative flex flex-col items-center rounded-2xl border p-4 transition-all duration-700',
-                  isFlashing ? 'bg-amber-500/15 border-amber-400/50 scale-105 shadow-lg shadow-amber-500/20' :
-                  isTop3 ? 'bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/20' :
-                  'bg-white/5 border-white/10',
-                  isFinished && 'ring-1 ring-emerald-400/40',
+                  isFlashing ? 'bg-amber-50 dark:bg-amber-900/15 border-amber-300 dark:border-amber-400/50 scale-105 shadow-lg' :
+                  isTop3 ? 'bg-gradient-to-b from-amber-50 to-card dark:from-amber-900/10 dark:to-card border-amber-200 dark:border-amber-500/20' :
+                  'bg-card border-border/60',
+                  isFinished && 'ring-1 ring-accent/40',
                 )}
                 style={{ animationDelay: `${idx * 60}ms` }}>
                 {/* Rank badge */}
@@ -444,27 +442,27 @@ export default function ClassroomBoard() {
                 {isFlashing && <div className="absolute inset-0 rounded-2xl bg-amber-400/10 animate-ping pointer-events-none" style={{ animationDuration: '1s' }} />}
 
                 <span className="text-4xl mb-1.5 transition-transform duration-300" style={isFlashing ? { transform: 'scale(1.15)' } : {}}>{s.avatar_emoji}</span>
-                <p className="font-semibold text-sm truncate w-full text-center">{getDisplayName(s)}</p>
+                <p className="font-semibold text-sm truncate w-full text-center text-foreground">{getDisplayName(s)}</p>
 
                 {/* Points */}
                 <div className="flex items-center gap-1 mt-1.5">
-                  <Star className={cn("h-4 w-4", isTop3 ? "fill-amber-400 text-amber-400" : "fill-amber-500/60 text-amber-500/60")} />
-                  <span className={cn("text-xl font-black tabular-nums", isTop3 ? "text-amber-400" : "text-white/90")}>{s.balance}</span>
+                  <Star className={cn("h-4 w-4", isTop3 ? "fill-amber-500 text-amber-500" : "fill-amber-400 text-amber-400")} />
+                  <span className={cn("text-xl font-black tabular-nums", isTop3 ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>{s.balance}</span>
                 </div>
 
                 {/* Race mini-bar */}
                 <div className="w-full mt-2 space-y-0.5">
-                  <Progress value={(pos / TRACK_LENGTH) * 100} className="h-1.5 bg-white/10 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-violet-500 [&>div]:to-cyan-400 [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-700" />
+                  <Progress value={(pos / TRACK_LENGTH) * 100} className="h-1.5 rounded-full [&>div]:bg-gradient-to-r [&>div]:from-violet-500 [&>div]:to-primary [&>div]:rounded-full [&>div]:transition-all [&>div]:duration-700" />
                   <div className="flex items-center justify-between">
-                    <span className="text-[8px] text-white/40 tabular-nums">{cp}cp</span>
-                    {s.team_name && <span className="text-[8px] font-bold" style={{ color: s.team_color || '#9ca3af' }}>{s.team_name}</span>}
+                    <span className="text-[8px] text-muted-foreground tabular-nums">{cp}cp</span>
+                    {s.team_name && <span className="text-[8px] font-bold" style={{ color: s.team_color || '#6b7280' }}>{s.team_name}</span>}
                   </div>
                 </div>
               </div>
             );
           })}
           {students.length === 0 && (
-            <p className="col-span-full text-center text-white/40 py-16 text-lg">No students in this classroom yet.</p>
+            <p className="col-span-full text-center text-muted-foreground py-16 text-lg">No students in this classroom yet.</p>
           )}
         </div>
 
@@ -472,18 +470,18 @@ export default function ClassroomBoard() {
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Rewards preview */}
           {topRewards.length > 0 && settings.show_reward_progress && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+            <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Gift className="h-4 w-4 text-pink-400" />
-                <span className="text-sm font-semibold">Rewards</span>
+                <Gift className="h-4 w-4 text-pink-500" />
+                <span className="text-sm font-semibold text-foreground">Rewards</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {topRewards.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                  <div key={i} className="flex items-center gap-2 rounded-xl bg-secondary/50 border border-border/60 px-3 py-2">
                     <span className="text-xl">{r.emoji}</span>
                     <div>
-                      <p className="text-xs font-semibold">{r.name}</p>
-                      <p className="text-[10px] text-amber-400 font-bold tabular-nums">{skinIcon} {r.cost}</p>
+                      <p className="text-xs font-semibold text-foreground">{r.name}</p>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold tabular-nums">{skinIcon} {r.cost}</p>
                     </div>
                   </div>
                 ))}
@@ -493,16 +491,16 @@ export default function ClassroomBoard() {
 
           {/* Kid-safe feed */}
           {feedPosts.length > 0 && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+            <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-4 w-4 text-amber-400" />
-                <span className="text-sm font-semibold">Celebrations</span>
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span className="text-sm font-semibold text-foreground">Celebrations</span>
               </div>
               <div className="space-y-2">
                 {feedPosts.map(post => (
-                  <div key={post.id} className="rounded-lg bg-white/5 px-3 py-2">
-                    {post.title && <p className="text-xs font-semibold text-amber-300">{post.title}</p>}
-                    <p className="text-xs text-white/70">{post.body}</p>
+                  <div key={post.id} className="rounded-xl bg-secondary/50 px-3 py-2">
+                    {post.title && <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">{post.title}</p>}
+                    <p className="text-xs text-foreground/80">{post.body}</p>
                   </div>
                 ))}
               </div>
@@ -522,7 +520,7 @@ export default function ClassroomBoard() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center animate-bounce">
               <p className="text-7xl">🎉</p>
-              <p className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-red-400 mt-3">GOAL REACHED!</p>
+              <p className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 mt-3">GOAL REACHED!</p>
             </div>
           </div>
         </div>
