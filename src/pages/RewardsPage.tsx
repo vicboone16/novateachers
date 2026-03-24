@@ -10,15 +10,18 @@ import { useAppAccess } from '@/contexts/AppAccessContext';
 import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
-import { getStudentBalances } from '@/lib/beacon-points';
+import { getStudentBalances, writePointEntry } from '@/lib/beacon-points';
 import { ReinforcerStore } from '@/components/ReinforcerStore';
 import { TokenBoard } from '@/components/TokenBoard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Star, Gift, History, Trophy, Sparkles, ShoppingBag } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Star, Gift, History, Trophy, Sparkles, ShoppingBag, Plus, Minus, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import type { Client } from '@/lib/types';
 
 interface PointHistory {
