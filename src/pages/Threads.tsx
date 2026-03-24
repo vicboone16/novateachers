@@ -274,9 +274,9 @@ const Threads = () => {
   }
 
   // ── Group threads by categories ──
-  // Staff Feed (agency type) goes first, then other channels
-  const staffFeedThreads = threads.filter(t => t.thread_type === 'agency' || t.title === '#staff-feed');
-  const groupThreads = threads.filter(t => getThreadCategory(t) === 'channel' && t.thread_type !== 'agency' && t.title !== '#staff-feed');
+  // Staff Feed: agency-type thread only (deduplicate — ignore group-type #staff-feed)
+  const staffFeedThreads = threads.filter(t => t.thread_type === 'agency');
+  const groupThreads = threads.filter(t => getThreadCategory(t) === 'channel' && t.thread_type !== 'agency');
   const dmThreads = threads.filter(t => getThreadCategory(t) === 'dm');
   const parentThreads = threads.filter(t => getThreadCategory(t) === 'parent');
 
