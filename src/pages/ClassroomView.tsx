@@ -1003,7 +1003,7 @@ const ClassroomView = () => {
           studentName={displayName(quickActionStudent)}
           pointBalance={pointBalances[quickActionStudent.id] || 0}
           agencyId={effectiveAgencyId}
-          responseCostEnabled
+          responseCostEnabled={responseCostMap[quickActionStudent.id] === true}
           onBehavior={(name) => logBehavior(quickActionStudent.id, name)}
           onEngagement={(engaged) => logEngagement(quickActionStudent.id, engaged)}
           onPointChange={handlePointChange}
