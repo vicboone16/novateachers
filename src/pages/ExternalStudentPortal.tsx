@@ -83,7 +83,7 @@ export default function ExternalStudentPortal() {
   );
 
   if (error) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-950 to-slate-900 text-white px-4">
       <div className="text-center space-y-3 max-w-xs">
         <AlertTriangle className="h-10 w-10 text-red-400/60 mx-auto" />
         <p className="text-sm font-medium text-red-400">{error}</p>
