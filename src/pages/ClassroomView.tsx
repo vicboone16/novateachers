@@ -1057,6 +1057,10 @@ const ClassroomView = () => {
                         className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
                         <Gamepad2 className="h-3 w-3" />
                       </button>
+                      <button onClick={() => setReinforceStudent(client)} title="Reinforcement settings"
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Settings2 className="h-3 w-3" />
+                      </button>
                       <button onClick={() => setQuickActionStudent(client)} title="Student code & more"
                         className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
                         <KeyRound className="h-3 w-3" />
