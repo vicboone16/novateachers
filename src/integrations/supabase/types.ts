@@ -421,6 +421,57 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_board_settings: {
+        Row: {
+          agency_id: string | null
+          class_goal_current: number | null
+          class_goal_label: string | null
+          class_goal_target: number | null
+          classroom_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          mission_text: string | null
+          show_leaderboard: boolean | null
+          show_token_boards: boolean | null
+          theme_slug: string | null
+          updated_at: string
+          word_of_week: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          class_goal_current?: number | null
+          class_goal_label?: string | null
+          class_goal_target?: number | null
+          classroom_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mission_text?: string | null
+          show_leaderboard?: boolean | null
+          show_token_boards?: boolean | null
+          theme_slug?: string | null
+          updated_at?: string
+          word_of_week?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          class_goal_current?: number | null
+          class_goal_label?: string | null
+          class_goal_target?: number | null
+          classroom_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mission_text?: string | null
+          show_leaderboard?: boolean | null
+          show_token_boards?: boolean | null
+          theme_slug?: string | null
+          updated_at?: string
+          word_of_week?: string | null
+        }
+        Relationships: []
+      }
       classroom_feed_posts: {
         Row: {
           agency_id: string
@@ -1545,6 +1596,84 @@ export type Database = {
           note?: string | null
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      student_attendance_status: {
+        Row: {
+          agency_id: string
+          changed_at: string
+          classroom_id: string
+          created_at: string
+          id: string
+          recorded_by: string
+          recorded_date: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          agency_id: string
+          changed_at?: string
+          classroom_id: string
+          created_at?: string
+          id?: string
+          recorded_by: string
+          recorded_date?: string
+          status?: string
+          student_id: string
+        }
+        Update: {
+          agency_id?: string
+          changed_at?: string
+          classroom_id?: string
+          created_at?: string
+          id?: string
+          recorded_by?: string
+          recorded_date?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
+      student_presence: {
+        Row: {
+          agency_id: string
+          assigned_staff_id: string | null
+          classroom_group_id: string
+          created_at: string
+          id: string
+          location_label: string | null
+          location_type: string
+          status: string
+          student_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agency_id: string
+          assigned_staff_id?: string | null
+          classroom_group_id: string
+          created_at?: string
+          id?: string
+          location_label?: string | null
+          location_type?: string
+          status?: string
+          student_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agency_id?: string
+          assigned_staff_id?: string | null
+          classroom_group_id?: string
+          created_at?: string
+          id?: string
+          location_label?: string | null
+          location_type?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -2916,6 +3045,36 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      v_classroom_student_presence: {
+        Row: {
+          assigned_staff_id: string | null
+          classroom_group_id: string | null
+          location_label: string | null
+          location_type: string | null
+          status: string | null
+          student_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          classroom_group_id?: string | null
+          location_label?: string | null
+          location_type?: string | null
+          status?: string | null
+          student_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          classroom_group_id?: string | null
+          location_label?: string | null
+          location_type?: string | null
+          status?: string | null
+          student_id?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
