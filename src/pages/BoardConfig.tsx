@@ -95,8 +95,8 @@ const BoardConfig = () => {
     if (!activeGroupId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('classroom_board_settings' as any)
+      const { data, error } = await cloudSupabase
+        .from('classroom_board_settings')
         .select('*')
         .eq('classroom_id', activeGroupId)
         .maybeSingle();
