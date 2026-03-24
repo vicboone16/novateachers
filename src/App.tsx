@@ -49,6 +49,7 @@ import GameSettings from "@/pages/GameSettings";
 import ClassroomLive from "@/pages/ClassroomLive";
 import AvatarUnlocks from "@/pages/AvatarUnlocks";
 import PointRulesManager from "@/pages/PointRulesManager";
+import FeatureTour from "@/pages/FeatureTour";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,7 @@ const WorkspaceRoutes = () => {
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/notifications" element={<NotificationSettings />} />
         <Route path="/install" element={<InstallApp />} />
+        <Route path="/tour" element={<FeatureTour />} />
         <Route path="/" element={<Navigate to="/classroom" replace />} />
       </Route>
       <Route path="*" element={<NotFound />} />
