@@ -133,7 +133,7 @@ export default function ExternalParentPortal() {
   );
 
   if (error) return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4">
       <div className="text-center space-y-3 max-w-xs">
         <AlertTriangle className="h-10 w-10 text-destructive/60 mx-auto" />
         <p className="text-sm font-medium text-destructive">{error}</p>
