@@ -80,8 +80,8 @@ export default function ExternalParentPortal() {
       // Load rewards
       let rewardsProgress: PortalData['rewardsProgress'] = [];
       try {
-        const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, emoji, point_cost').eq('is_active', true).order('point_cost', { ascending: true }).limit(4);
-        rewardsProgress = (rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.point_cost }));
+        const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
+        rewardsProgress = (rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
       } catch {}
 
       // Load safe feed posts
