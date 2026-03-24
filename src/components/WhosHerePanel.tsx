@@ -90,7 +90,7 @@ export function WhosHerePanel({
 
       const resolved: ResolvedStaff[] = rows.map(r => ({
         ...r,
-        displayName: nameMap.get(r.user_id)?.split(' ')[0] || 'Staff',
+        displayName: nameMap.get(r.user_id)?.split(' ')[0] || r.user_id.slice(0, 8) + '…',
         presenceStatus: (PRESENCE_STATUS_MAP[r.status as PresenceStatus] ? r.status : 'in_room') as PresenceStatus,
         isOffline: isStaffOffline(r),
       }));
