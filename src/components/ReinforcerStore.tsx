@@ -3,6 +3,10 @@
  * States: Locked (can't afford), Available (can afford), Redeemed (history).
  * Reads rewards from Core (beacon_rewards), writes redemptions to Core (beacon_reward_redemptions),
  * and deducts points from Cloud (beacon_points_ledger).
+ *
+ * Core schema:
+ *   beacon_rewards: id, scope_type, scope_id, name, description, cost, image_url, active, time_sensitive_until, stock_count, created_at
+ *   beacon_reward_redemptions: id, student_id, reward_id, staff_id, points_spent, status, redeemed_at, agency_id
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -30,11 +34,14 @@ interface Reward {
   id: string;
   name: string;
   description: string | null;
-  point_cost: number;
+  cost: number;
   category: string;
   emoji: string;
-  stock: number | null;
-  is_active: boolean;
+  stock_count: number | null;
+  active: boolean;
+  // mapped from Core schema
+  scope_type?: string;
+  scope_id?: string;
 }
 
 interface StudentOption {
@@ -48,7 +55,7 @@ interface Redemption {
   student_id: string;
   reward_id: string;
   points_spent: number;
-  created_at: string;
+  redeemed_at: string;
 }
 
 const CATEGORIES = [
@@ -91,24 +98,33 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
+      // Core beacon_rewards uses scope_type/scope_id instead of agency_id
       let q = supabase
         .from('beacon_rewards' as any)
         .select('*')
-        .eq('agency_id', agencyId)
-        .order('point_cost', { ascending: true });
-      if (!showInactive) q = q.eq('is_active', true);
-      const { data } = await q;
-      setRewards((data || []) as any as Reward[]);
+        .eq('scope_type', 'agency')
+        .eq('scope_id', agencyId)
+        .order('cost', { ascending: true });
+      if (!showInactive) q = q.eq('active', true);
+      const { data, error } = await q;
+      if (error) {
+        console.warn('[ReinforcerStore] loadRewards error:', error.message);
+        setRewards([]);
+      } else {
+        setRewards((data || []) as any as Reward[]);
+      }
 
       // Load recent redemptions
       const { data: redeemData } = await supabase
         .from('beacon_reward_redemptions' as any)
         .select('*')
         .eq('agency_id', agencyId)
-        .order('created_at', { ascending: false })
+        .order('redeemed_at', { ascending: false })
         .limit(30);
       setRedemptions((redeemData || []) as any as Redemption[]);
-    } catch { /* silent */ }
+    } catch (err: any) {
+      console.warn('[ReinforcerStore] loadRewards exception:', err.message);
+    }
     setLoading(false);
   }, [agencyId, showInactive]);
 
@@ -122,10 +138,12 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     if (!formName.trim() || !user) return;
     try {
       const { error } = await supabase.from('beacon_rewards' as any).insert({
-        agency_id: agencyId, classroom_id: classroomId || null,
-        name: formName.trim(), description: formDescription.trim() || null,
-        point_cost: parseInt(formCost) || 10, category: formCategory,
-        emoji: formEmoji || '🎁', created_by: user.id,
+        scope_type: 'agency',
+        scope_id: agencyId,
+        name: formName.trim(),
+        description: formDescription.trim() || null,
+        cost: parseInt(formCost) || 10,
+        active: true,
       });
       if (error) throw error;
       setCreateOpen(false); resetForm(); loadRewards();
@@ -135,8 +153,8 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
 
   const openEdit = (reward: Reward) => {
     setSelectedReward(reward);
-    setFormName(reward.name); setFormCost(String(reward.point_cost));
-    setFormCategory(reward.category); setFormEmoji(reward.emoji);
+    setFormName(reward.name); setFormCost(String(reward.cost));
+    setFormCategory(reward.category || 'privilege'); setFormEmoji(reward.emoji || '🎁');
     setFormDescription(reward.description || ''); setEditOpen(true);
   };
 
@@ -145,7 +163,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     try {
       const { error } = await supabase.from('beacon_rewards' as any).update({
         name: formName.trim(), description: formDescription.trim() || null,
-        point_cost: parseInt(formCost) || 10, category: formCategory, emoji: formEmoji || '🎁',
+        cost: parseInt(formCost) || 10,
       }).eq('id', selectedReward.id);
       if (error) throw error;
       setEditOpen(false); resetForm(); loadRewards();
@@ -155,9 +173,9 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
 
   const toggleActive = async (reward: Reward) => {
     try {
-      await supabase.from('beacon_rewards' as any).update({ is_active: !reward.is_active }).eq('id', reward.id);
+      await supabase.from('beacon_rewards' as any).update({ active: !reward.active }).eq('id', reward.id);
       loadRewards();
-      toast({ title: reward.is_active ? 'Reward deactivated' : 'Reward activated' });
+      toast({ title: reward.active ? 'Reward deactivated' : 'Reward activated' });
     } catch { /* silent */ }
   };
 
@@ -169,26 +187,30 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     if (!selectedReward || !selectedStudentId || !user) return;
     const student = students.find(s => s.id === selectedStudentId);
     if (!student) return;
-    if (student.balance < selectedReward.point_cost) {
-      toast({ title: 'Insufficient points', description: `${student.name} needs ${selectedReward.point_cost - student.balance} more points.`, variant: 'destructive' });
+    if (student.balance < selectedReward.cost) {
+      toast({ title: 'Insufficient points', description: `${student.name} needs ${selectedReward.cost - student.balance} more points.`, variant: 'destructive' });
       return;
     }
     setRedeeming(true);
     try {
       const { error: redeemErr } = await supabase.from('beacon_reward_redemptions' as any).insert({
-        student_id: selectedStudentId, reward_id: selectedReward.id, agency_id: agencyId,
-        points_spent: selectedReward.point_cost, redeemed_by: user.id,
+        student_id: selectedStudentId,
+        reward_id: selectedReward.id,
+        agency_id: agencyId,
+        staff_id: user.id,
+        points_spent: selectedReward.cost,
+        status: 'completed',
       });
       if (redeemErr) throw redeemErr;
       await writePointEntry({
         studentId: selectedStudentId, staffId: user.id, agencyId,
-        points: -selectedReward.point_cost, reason: `Redeemed: ${selectedReward.name}`, source: 'reward_redeem',
+        points: -selectedReward.cost, reason: `Redeemed: ${selectedReward.name}`, source: 'reward_redeem',
       });
-      if (selectedReward.stock !== null) {
-        await supabase.from('beacon_rewards' as any).update({ stock: Math.max(0, selectedReward.stock - 1) }).eq('id', selectedReward.id);
+      if (selectedReward.stock_count !== null) {
+        await supabase.from('beacon_rewards' as any).update({ stock_count: Math.max(0, selectedReward.stock_count - 1) }).eq('id', selectedReward.id);
       }
       setRedeemSuccess(true);
-      toast({ title: '🎉 Reward redeemed!', description: `${student.name} exchanged ${selectedReward.point_cost} pts for ${selectedReward.name}` });
+      toast({ title: '🎉 Reward redeemed!', description: `${student.name} exchanged ${selectedReward.cost} pts for ${selectedReward.name}` });
       loadRewards();
       onRedemption?.();
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
@@ -196,13 +218,15 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   };
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
-  const canAfford = selectedStudent && selectedReward ? selectedStudent.balance >= selectedReward.point_cost : false;
+  const canAfford = selectedStudent && selectedReward ? selectedStudent.balance >= selectedReward.cost : false;
 
-  // Best student (closest to affording) for each reward
   const getBestStudent = (reward: Reward) => {
     if (students.length === 0) return null;
-    return students.reduce((best, s) => (Math.abs(reward.point_cost - s.balance) < Math.abs(reward.point_cost - best.balance) ? s : best));
+    return students.reduce((best, s) => (Math.abs(reward.cost - s.balance) < Math.abs(reward.cost - best.balance) ? s : best));
   };
+
+  // Derive emoji from name or use default
+  const getRewardEmoji = (r: Reward) => r.emoji || '🎁';
 
   return (
     <div className="space-y-4">
@@ -227,31 +251,29 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {rewards.map(reward => {
-            const catConfig = CATEGORIES.find(c => c.value === reward.category);
-            const outOfStock = reward.stock !== null && reward.stock <= 0;
+            const catConfig = CATEGORIES.find(c => c.value === (reward.category || 'tangible'));
+            const outOfStock = reward.stock_count !== null && reward.stock_count <= 0;
             const best = getBestStudent(reward);
-            const pointsAway = best ? Math.max(0, reward.point_cost - best.balance) : reward.point_cost;
-            const anyCanAfford = students.some(s => s.balance >= reward.point_cost);
+            const pointsAway = best ? Math.max(0, reward.cost - best.balance) : reward.cost;
+            const anyCanAfford = students.some(s => s.balance >= reward.cost);
             const redeemCount = redemptions.filter(r => r.reward_id === reward.id).length;
 
-            // States: inactive, out of stock, available, locked
-            const isLocked = !anyCanAfford && reward.is_active && !outOfStock;
-            const isAvailable = anyCanAfford && reward.is_active && !outOfStock;
+            const isLocked = !anyCanAfford && reward.active && !outOfStock;
+            const isAvailable = anyCanAfford && reward.active && !outOfStock;
 
             return (
               <Card key={reward.id} className={cn(
                 'transition-all border-border/40 overflow-hidden',
-                !reward.is_active && 'opacity-40 border-dashed',
+                !reward.active && 'opacity-40 border-dashed',
                 outOfStock && 'opacity-50',
                 isAvailable && 'border-accent/40 shadow-sm shadow-accent/10',
                 isLocked && 'border-border/30',
               )}>
-                {/* State indicator strip */}
                 <div className={cn(
                   'h-1',
                   isAvailable && 'bg-accent',
                   isLocked && 'bg-muted-foreground/20',
-                  !reward.is_active && 'bg-muted-foreground/10',
+                  !reward.active && 'bg-muted-foreground/10',
                   outOfStock && 'bg-destructive/30',
                 )} />
                 <CardContent className="p-3">
@@ -259,7 +281,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                     <div className={cn(
                       "text-3xl rounded-xl w-12 h-12 flex items-center justify-center shrink-0",
                       isAvailable ? "bg-accent/10" : "bg-muted/50"
-                    )}>{reward.emoji}</div>
+                    )}>{getRewardEmoji(reward)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
                         <p className="font-semibold text-sm truncate">{reward.name}</p>
@@ -269,29 +291,29 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                       {reward.description && <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{reward.description}</p>}
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         <Badge className="gap-0.5 text-[10px] bg-primary/10 text-primary border-primary/20">
-                          <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> {reward.point_cost}
+                          <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> {reward.cost}
                         </Badge>
-                        <Badge variant="outline" className="text-[9px]">{catConfig?.emoji} {catConfig?.label}</Badge>
-                        {reward.stock !== null && (
+                        {catConfig && <Badge variant="outline" className="text-[9px]">{catConfig.emoji} {catConfig.label}</Badge>}
+                        {reward.stock_count !== null && (
                           <Badge variant="outline" className={cn("text-[9px]", outOfStock && "text-destructive border-destructive/30")}>
-                            <Package className="h-2 w-2 mr-0.5" /> {outOfStock ? 'Out' : `${reward.stock} left`}
+                            <Package className="h-2 w-2 mr-0.5" /> {outOfStock ? 'Out' : `${reward.stock_count} left`}
                           </Badge>
                         )}
                         {redeemCount > 0 && (
                           <Badge variant="outline" className="text-[9px] gap-0.5"><History className="h-2 w-2" />{redeemCount} redeemed</Badge>
                         )}
                       </div>
-                      {best && pointsAway > 0 && pointsAway <= reward.point_cost && (
+                      {best && pointsAway > 0 && pointsAway <= reward.cost && (
                         <p className="text-[10px] text-primary font-medium mt-1.5">{best.name}: <strong>{pointsAway} pts away</strong></p>
                       )}
                     </div>
                   </div>
                   <div className="flex gap-1 mt-2.5">
-                    <Button size="sm" variant={isAvailable ? "default" : "outline"} className={cn("flex-1 h-7 text-xs gap-1", isAvailable && "bg-accent hover:bg-accent/90 text-accent-foreground")} onClick={() => !outOfStock && reward.is_active && startRedeem(reward)} disabled={outOfStock || !reward.is_active}>
+                    <Button size="sm" variant={isAvailable ? "default" : "outline"} className={cn("flex-1 h-7 text-xs gap-1", isAvailable && "bg-accent hover:bg-accent/90 text-accent-foreground")} onClick={() => !outOfStock && reward.active && startRedeem(reward)} disabled={outOfStock || !reward.active}>
                       <Gift className="h-3 w-3" /> Redeem
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(reward)} title="Edit"><Pencil className="h-3 w-3" /></Button>
-                    <Button size="sm" variant="ghost" className={cn("h-7 w-7 p-0", !reward.is_active && "text-muted-foreground")} onClick={() => toggleActive(reward)} title={reward.is_active ? 'Deactivate' : 'Activate'}><Power className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" className={cn("h-7 w-7 p-0", !reward.active && "text-muted-foreground")} onClick={() => toggleActive(reward)} title={reward.active ? 'Deactivate' : 'Activate'}><Power className="h-3 w-3" /></Button>
                   </div>
                 </CardContent>
               </Card>
@@ -328,11 +350,11 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
           {selectedReward && !redeemSuccess && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
-                <span className="text-3xl">{selectedReward.emoji}</span>
+                <span className="text-3xl">{getRewardEmoji(selectedReward)}</span>
                 <div>
                   <p className="font-semibold">{selectedReward.name}</p>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> {selectedReward.point_cost} points
+                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> {selectedReward.cost} points
                   </div>
                 </div>
               </div>
@@ -342,14 +364,14 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                   <SelectTrigger><SelectValue placeholder="Choose a student…" /></SelectTrigger>
                   <SelectContent>
                     {students.map(s => {
-                      const away = Math.max(0, selectedReward.point_cost - s.balance);
+                      const away = Math.max(0, selectedReward.cost - s.balance);
                       return (
                         <SelectItem key={s.id} value={s.id}>
                           <div className="flex items-center gap-2">
                             <span>{s.name}</span>
                             <Badge variant="outline" className="text-[9px] gap-0.5"><Star className="h-2 w-2 fill-amber-500 text-amber-500" />{s.balance}</Badge>
                             {away > 0 && <span className="text-[9px] text-muted-foreground">{away} away</span>}
-                            {s.balance < selectedReward.point_cost && <AlertCircle className="h-3 w-3 text-destructive" />}
+                            {s.balance < selectedReward.cost && <AlertCircle className="h-3 w-3 text-destructive" />}
                           </div>
                         </SelectItem>
                       );
@@ -359,42 +381,39 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
               </div>
               {selectedStudent && (
                 <div className="rounded-lg border border-border/40 p-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Current Balance</span>
-                    <span className="font-bold text-lg">{selectedStudent.balance} pts</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Current balance</span>
+                    <span className="font-semibold">{selectedStudent.balance} pts</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Reward Cost</span>
-                    <span className="font-bold text-destructive">−{selectedReward.point_cost} pts</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Cost</span>
+                    <span className="font-semibold text-destructive">−{selectedReward.cost} pts</span>
                   </div>
-                  <div className="border-t border-border/40 pt-2 flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Remaining</span>
-                    <span className={cn("font-bold text-lg", canAfford ? "text-accent" : "text-destructive")}>
-                      {selectedStudent.balance - selectedReward.point_cost} pts
+                  <Progress value={canAfford ? 100 : (selectedStudent.balance / selectedReward.cost) * 100} className="h-1.5" />
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-muted-foreground">After</span>
+                    <span className={cn("font-bold", canAfford ? "text-accent" : "text-destructive")}>
+                      {canAfford ? selectedStudent.balance - selectedReward.cost : selectedStudent.balance - selectedReward.cost} pts
                     </span>
                   </div>
-                  {!canAfford && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> Not enough points ({selectedReward.point_cost - selectedStudent.balance} more needed)
-                    </p>
-                  )}
                 </div>
               )}
-              <Button onClick={handleRedeem} disabled={!canAfford || redeeming || !selectedStudentId} className="w-full gap-1.5">
-                {redeeming ? <><Loader2 className="h-4 w-4 animate-spin" /> Redeeming…</> : <><Check className="h-4 w-4" /> Redeem for {selectedStudent?.name || 'Student'}</>}
+              <Button onClick={handleRedeem} disabled={!canAfford || redeeming} className="w-full gap-1.5">
+                {redeeming ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</> : <><Gift className="h-4 w-4" /> Redeem for {selectedStudent?.name || 'Student'}</>}
               </Button>
+              {selectedStudent && !canAfford && (
+                <p className="text-xs text-destructive text-center flex items-center justify-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> Not enough points ({selectedReward.cost - selectedStudent.balance} more needed)
+                </p>
+              )}
             </div>
           )}
-          {selectedReward && redeemSuccess && (
-            <div className="text-center space-y-4 py-4">
-              <div className="mx-auto w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center">
-                <span className="text-5xl">{selectedReward.emoji}</span>
-              </div>
-              <div>
-                <p className="text-lg font-bold">🎉 {selectedStudent?.name} got {selectedReward.name}!</p>
-                <p className="text-sm text-muted-foreground mt-1">−{selectedReward.point_cost} points deducted</p>
-              </div>
-              <Button onClick={() => { setRedeemOpen(false); setRedeemSuccess(false); }} variant="outline" className="w-full">Done</Button>
+          {redeemSuccess && selectedReward && (
+            <div className="text-center py-4 space-y-3">
+              <div className="text-5xl animate-bounce">{getRewardEmoji(selectedReward)}</div>
+              <p className="font-semibold text-lg">{selectedReward.name}</p>
+              <p className="text-sm text-muted-foreground">Successfully redeemed!</p>
+              <Button variant="outline" onClick={() => { setRedeemOpen(false); setRedeemSuccess(false); }}>Done</Button>
             </div>
           )}
         </DialogContent>
@@ -403,20 +422,23 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   );
 }
 
-/* Shared form for create/edit */
+/* ── Reward Form ── */
 function RewardForm({ name, onNameChange, cost, onCostChange, category, onCategoryChange, emoji, onEmojiChange, description, onDescriptionChange, onSubmit, submitLabel, disabled }: {
-  name: string; onNameChange: (v: string) => void; cost: string; onCostChange: (v: string) => void;
-  category: string; onCategoryChange: (v: string) => void; emoji: string; onEmojiChange: (v: string) => void;
-  description: string; onDescriptionChange: (v: string) => void; onSubmit: () => void; submitLabel: string; disabled: boolean;
+  name: string; onNameChange: (v: string) => void;
+  cost: string; onCostChange: (v: string) => void;
+  category: string; onCategoryChange: (v: string) => void;
+  emoji: string; onEmojiChange: (v: string) => void;
+  description: string; onDescriptionChange: (v: string) => void;
+  onSubmit: () => void; submitLabel: string; disabled?: boolean;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="flex gap-3">
-        <div className="space-y-1 flex-1"><Label className="text-xs">Name</Label><Input value={name} onChange={e => onNameChange(e.target.value)} placeholder="e.g. Extra Recess" /></div>
-        <div className="space-y-1 w-16"><Label className="text-xs">Emoji</Label><Input value={emoji} onChange={e => onEmojiChange(e.target.value)} className="text-center text-lg" /></div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-[1fr_80px] gap-3">
+        <div className="space-y-1"><Label className="text-xs">Name</Label><Input value={name} onChange={e => onNameChange(e.target.value)} placeholder="Extra Computer Time" /></div>
+        <div className="space-y-1"><Label className="text-xs">Emoji</Label><Input value={emoji} onChange={e => onEmojiChange(e.target.value)} className="text-center text-lg" maxLength={4} /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1"><Label className="text-xs">Point Cost</Label><Input type="number" value={cost} onChange={e => onCostChange(e.target.value)} min="1" /></div>
+        <div className="space-y-1"><Label className="text-xs">Point Cost</Label><Input type="number" value={cost} onChange={e => onCostChange(e.target.value)} min={1} /></div>
         <div className="space-y-1">
           <Label className="text-xs">Category</Label>
           <Select value={category} onValueChange={onCategoryChange}>
@@ -426,7 +448,7 @@ function RewardForm({ name, onNameChange, cost, onCostChange, category, onCatego
         </div>
       </div>
       <div className="space-y-1"><Label className="text-xs">Description (optional)</Label><Input value={description} onChange={e => onDescriptionChange(e.target.value)} placeholder="Short description…" /></div>
-      <Button onClick={onSubmit} disabled={disabled} className="w-full gap-1.5">{submitLabel}</Button>
+      <Button onClick={onSubmit} disabled={disabled} className="w-full">{submitLabel}</Button>
     </div>
   );
 }
