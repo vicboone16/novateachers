@@ -999,7 +999,7 @@ const ClassroomView = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rewards</span>
               <button onClick={() => navigate('/rewards')} className="ml-auto text-xs text-primary font-medium hover:underline">View All</button>
             </div>
-            <RewardPreviewStrip agencyId={effectiveAgencyId} />
+            <RewardPreviewStrip agencyId={effectiveAgencyId} classroomId={activeGroupId} />
           </CardContent>
         </Card>
 
