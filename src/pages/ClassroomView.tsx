@@ -42,7 +42,9 @@ import {
   BarChart3, AlertTriangle, Users, Star, Sparkles,
   Target, BookOpen, MessageSquare, Zap, ChevronDown,
   Gamepad2, Gift, KeyRound, Copy, MoreHorizontal,
+  Pencil, GripVertical,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
 
@@ -99,9 +101,14 @@ const ClassroomView = () => {
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
   const [staffCount, setStaffCount] = useState(0);
   const [teacherActions, setTeacherActions] = useState<TeacherPointAction[]>([]);
+  const [editingWord, setEditingWord] = useState(false);
+  const [editingMission, setEditingMission] = useState(false);
+  const [wordDraft, setWordDraft] = useState('');
+  const [missionDraft, setMissionDraft] = useState('');
+  const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
+  const [dragChip, setDragChip] = useState<string | null>(null);
   const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
 
-  const handleUndoComplete = async () => {
     const ok = await undoAction();
     if (ok && pendingAction) {
       handlePointChange(pendingAction.studentId, -pendingAction.points);
@@ -444,6 +451,38 @@ const ClassroomView = () => {
   const engagementPct = engagement.total > 0 ? Math.round((engagement.engaged / engagement.total) * 100) : 0;
   const classGoalPct = classGoal.target > 0 ? Math.round((classGoal.current / classGoal.target) * 100) : 0;
 
+  const saveWord = async () => {
+    const val = wordDraft.trim() || wordOfWeek;
+    setWordOfWeek(val);
+    setEditingWord(false);
+    if (activeGroupId) {
+      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+    }
+  };
+
+  const saveMission = async () => {
+    const val = missionDraft.trim() || missionText;
+    setMissionText(val);
+    setEditingMission(false);
+    if (activeGroupId) {
+      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+    }
+  };
+
+  const handleChipDrop = (targetKey: string) => {
+    if (!dragChip || dragChip === targetKey) return;
+    setSummaryChipOrder(prev => {
+      const arr = [...prev];
+      const from = arr.indexOf(dragChip);
+      const to = arr.indexOf(targetKey);
+      if (from < 0 || to < 0) return prev;
+      arr.splice(from, 1);
+      arr.splice(to, 0, dragChip);
+      return arr;
+    });
+    setDragChip(null);
+  };
+
   // Group teacher actions by category
   const positiveActions = teacherActions.filter(a => a.action_group === 'positive');
   const behaviorActions = teacherActions.filter(a => a.action_group === 'behavior');
@@ -525,34 +564,53 @@ const ClassroomView = () => {
         </div>
       </div>
 
-      {/* ─── SUMMARY BAR (horizontally scrollable) ─── */}
+      {/* ─── SUMMARY BAR (horizontally scrollable, drag-to-reorder) ─── */}
       <ScrollArea className="w-full">
         <div className="flex gap-2 pb-2">
-          <SummaryChip icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-500" />
-          <SummaryChip icon={Target} label="Engagement" value={engagement.total > 0 ? `${engagementPct}%` : '—'} color="text-accent" />
-          <SummaryChip icon={BarChart3} label="Events" value={String(totalToday)} color="text-primary" />
-          <SummaryChip icon={Users} label="Staff" value={String(staffCount)} color="text-muted-foreground" />
-          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 min-w-[140px]">
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{classGoal.label}</p>
-              <Progress value={classGoalPct} className="h-1.5 mt-1" />
-            </div>
-            <span className="text-xs font-bold">{classGoalPct}%</span>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 max-w-[160px]">
-            <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Mission</p>
-              <p className="text-[10px] font-medium truncate">{missionText}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0">
-            <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
-            <div>
-              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Word</p>
-              <p className="text-xs font-bold">{wordOfWeek}</p>
-            </div>
-          </div>
+          {summaryChipOrder.map(chipKey => {
+            if (chipKey === 'points') return <SummaryChip key={chipKey} icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-500" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
+            if (chipKey === 'engagement') return <SummaryChip key={chipKey} icon={Target} label="Engagement" value={engagement.total > 0 ? `${engagementPct}%` : '—'} color="text-accent" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
+            if (chipKey === 'events') return <SummaryChip key={chipKey} icon={BarChart3} label="Events" value={String(totalToday)} color="text-primary" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
+            if (chipKey === 'staff') return <SummaryChip key={chipKey} icon={Users} label="Staff" value={String(staffCount)} color="text-muted-foreground" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
+            if (chipKey === 'goal') return (
+              <div key={chipKey} className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 min-w-[140px] cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{classGoal.label}</p>
+                  <Progress value={classGoalPct} className="h-1.5 mt-1" />
+                </div>
+                <span className="text-xs font-bold">{classGoalPct}%</span>
+              </div>
+            );
+            if (chipKey === 'mission') return (
+              <div key={chipKey} className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 max-w-[200px] group cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
+                <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Mission</p>
+                  {editingMission ? (
+                    <Input value={missionDraft} onChange={e => setMissionDraft(e.target.value)} onBlur={() => saveMission()} onKeyDown={e => e.key === 'Enter' && saveMission()} className="h-5 text-[10px] px-1 py-0 border-0 bg-transparent focus-visible:ring-1" autoFocus />
+                  ) : (
+                    <p className="text-[10px] font-medium truncate cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }}>{missionText}</p>
+                  )}
+                </div>
+                {!editingMission && <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }} />}
+              </div>
+            );
+            if (chipKey === 'word') return (
+              <div key={chipKey} className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0 group cursor-grab" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)}>
+                <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Word</p>
+                  {editingWord ? (
+                    <Input value={wordDraft} onChange={e => setWordDraft(e.target.value)} onBlur={() => saveWord()} onKeyDown={e => e.key === 'Enter' && saveWord()} className="h-5 text-xs font-bold px-1 py-0 border-0 bg-transparent focus-visible:ring-1" autoFocus />
+                  ) : (
+                    <p className="text-xs font-bold cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }}>{wordOfWeek}</p>
+                  )}
+                </div>
+                {!editingWord && <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }} />}
+              </div>
+            );
+            return null;
+          })}
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
@@ -927,11 +985,13 @@ const ClassroomView = () => {
 };
 
 /* ── Summary chip for the horizontal bar ── */
-function SummaryChip({ icon: Icon, label, value, color }: {
+function SummaryChip({ icon: Icon, label, value, color, draggable, onDragStart, onDragOver, onDrop }: {
   icon: any; label: string; value: string; color: string;
+  draggable?: boolean; onDragStart?: () => void; onDragOver?: (e: React.DragEvent) => void; onDrop?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0">
+    <div className={cn("flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0", draggable && "cursor-grab")}
+      draggable={draggable} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop}>
       <Icon className={cn('h-3.5 w-3.5', color)} />
       <div>
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>

@@ -124,7 +124,7 @@ export default function ExternalParentPortal() {
   };
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950">
       <div className="text-center space-y-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -133,7 +133,7 @@ export default function ExternalParentPortal() {
   );
 
   if (error) return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4">
       <div className="text-center space-y-3 max-w-xs">
         <AlertTriangle className="h-10 w-10 text-destructive/60 mx-auto" />
         <p className="text-sm font-medium text-destructive">{error}</p>
@@ -145,7 +145,7 @@ export default function ExternalParentPortal() {
   if (!data) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-slate-900 dark:to-slate-800 px-4 py-6 safe-top safe-bottom">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4 py-6 safe-top safe-bottom">
       <div className="max-w-md mx-auto space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">

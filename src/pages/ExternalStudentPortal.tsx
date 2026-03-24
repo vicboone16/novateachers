@@ -74,7 +74,7 @@ export default function ExternalStudentPortal() {
   };
 
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-950 to-slate-900 text-white">
       <div className="text-center space-y-3">
         <Loader2 className="h-8 w-8 animate-spin text-amber-400 mx-auto" />
         <p className="text-sm text-white/60">Loading your board…</p>
@@ -83,7 +83,7 @@ export default function ExternalStudentPortal() {
   );
 
   if (error) return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0f0f23] text-white px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-950 to-slate-900 text-white px-4">
       <div className="text-center space-y-3 max-w-xs">
         <AlertTriangle className="h-10 w-10 text-red-400/60 mx-auto" />
         <p className="text-sm font-medium text-red-400">{error}</p>
@@ -98,7 +98,7 @@ export default function ExternalStudentPortal() {
   const finished = position >= TRACK_LENGTH;
 
   return (
-    <div className="min-h-screen bg-[#0f0f23] text-white px-4 py-6 safe-top safe-bottom" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 text-white px-4 py-6 safe-top safe-bottom" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
       <div className="max-w-md mx-auto space-y-6">
         {/* Avatar + Name */}
         <div className="text-center space-y-2">
