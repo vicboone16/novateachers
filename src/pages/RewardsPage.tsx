@@ -140,6 +140,63 @@ const RewardsPage = () => {
     setAdjusting(false);
   };
 
+  const [resetting, setResetting] = useState(false);
+
+  const handleResetStudent = async (studentId: string) => {
+    if (!user) return;
+    const currentBal = balances[studentId] || 0;
+    if (currentBal === 0) { toast({ title: 'Already at 0' }); return; }
+    if (!confirm(`Reset ${clients.find(c => c.id === studentId) ? displayName(clients.find(c => c.id === studentId)!) : 'student'} to 0 points?`)) return;
+    setResetting(true);
+    try {
+      await writePointEntry({
+        studentId,
+        staffId: user.id,
+        agencyId: effectiveAgencyId,
+        points: -currentBal,
+        reason: 'Points reset to 0',
+        source: 'manual',
+        entryKind: 'reset',
+      });
+      setBalances(prev => ({ ...prev, [studentId]: 0 }));
+      toast({ title: `${clients.find(c => c.id === studentId) ? displayName(clients.find(c => c.id === studentId)!) : 'Student'} reset to 0 ⭐` });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+    setResetting(false);
+  };
+
+  const handleResetAll = async () => {
+    if (!user || clients.length === 0) return;
+    const nonZero = clients.filter(c => (balances[c.id] || 0) !== 0);
+    if (nonZero.length === 0) { toast({ title: 'All students already at 0' }); return; }
+    if (!confirm(`Reset ALL ${nonZero.length} students to 0 points? This cannot be undone.`)) return;
+    setResetting(true);
+    try {
+      for (const c of nonZero) {
+        const bal = balances[c.id] || 0;
+        await writePointEntry({
+          studentId: c.id,
+          staffId: user.id,
+          agencyId: effectiveAgencyId,
+          points: -bal,
+          reason: 'Class-wide points reset',
+          source: 'manual',
+          entryKind: 'reset',
+        });
+      }
+      setBalances(prev => {
+        const next = { ...prev };
+        nonZero.forEach(c => { next[c.id] = 0; });
+        return next;
+      });
+      toast({ title: `${nonZero.length} students reset to 0 ⭐` });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+    setResetting(false);
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center py-16 flex-col gap-2">
       <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
