@@ -808,29 +808,29 @@ const ClassroomView = () => {
                   </div>
 
                   {/* Quick award row */}
-                  <div className="border-t border-border/40 px-3 py-2 flex items-center gap-1.5">
+                  <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-1 flex-wrap">
                     {positiveActions.length > 0 ? (
                       <>
-                        {positiveActions.slice(0, 3).map(action => (
+                        {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).slice(0, 3).map(action => (
                           <button
                             key={action.id}
                             onClick={() => handleTeacherAction(action, client)}
                             title={action.action_label}
-                            className="flex items-center gap-1 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
+                            className="flex items-center gap-0.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-1.5 py-1 text-[9px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
                           >
-                            <span className="text-xs">{action.action_icon}</span>
-                            {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 12)}
+                            <span className="text-[10px]">{action.action_icon}</span>
+                            {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 8)}
                           </button>
                         ))}
-                        {positiveActions.length > 3 && (
+                        {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).length > 3 && (
                           <Popover>
                             <PopoverTrigger asChild>
-                              <button className="rounded-xl border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
-                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              <button className="rounded-lg border border-border/60 bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3 w-3" />
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-48 p-2 space-y-1" align="start" side="top">
-                              {positiveActions.slice(3).map(action => (
+                              {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).slice(3).map(action => (
                                 <button
                                   key={action.id}
                                   onClick={() => handleTeacherAction(action, client)}
