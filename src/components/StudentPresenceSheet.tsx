@@ -1,17 +1,23 @@
 /**
  * StudentPresenceSheet — Quick status/move sheet opened from student cards.
  * Writes to Nova Core via set_student_presence(...) RPC.
+ * Now supports pairing a student with a staff member.
  */
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   Check, MapPin, TreePine, Coffee, DoorOpen, Users,
   BookOpen, Stethoscope, Building2, Bath,
@@ -40,6 +46,11 @@ const STATUSES = [
   { value: 'dismissed', label: 'Dismissed' },
 ] as const;
 
+interface StaffOption {
+  user_id: string;
+  displayName: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,17 +73,44 @@ export function StudentPresenceSheet({
   const [locationType, setLocationType] = useState(currentPresence?.location_type || 'classroom');
   const [locationLabel, setLocationLabel] = useState(currentPresence?.location_label || '');
   const [status, setStatus] = useState(currentPresence?.status || 'active');
+  const [assignedStaffId, setAssignedStaffId] = useState<string | null>(currentPresence?.assigned_staff_id || null);
+  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
+
+  // Load available staff in the agency
+  const loadStaff = useCallback(async () => {
+    if (!agencyId) return;
+    try {
+      const { data } = await cloudSupabase
+        .from('staff_presence')
+        .select('user_id')
+        .eq('agency_id', agencyId);
+      const ids = (data || []).map(r => r.user_id);
+      if (ids.length === 0) return;
+      const names = await resolveDisplayNames(ids);
+      setStaffOptions(ids.map(id => ({
+        user_id: id,
+        displayName: names.get(id) || id.slice(0, 8) + '…',
+      })));
+    } catch { /* silent */ }
+  }, [agencyId]);
+
+  useEffect(() => {
+    if (open) loadStaff();
+  }, [open, loadStaff]);
+
+  // Show staff picker for relevant locations
+  const showStaffPicker = ['with_staff', 'pull_out', 'therapist'].includes(locationType);
 
   const save = async () => {
     if (!user) return;
     setSaving(true);
 
-    // Optimistic update
     const newPresence: StudentPresenceData = {
       student_id: studentId,
       location_type: locationType,
       location_label: locationLabel || null,
       status,
+      assigned_staff_id: showStaffPicker ? assignedStaffId : null,
       updated_at: new Date().toISOString(),
     };
     onPresenceUpdate(studentId, newPresence);
@@ -86,6 +124,7 @@ export function StudentPresenceSheet({
         p_location_label: locationLabel || null,
         p_status: status,
         p_changed_by: user.id,
+        p_assigned_staff_id: showStaffPicker ? assignedStaffId : null,
       });
       if (error) {
         console.warn('[StudentPresence] RPC failed:', error.message);
@@ -134,6 +173,24 @@ export function StudentPresenceSheet({
               })}
             </div>
           </div>
+
+          {/* Staff pairing — shown for with_staff, pull_out, therapist */}
+          {showStaffPicker && staffOptions.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">With which staff?</p>
+              <Select value={assignedStaffId || ''} onValueChange={(v) => setAssignedStaffId(v || null)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select staff member…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {staffOptions.map(s => (
+                    <SelectItem key={s.user_id} value={s.user_id}>{s.displayName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Custom label */}
           <div className="space-y-1.5">

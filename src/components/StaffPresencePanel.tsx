@@ -319,45 +319,60 @@ function PresenceGroup({ label, rows, studentMap, onSelect, getDisplayName, getR
   return (
     <div>
       <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
-      <div className="space-y-1">
-        {rows.map(row => {
-          const config = PRESENCE_STATUS_MAP[row.status] || PRESENCE_STATUS_MAP.in_room;
-          const Icon = config.icon;
-          const name = getDisplayName(row.user_id);
-          const role = getRole(row.user_id);
-          return (
-            <button
-              key={row.id || row.user_id}
-              onClick={() => onSelect(row.user_id)}
-              className={cn(
-                "flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50",
-                name === 'You' && "bg-primary/5 border border-primary/20"
-              )}
-            >
-              <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-medium truncate">{name}</p>
-                  {role && (
-                    <Badge variant="outline" className="text-[8px] h-3.5 px-1 shrink-0 capitalize">{role}</Badge>
-                  )}
-                  {row.available_for_support && (
-                    <span className="text-[8px] text-green-600 dark:text-green-400 shrink-0">● available</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                  {row.location_label && <span>{row.location_label}</span>}
-                  {row.assigned_student_id && (
-                    <span>→ {studentMap?.[row.assigned_student_id] || 'Student'}</span>
-                  )}
-                  {row.note && <span className="italic truncate max-w-[120px]">"{row.note}"</span>}
-                </div>
-              </div>
-              <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
-            </button>
-          );
-        })}
-      </div>
+      <TooltipProvider delayDuration={400}>
+        <div className="space-y-1">
+          {rows.map(row => {
+            const config = PRESENCE_STATUS_MAP[row.status] || PRESENCE_STATUS_MAP.in_room;
+            const Icon = config.icon;
+            const name = getDisplayName(row.user_id);
+            const role = getRole(row.user_id);
+            const pairedStudent = row.assigned_student_id
+              ? (studentMap?.[row.assigned_student_id] || 'a student')
+              : null;
+            return (
+              <Tooltip key={row.id || row.user_id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onSelect(row.user_id)}
+                    className={cn(
+                      "flex items-center gap-2 w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/50",
+                      name === 'You' && "bg-primary/5 border border-primary/20"
+                    )}
+                  >
+                    <div className={cn("h-2 w-2 rounded-full shrink-0", config.dot)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-medium truncate">{name}</p>
+                        {role && (
+                          <Badge variant="outline" className="text-[8px] h-3.5 px-1 shrink-0 capitalize">{role}</Badge>
+                        )}
+                        {row.available_for_support && (
+                          <span className="text-[8px] text-green-600 dark:text-green-400 shrink-0">● available</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                        {row.location_label && <span>{row.location_label}</span>}
+                        {row.assigned_student_id && (
+                          <span>→ {pairedStudent}</span>
+                        )}
+                        {row.note && <span className="italic truncate max-w-[120px]">"{row.note}"</span>}
+                      </div>
+                    </div>
+                    <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs max-w-[200px]">
+                  <p className="font-medium">{name} — {config.label}</p>
+                  {row.location_label && <p>📍 {row.location_label}</p>}
+                  {pairedStudent && <p>👤 With {pairedStudent}</p>}
+                  {row.available_for_support && <p className="text-green-600">● Available for support</p>}
+                  {row.note && <p className="italic">"{row.note}"</p>}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
     </div>
   );
 }
