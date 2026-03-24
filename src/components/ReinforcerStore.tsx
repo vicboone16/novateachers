@@ -178,7 +178,12 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
 
   const toggleActive = async (reward: Reward) => {
     try {
-      await supabase.from('beacon_rewards' as any).update({ active: !reward.active }).eq('id', reward.id);
+      const result = await invokeCloudFunction('core-bridge', {
+        action: 'update_reward',
+        reward_id: reward.id,
+        active: !reward.active,
+      });
+      if (result.error) throw result.error;
       loadRewards();
       toast({ title: reward.active ? 'Reward deactivated' : 'Reward activated' });
     } catch { /* silent */ }
