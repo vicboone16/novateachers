@@ -232,8 +232,8 @@ const ClassroomView = () => {
   const loadAttendance = async () => {
     if (!user || !activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('student_attendance_status' as any)
+      const { data } = await cloudSupabase
+        .from('student_attendance_status')
         .select('student_id, status')
         .eq('classroom_id', activeGroupId)
         .eq('recorded_date', today);
