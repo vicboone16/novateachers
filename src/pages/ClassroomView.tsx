@@ -186,6 +186,7 @@ const ClassroomView = () => {
     loadBoardSettings();
     loadEngagementData();
     loadStaffCount();
+    loadResponseCostSettings();
   }, [clients, user, activeGroupId]);
 
   const loadPointBalances = async () => {
