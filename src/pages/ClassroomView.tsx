@@ -108,7 +108,7 @@ const ClassroomView = () => {
   const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
   const [dragChip, setDragChip] = useState<string | null>(null);
   const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
-
+  const handleUndoComplete = async () => {
     const ok = await undoAction();
     if (ok && pendingAction) {
       handlePointChange(pendingAction.studentId, -pendingAction.points);
