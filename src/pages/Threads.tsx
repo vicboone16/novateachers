@@ -263,6 +263,24 @@ const Threads = () => {
     toast({ title: newPrivacy ? 'Thread set to private' : 'Thread set to public' });
   };
 
+  // ── Delete thread (owner only) ──
+  const handleDeleteThread = async () => {
+    if (!activeThread || !user) return;
+    if (activeThread.created_by !== user.id) {
+      toast({ title: 'Only the thread creator can delete it', variant: 'destructive' });
+      return;
+    }
+    if (!confirm(`Delete "${activeThread.title || 'this thread'}"? This cannot be undone.`)) return;
+    // Delete messages, members, reactions first
+    await cloudSupabase.from('thread_messages').delete().eq('thread_id', activeThread.id);
+    await cloudSupabase.from('thread_members').delete().eq('thread_id', activeThread.id);
+    await cloudSupabase.from('thread_message_reactions').delete().eq('message_id', activeThread.id); // best effort
+    await cloudSupabase.from('threads').delete().eq('id', activeThread.id);
+    setActiveThread(null);
+    loadThreads();
+    toast({ title: 'Thread deleted' });
+  };
+
   if (isSoloMode) {
     return (
       <div className="py-12 text-center">
