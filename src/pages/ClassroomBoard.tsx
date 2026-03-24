@@ -207,19 +207,26 @@ export default function ClassroomBoard() {
       balMap.set(row.student_id, (balMap.get(row.student_id) || 0) + row.points);
     }
 
-    // Load student names from Core
+    // Load student names from Core — try by ID first, then by agency fallback
     let nameMap = new Map<string, { first_name: string; last_name: string }>();
     try {
       const { data: clients } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', studentIds);
       for (const c of (clients || []) as any[]) {
         nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
       }
-    } catch {
-      // Fallback - try students table
+    } catch { /* silent */ }
+    // If we didn't resolve all names, try loading ALL agency clients and matching
+    if (nameMap.size < studentIds.length) {
       try {
-        const { data: stds } = await supabase.from('students' as any).select('id, first_name, last_name').in('id', studentIds);
-        for (const s of (stds || []) as any[]) {
-          nameMap.set(s.id, { first_name: s.first_name || '', last_name: s.last_name || '' });
+        const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', classroomId).maybeSingle();
+        const aid = (grpData as any)?.agency_id;
+        if (aid) {
+          const { data: allClients } = await supabase.from('clients' as any).select('id, first_name, last_name').eq('agency_id', aid);
+          for (const c of (allClients || []) as any[]) {
+            if (studentIds.includes(c.id) && !nameMap.has(c.id)) {
+              nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            }
+          }
         }
       } catch { /* silent */ }
     }
