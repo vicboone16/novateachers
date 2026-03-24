@@ -71,7 +71,7 @@ const ClassroomView = () => {
   const { agencyId } = useAppAccess();
   const { toast } = useToast();
 
-  const [clients, setClients] = useState<Client[]>([]);
+  // clients is now derived from allClients + group filter (see below)
   const [loading, setLoading] = useState(true);
   const [todayCounts, setTodayCounts] = useState<TodayCounts>({});
   const [lastEvents, setLastEvents] = useState<LastEvent>({});
