@@ -129,7 +129,7 @@ const WorkspaceRoutes = () => {
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/notifications" element={<NotificationSettings />} />
         <Route path="/install" element={<InstallApp />} />
-        <Route path="/tour" element={<FeatureTour />} />
+        
         <Route path="/" element={<Navigate to="/classroom" replace />} />
       </Route>
       <Route path="*" element={<NotFound />} />
@@ -154,7 +154,7 @@ const App = () => (
             <Route path="/class/:slug/live" element={<ClassroomLive />} />
             <Route path="/snapshot/:token" element={<ParentSnapshot />} />
             <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
-            <Route path="/external/student/:token" element={<ExternalStudentPortal />} />
+            <Route path="/tour" element={<FeatureTour />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
