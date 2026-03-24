@@ -200,52 +200,65 @@ export function WhosHerePanel({
   if (variant === 'strip') {
     return (
       <>
-        <div className="flex items-center gap-1.5 flex-wrap py-1.5">
-          {availableStaff.slice(0, 4).map(s => {
-            const cfg = PRESENCE_STATUS_MAP[s.presenceStatus];
-            return (
-              <button key={s.user_id} onClick={() => handleStaffTap(s)}
-                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary px-2 py-0.5 text-[9px] font-semibold hover:bg-accent/20 active:scale-95 transition-all cursor-pointer">
-                <span className={cn('h-1.5 w-1.5 rounded-full', getAvailabilityDot(s))} />
-                {s.displayName}
-                <span className="text-muted-foreground font-normal">{cfg.label}</span>
-              </button>
-            );
-          })}
-          {availableStaff.length > 4 && (
-            <Badge variant="outline" className="text-[9px] h-5 px-1.5">+{availableStaff.length - 4}</Badge>
-          )}
-          {onlineStaff.length > availableStaff.length && (
-            <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground inline-block" />
-              {onlineStaff.length - availableStaff.length} busy
-            </Badge>
-          )}
+        <TooltipProvider delayDuration={300}>
+          <div className="flex items-center gap-1.5 flex-wrap py-1.5">
+            {availableStaff.slice(0, 4).map(s => {
+              const cfg = PRESENCE_STATUS_MAP[s.presenceStatus];
+              const pairedStudent = s.assigned_student_id ? (s.location_label || 'a student') : null;
+              return (
+                <Tooltip key={s.user_id}>
+                  <TooltipTrigger asChild>
+                    <button onClick={() => handleStaffTap(s)}
+                      className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary px-2 py-0.5 text-[9px] font-semibold hover:bg-accent/20 active:scale-95 transition-all cursor-pointer">
+                      <span className={cn('h-1.5 w-1.5 rounded-full', getAvailabilityDot(s))} />
+                      {s.displayName}
+                      <span className="text-muted-foreground font-normal">{cfg.label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    <p className="font-medium">{s.displayName} — {cfg.label}</p>
+                    {s.location_label && <p className="text-muted-foreground">📍 {s.location_label}</p>}
+                    {pairedStudent && <p className="text-muted-foreground">👤 With {pairedStudent}</p>}
+                    {s.note && <p className="italic text-muted-foreground">"{s.note}"</p>}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+            {availableStaff.length > 4 && (
+              <Badge variant="outline" className="text-[9px] h-5 px-1.5">+{availableStaff.length - 4}</Badge>
+            )}
+            {onlineStaff.length > availableStaff.length && (
+              <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground inline-block" />
+                {onlineStaff.length - availableStaff.length} busy
+              </Badge>
+            )}
 
-          {hasActions && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-primary">
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-44 p-1.5 space-y-0.5" align="end" side="bottom">
-                {onRequestHelp && availableStaff.length > 0 && (
-                  <button onClick={() => onRequestHelp(availableStaff.map(s => s.user_id))}
-                    className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left">
-                    <Zap className="h-3 w-3 text-primary" /> Request help ({availableStaff.length})
-                  </button>
-                )}
-                {onNotifyRoom && (
-                  <button onClick={() => onNotifyRoom(onlineStaff.map(s => s.user_id))}
-                    className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left">
-                    <Bell className="h-3 w-3 text-primary" /> Notify all staff
-                  </button>
-                )}
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
+            {hasActions && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-primary">
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-44 p-1.5 space-y-0.5" align="end" side="bottom">
+                  {onRequestHelp && availableStaff.length > 0 && (
+                    <button onClick={() => onRequestHelp(availableStaff.map(s => s.user_id))}
+                      className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left">
+                      <Zap className="h-3 w-3 text-primary" /> Request help ({availableStaff.length})
+                    </button>
+                  )}
+                  {onNotifyRoom && (
+                    <button onClick={() => onNotifyRoom(onlineStaff.map(s => s.user_id))}
+                      className="flex items-center gap-2 w-full rounded px-2 py-1.5 text-xs hover:bg-accent/10 transition-colors text-left">
+                      <Bell className="h-3 w-3 text-primary" /> Notify all staff
+                    </button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </TooltipProvider>
         {actionSheet}
       </>
     );

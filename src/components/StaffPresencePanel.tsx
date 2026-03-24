@@ -1,8 +1,5 @@
 /**
  * StaffPresencePanel — "Who's Here" panel for classroom page.
- * Reads from Nova Core: staff_presence, v_classroom_staff_presence, v_available_support_staff.
- * Writes via Nova Core RPC: set_staff_presence(...).
- * Shows My Status card, In This Room, Available Support, With Student sections.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -14,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StaffActionSheet } from '@/components/StaffActionSheet';
 import { resolveDisplayNames } from '@/lib/resolve-names';
+import {
+  Tooltip, TooltipContent, TooltipTrigger, TooltipProvider,
+} from '@/components/ui/tooltip';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
