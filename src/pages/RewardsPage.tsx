@@ -256,6 +256,12 @@ const RewardsPage = () => {
         </TabsContent>
 
         <TabsContent value="balances">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">Student Balances</p>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive border-destructive/40 hover:bg-destructive/10" onClick={handleResetAll} disabled={resetting}>
+              <RotateCcw className="h-3 w-3" /> Reset All to 0
+            </Button>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {clients.map(c => (
               <Card key={c.id} className="border-border/40">
@@ -265,8 +271,11 @@ const RewardsPage = () => {
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{displayName(c).charAt(0)}</div>
                       <div><p className="text-sm font-semibold">{displayName(c)}</p>{c.grade && <p className="text-[10px] text-muted-foreground">Grade {c.grade}</p>}</div>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <Badge className="gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"><Star className="h-3 w-3 fill-amber-500 text-amber-500" />{balances[c.id] || 0}</Badge>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive/60 hover:text-destructive" title="Reset to 0" onClick={() => handleResetStudent(c.id)} disabled={resetting || (balances[c.id] || 0) === 0}>
+                        <RotateCcw className="h-3 w-3" />
+                      </Button>
                       <Popover open={adjustStudent === c.id} onOpenChange={(o) => { if (!o) setAdjustStudent(null); else { setAdjustStudent(c.id); setAdjustAmount(''); setAdjustReason(''); } }}>
                         <PopoverTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Pencil className="h-3 w-3" /></Button>
