@@ -1079,6 +1079,57 @@ export type Database = {
         }
         Relationships: []
       }
+      mayday_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          agency_id: string
+          alert_type: string
+          classroom_id: string | null
+          created_at: string
+          id: string
+          message: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          student_id: string | null
+          triggered_by: string
+          urgency: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          agency_id: string
+          alert_type?: string
+          classroom_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          student_id?: string | null
+          triggered_by: string
+          urgency?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          agency_id?: string
+          alert_type?: string
+          classroom_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          student_id?: string | null
+          triggered_by?: string
+          urgency?: string
+        }
+        Relationships: []
+      }
       mayday_contacts: {
         Row: {
           admin_override: boolean
@@ -1135,6 +1186,60 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      mayday_recipients: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          delivered_at: string | null
+          delivery_channel: string
+          delivery_channels_json: Json | null
+          error_message: string | null
+          id: string
+          mayday_id: string
+          recipient_user_id: string | null
+          status: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_channel?: string
+          delivery_channels_json?: Json | null
+          error_message?: string | null
+          id?: string
+          mayday_id: string
+          recipient_user_id?: string | null
+          status?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_channel?: string
+          delivery_channels_json?: Json | null
+          error_message?: string | null
+          id?: string
+          mayday_id?: string
+          recipient_user_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mayday_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mayday_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mayday_recipients_mayday_id_fkey"
+            columns: ["mayday_id"]
+            isOneToOne: false
+            referencedRelation: "mayday_alerts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_preferences: {
         Row: {
