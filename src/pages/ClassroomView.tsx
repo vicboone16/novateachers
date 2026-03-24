@@ -1006,9 +1006,9 @@ function RewardPreviewStrip({ agencyId }: { agencyId: string }) {
   const [rewards, setRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   useEffect(() => {
     if (!agencyId) return;
-    supabase.from('beacon_rewards' as any).select('name, emoji, point_cost').eq('is_active', true).order('point_cost', { ascending: true }).limit(5)
+    supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).order('cost', { ascending: true }).limit(5)
       .then(({ data }: any) => {
-        setRewards((data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.point_cost })));
+        setRewards((data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
       });
   }, [agencyId]);
 
