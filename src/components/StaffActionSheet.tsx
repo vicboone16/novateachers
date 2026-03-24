@@ -30,7 +30,7 @@ interface StaffActionSheetProps {
   onOpenChange: (open: boolean) => void;
   userId: string;
   agencyId: string;
-  currentGroupId: string;
+  currentGroupId?: string | null;
   currentPresence: {
     status: PresenceStatus;
     location_type: string;
