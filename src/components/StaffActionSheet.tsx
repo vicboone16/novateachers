@@ -30,7 +30,7 @@ interface StaffActionSheetProps {
   onOpenChange: (open: boolean) => void;
   userId: string;
   agencyId: string;
-  currentGroupId: string;
+  currentGroupId?: string | null;
   currentPresence: {
     status: PresenceStatus;
     location_type: string;
@@ -89,7 +89,7 @@ export function StaffActionSheet({
       const payload = {
         agency_id: agencyId,
         user_id: userId,
-        classroom_group_id: status === 'in_room' ? currentGroupId : (currentPresence?.classroom_group_id || null),
+        classroom_group_id: status === 'in_room' ? (currentGroupId || currentPresence?.classroom_group_id || null) : (currentPresence?.classroom_group_id || null),
         location_type: locationType,
         location_label: locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null,
         status,
@@ -152,7 +152,7 @@ export function StaffActionSheet({
       const payload = {
         agency_id: agencyId,
         user_id: userId,
-        classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
+        classroom_group_id: newStatus === 'in_room' ? (currentGroupId || null) : null,
         location_type: newStatus === 'in_room' ? 'classroom' : locationType,
         status: newStatus,
         availability_status: isAvailable ? 'available' : 'unavailable',
