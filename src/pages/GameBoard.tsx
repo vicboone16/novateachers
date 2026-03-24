@@ -121,9 +121,10 @@ const GameBoard = () => {
         const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
         const aid = (grpData as any)?.agency_id;
         if (aid) {
-          const { data: allClients } = await supabase.from('clients' as any).select('id, first_name, last_name').eq('agency_id', aid);
+          const { data: allClients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').eq('agency_id', aid);
           for (const c of (allClients || []) as any[]) {
-            if (studentIds.includes(c.id)) nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            const cid = c.client_id || c.id;
+            if (studentIds.includes(cid)) nameMap.set(cid, { first_name: c.first_name || '', last_name: c.last_name || '' });
           }
         }
       } catch { /* silent */ }
