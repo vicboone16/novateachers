@@ -191,12 +191,12 @@ export function StaffActionSheet({
                   className={cn(
                     "flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition-all active:scale-95",
                     active
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border/50 bg-card text-muted-foreground hover:bg-muted/50"
+                      ? "border-primary bg-primary/10 text-foreground font-bold"
+                      : "border-border/50 bg-card text-foreground hover:bg-muted/50"
                   )}
                 >
-                  <LocIcon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="text-[10px] font-medium">{loc.label}</span>
+                  <LocIcon className={cn("h-3.5 w-3.5 shrink-0", active ? "text-primary" : "text-foreground/70")} />
+                  <span className="text-[11px] font-semibold">{loc.label}</span>
                 </button>
               );
             })}
