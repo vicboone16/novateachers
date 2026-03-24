@@ -202,12 +202,33 @@ const RewardsPage = () => {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {clients.map(c => (
               <Card key={c.id} className="border-border/40">
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{displayName(c).charAt(0)}</div>
-                    <div><p className="text-sm font-semibold">{displayName(c)}</p>{c.grade && <p className="text-[10px] text-muted-foreground">Grade {c.grade}</p>}</div>
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{displayName(c).charAt(0)}</div>
+                      <div><p className="text-sm font-semibold">{displayName(c)}</p>{c.grade && <p className="text-[10px] text-muted-foreground">Grade {c.grade}</p>}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className="gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"><Star className="h-3 w-3 fill-amber-500 text-amber-500" />{balances[c.id] || 0}</Badge>
+                      <Popover open={adjustStudent === c.id} onOpenChange={(o) => { if (!o) setAdjustStudent(null); else { setAdjustStudent(c.id); setAdjustAmount(''); setAdjustReason(''); } }}>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Pencil className="h-3 w-3" /></Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-3 space-y-2" align="end">
+                          <p className="text-xs font-semibold">Adjust Points</p>
+                          <div className="flex gap-1">
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setAdjustAmount(String((parseInt(adjustAmount) || 0) - 1))}><Minus className="h-3 w-3" /></Button>
+                            <Input value={adjustAmount} onChange={e => setAdjustAmount(e.target.value)} placeholder="±pts" className="h-7 text-xs text-center" type="number" />
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setAdjustAmount(String((parseInt(adjustAmount) || 0) + 1))}><Plus className="h-3 w-3" /></Button>
+                          </div>
+                          <Input value={adjustReason} onChange={e => setAdjustReason(e.target.value)} placeholder="Reason (optional)" className="h-7 text-xs" />
+                          <Button size="sm" className="w-full h-7 text-xs" disabled={adjusting || !adjustAmount || parseInt(adjustAmount) === 0} onClick={() => handlePointOverride(c.id)}>
+                            {adjusting ? 'Saving…' : 'Apply'}
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
-                  <Badge className="gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"><Star className="h-3 w-3 fill-amber-500 text-amber-500" />{balances[c.id] || 0}</Badge>
                 </CardContent>
               </Card>
             ))}
