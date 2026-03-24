@@ -452,6 +452,11 @@ const Threads = () => {
                       <><LockKeyhole className="h-3.5 w-3.5 mr-2" /> Make Private</>
                     )}
                   </DropdownMenuItem>
+                  {activeThread.created_by === user?.id && (
+                    <DropdownMenuItem onClick={handleDeleteThread} className="text-destructive focus:text-destructive">
+                      <span className="h-3.5 w-3.5 mr-2">🗑</span> Delete Thread
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
