@@ -808,29 +808,29 @@ const ClassroomView = () => {
                   </div>
 
                   {/* Quick award row */}
-                  <div className="border-t border-border/40 px-3 py-2 flex items-center gap-1.5">
+                  <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-1 flex-wrap">
                     {positiveActions.length > 0 ? (
                       <>
-                        {positiveActions.slice(0, 3).map(action => (
+                        {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).slice(0, 3).map(action => (
                           <button
                             key={action.id}
                             onClick={() => handleTeacherAction(action, client)}
                             title={action.action_label}
-                            className="flex items-center gap-1 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
+                            className="flex items-center gap-0.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-1.5 py-1 text-[9px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
                           >
-                            <span className="text-xs">{action.action_icon}</span>
-                            {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 12)}
+                            <span className="text-[10px]">{action.action_icon}</span>
+                            {action.action_label.replace(/\s*[+-]\d+$/, '').slice(0, 8)}
                           </button>
                         ))}
-                        {positiveActions.length > 3 && (
+                        {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).length > 3 && (
                           <Popover>
                             <PopoverTrigger asChild>
-                              <button className="rounded-xl border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
-                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              <button className="rounded-lg border border-border/60 bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3 w-3" />
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-48 p-2 space-y-1" align="start" side="top">
-                              {positiveActions.slice(3).map(action => (
+                              {positiveActions.filter(a => !/break\s*card/i.test(a.action_label)).slice(3).map(action => (
                                 <button
                                   key={action.id}
                                   onClick={() => handleTeacherAction(action, client)}
@@ -878,12 +878,12 @@ const ClassroomView = () => {
                         </button>
                       ))
                     )}
-                    <div className="ml-auto flex gap-1.5">
+                    <div className="ml-auto flex gap-1">
                       {manualActions.length > 0 && (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <button title="Manual points" className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                              <Zap className="h-3.5 w-3.5" />
+                            <button title="Manual points" className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                              <Zap className="h-3 w-3" />
                             </button>
                           </PopoverTrigger>
                           <PopoverContent className="w-44 p-2 space-y-1" align="end" side="top">
@@ -901,22 +901,22 @@ const ClassroomView = () => {
                         </Popover>
                       )}
                       <button onClick={() => navigate('/rewards')} title="Rewards"
-                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <Gift className="h-3.5 w-3.5" />
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gift className="h-3 w-3" />
                       </button>
                       <button onClick={() => navigate('/game-board')} title="Game Board"
-                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <Gamepad2 className="h-3.5 w-3.5" />
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <Gamepad2 className="h-3 w-3" />
                       </button>
                       <button onClick={() => setQuickActionStudent(client)} title="Student code & more"
-                        className="rounded-xl border border-border/60 bg-secondary p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                        <KeyRound className="h-3.5 w-3.5" />
+                        className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                        <KeyRound className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
 
                   {/* Behavior + engagement row */}
-                  <div className="border-t border-border/40 px-3 py-2 flex items-center gap-1.5">
+                  <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-1 flex-wrap">
                     {behaviorActions.length > 0 ? (
                       <>
                         {behaviorActions.slice(0, 3).map(action => (
@@ -924,9 +924,9 @@ const ClassroomView = () => {
                             key={action.id}
                             onClick={() => handleTeacherAction(action, client)}
                             title={action.action_label}
-                            className="flex items-center gap-1 rounded-xl border border-border/60 bg-secondary px-2 py-1.5 text-[10px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                            className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-secondary px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
                           >
-                            <span className="text-xs">{action.action_icon}</span>
+                            <span className="text-[10px]">{action.action_icon}</span>
                             {(action.default_behavior_name || action.action_label).slice(0, 4)}
                           </button>
                         ))}
@@ -967,9 +967,9 @@ const ClassroomView = () => {
                     )}
                     <button
                       onClick={() => navigate(`/collect?student=${client.id}`)}
-                      className="flex items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 px-2 py-1.5 text-[10px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
+                      className="flex items-center gap-0.5 rounded-lg border border-primary/30 bg-primary/5 px-1.5 py-1 text-[9px] font-medium text-primary hover:bg-primary/10 active:scale-95 transition-colors"
                     >
-                      <Target className="h-3 w-3" />Add Data
+                      <Target className="h-2.5 w-2.5" />Data
                     </button>
                     <div className="ml-auto flex gap-1">
                       <button onClick={() => logEngagement(client.id, true)} title="Engaged"
