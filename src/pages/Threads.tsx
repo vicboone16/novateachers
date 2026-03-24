@@ -279,7 +279,7 @@ const Threads = () => {
             id: threadId,
             agency_id: agencyId,
             sender_id: user.id,
-            recipient_id: user.id,
+            recipient_id: agencyId, // agency-scoped broadcast
             body: `Thread created: ${newTitle.trim()}`,
             thread_id: threadId,
             message_type: 'note',
