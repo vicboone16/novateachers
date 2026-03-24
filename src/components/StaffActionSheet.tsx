@@ -296,7 +296,7 @@ export function StaffActionSheet({
                 <SelectValue placeholder="None" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="" className="text-xs">None</SelectItem>
+                <SelectItem value="__none__" className="text-xs">None</SelectItem>
                 {studentEntries.map(([id, name]) => (
                   <SelectItem key={id} value={id} className="text-xs">{name}</SelectItem>
                 ))}
