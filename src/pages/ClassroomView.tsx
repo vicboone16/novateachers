@@ -262,6 +262,24 @@ const ClassroomView = () => {
   const loadBoardSettings = async () => {
     if (!activeGroupId) return;
     try {
+      // Try classroom_settings on Lovable Cloud first
+      const { data: settings } = await cloudSupabase
+        .from('classroom_settings')
+        .select('point_goal, point_goal_label, mission_text, word_of_week')
+        .eq('group_id', activeGroupId)
+        .maybeSingle();
+      if (settings) {
+        const s = settings as any;
+        if (s.mission_text) setMissionText(s.mission_text);
+        if (s.word_of_week) setWordOfWeek(s.word_of_week);
+        setClassGoal({
+          current: totalPoints,
+          target: s.point_goal || 500,
+          label: s.point_goal_label || 'Class Goal',
+        });
+        return;
+      }
+      // Fallback to Core board settings
       const { data } = await supabase
         .from('classroom_board_settings' as any)
         .select('mission_text, word_of_week, class_goal_label, class_goal_target, class_goal_current')
