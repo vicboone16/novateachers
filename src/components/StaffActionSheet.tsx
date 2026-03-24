@@ -148,28 +148,44 @@ export function StaffActionSheet({
     if (!isMe) { setStatus(newStatus); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('set_staff_presence', {
-        p_agency_id: agencyId,
-        p_user_id: userId,
-        p_classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
-        p_location_type: newStatus === 'in_room' ? 'classroom' : locationType,
-        p_status: newStatus,
-        p_available_for_support: newStatus === 'in_room' || newStatus === 'floating',
-        p_changed_by: user?.id || null,
-      });
+      const isAvailable = newStatus === 'in_room' || newStatus === 'floating';
+      const payload = {
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
+        location_type: newStatus === 'in_room' ? 'classroom' : locationType,
+        status: newStatus,
+        availability_status: isAvailable ? 'available' : 'unavailable',
+        available_for_support: isAvailable,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await cloudSupabase
+        .from('staff_presence')
+        .upsert(payload, { onConflict: 'user_id' });
+
       if (error) {
-        console.warn('[StaffAction] quickMove RPC failed:', error.message);
-        toast({ title: 'Status saved locally', description: 'Backend sync pending — Core RPC may not be available yet.' });
-      } else {
-        toast({ title: `✓ ${PRESENCE_STATUS_MAP[newStatus].label}` });
+        await cloudSupabase.from('staff_presence').insert(payload);
       }
+
+      // Log history
+      await cloudSupabase.from('staff_presence_history').insert({
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: payload.classroom_group_id,
+        location_type: payload.location_type,
+        status: newStatus,
+        availability_status: payload.availability_status,
+        available_for_support: isAvailable,
+        changed_by: user?.id || null,
+      });
+
+      toast({ title: `✓ ${PRESENCE_STATUS_MAP[newStatus].label}` });
       onUpdated();
       onOpenChange(false);
     } catch (err: any) {
       console.warn('[StaffAction] quickMove error:', err);
-      toast({ title: 'Status saved locally', description: 'Could not reach backend.' });
-      onUpdated();
-      onOpenChange(false);
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
