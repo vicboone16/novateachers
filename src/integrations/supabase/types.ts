@@ -2201,6 +2201,180 @@ export type Database = {
         }
         Relationships: []
       }
+      thread_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_muted: boolean
+          last_read_at: string | null
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_muted?: boolean
+          last_read_at?: string | null
+          role?: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_muted?: boolean
+          last_read_at?: string | null
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_members_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "thread_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          message_type: string
+          metadata: Json | null
+          parent_id: string | null
+          sender_id: string
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          message_type?: string
+          metadata?: Json | null
+          parent_id?: string | null
+          sender_id: string
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          message_type?: string
+          metadata?: Json | null
+          parent_id?: string | null
+          sender_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "thread_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threads: {
+        Row: {
+          agency_id: string
+          classroom_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          is_archived: boolean
+          is_private: boolean
+          last_message_at: string | null
+          last_message_preview: string | null
+          thread_type: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          classroom_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          is_archived?: boolean
+          is_private?: boolean
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          thread_type?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_archived?: boolean
+          is_private?: boolean
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          thread_type?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
       user_reminder_overrides: {
         Row: {
           created_at: string
