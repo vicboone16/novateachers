@@ -63,6 +63,7 @@ interface StudentStatuses { [clientId: string]: StudentStatus }
 interface TokenProgress { [clientId: string]: { current: number; target: number } }
 interface EngagementData { total: number; engaged: number }
 interface StudentPresenceMap { [studentId: string]: StudentPresenceData }
+interface ResponseCostMap { [studentId: string]: boolean }
 
 const ClassroomView = () => {
   const navigate = useNavigate();
@@ -71,7 +72,7 @@ const ClassroomView = () => {
   const { agencyId } = useAppAccess();
   const { toast } = useToast();
 
-  const [clients, setClients] = useState<Client[]>([]);
+  // clients is now derived from allClients + group filter (see below)
   const [loading, setLoading] = useState(true);
   const [todayCounts, setTodayCounts] = useState<TodayCounts>({});
   const [lastEvents, setLastEvents] = useState<LastEvent>({});
@@ -96,6 +97,7 @@ const ClassroomView = () => {
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
   const [presenceSheetStudent, setPresenceSheetStudent] = useState<Client | null>(null);
   const [studentPresence, setStudentPresence] = useState<StudentPresenceMap>({});
+  const [responseCostMap, setResponseCostMap] = useState<ResponseCostMap>({});
   const [missionText, setMissionText] = useState('Be Kind, Be Safe, Be Respectful');
   const [wordOfWeek, setWordOfWeek] = useState('Perseverance');
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
@@ -120,6 +122,10 @@ const ClassroomView = () => {
   const today = new Date().toISOString().slice(0, 10);
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [groupStudentIds, setGroupStudentIds] = useState<Set<string> | null>(null); // null = "All"
+  const [showAll, setShowAll] = useState(false);
+
   useEffect(() => {
     if (currentWorkspace) loadClients();
   }, [currentWorkspace]);
@@ -140,12 +146,33 @@ const ClassroomView = () => {
     loadTeacherPointActions(effectiveAgencyId).then(setTeacherActions);
   }, [user, effectiveAgencyId]);
 
+  // Load group student IDs when activeGroupId changes
+  useEffect(() => {
+    if (!activeGroupId || showAll) {
+      setGroupStudentIds(null);
+      return;
+    }
+    cloudSupabase
+      .from('classroom_group_students')
+      .select('client_id')
+      .eq('group_id', activeGroupId)
+      .then(({ data }) => {
+        const ids = new Set((data || []).map((r: any) => r.client_id));
+        setGroupStudentIds(ids);
+      });
+  }, [activeGroupId, showAll]);
+
+  // Filter clients by group
+  const clients = showAll || !groupStudentIds
+    ? allClients
+    : allClients.filter(c => groupStudentIds.has(c.id));
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
     try {
       const data = await fetchAccessibleClients({ currentWorkspace, isSoloMode, userId: user?.id });
-      setClients(normalizeClients(data));
+      setAllClients(normalizeClients(data));
     } catch { /* silent */ }
     setLoading(false);
   };
@@ -159,6 +186,7 @@ const ClassroomView = () => {
     loadBoardSettings();
     loadEngagementData();
     loadStaffCount();
+    loadResponseCostSettings();
   }, [clients, user, activeGroupId]);
 
   const loadPointBalances = async () => {
@@ -251,6 +279,21 @@ const ClassroomView = () => {
         .eq('status', 'in_room');
       setStaffCount((data || []).length);
     } catch { setStaffCount(0); }
+  };
+
+  const loadResponseCostSettings = async () => {
+    if (!effectiveAgencyId) return;
+    try {
+      const { data } = await cloudSupabase
+        .from('student_response_cost_settings')
+        .select('student_id, response_cost_enabled')
+        .eq('agency_id', effectiveAgencyId);
+      const map: ResponseCostMap = {};
+      for (const row of (data || []) as any[]) {
+        map[row.student_id] = row.response_cost_enabled;
+      }
+      setResponseCostMap(map);
+    } catch { /* silent */ }
   };
 
   const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
@@ -521,12 +564,15 @@ const ClassroomView = () => {
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            {allGroups.length > 1 ? (
-              <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+            {allGroups.length > 0 ? (
+              <Select value={showAll ? '__all__' : (activeGroupId || '')} onValueChange={(v) => {
+                if (v === '__all__') { setShowAll(true); } else { setShowAll(false); setActiveGroupId(v); }
+              }}>
                 <SelectTrigger className="h-auto text-lg font-bold font-heading border-none shadow-none px-0 gap-1.5 max-w-[220px] text-foreground">
                   <SelectValue placeholder="Select classroom…" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__all__" className="text-sm font-medium">All Students</SelectItem>
                   {allGroups.map(g => (
                     <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
                   ))}
@@ -719,7 +765,7 @@ const ClassroomView = () => {
                             staffId: user?.id || '',
                           });
                         }}
-                        responseCostEnabled
+                        responseCostEnabled={responseCostMap[client.id] === true}
                       />
                       {todayCounts[client.id] > 0 && (
                         <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0 font-medium text-foreground">
@@ -729,9 +775,12 @@ const ClassroomView = () => {
                     </div>
                     {/* Race progress mini-bar */}
                     <div className="flex items-center gap-2 mt-2">
-                      <Progress value={Math.min(100, ((pointBalances[client.id] || 0) / 100) * 100)} className="h-1.5 flex-1" />
+                      <Progress value={Math.min(100, ((pointBalances[client.id] || 0) % 100) / 100 * 100 || ((pointBalances[client.id] || 0) > 0 && (pointBalances[client.id] || 0) % 100 === 0 ? 100 : 0))} className="h-1.5 flex-1" />
                       <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums font-medium">
-                        {Math.floor(Math.min(pointBalances[client.id] || 0, 100) / 20)}cp
+                        {Math.floor((pointBalances[client.id] || 0) / 100) > 0
+                          ? `🏆×${Math.floor((pointBalances[client.id] || 0) / 100)}`
+                          : `${Math.floor(Math.min(pointBalances[client.id] || 0, 100) / 10)}cp`
+                        }
                       </span>
                     </div>
                   </div>
@@ -954,7 +1003,7 @@ const ClassroomView = () => {
           studentName={displayName(quickActionStudent)}
           pointBalance={pointBalances[quickActionStudent.id] || 0}
           agencyId={effectiveAgencyId}
-          responseCostEnabled
+          responseCostEnabled={responseCostMap[quickActionStudent.id] === true}
           onBehavior={(name) => logBehavior(quickActionStudent.id, name)}
           onEngagement={(engaged) => logEngagement(quickActionStudent.id, engaged)}
           onPointChange={handlePointChange}
