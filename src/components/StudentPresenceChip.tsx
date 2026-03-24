@@ -17,17 +17,17 @@ export interface StudentPresenceData {
 }
 
 const LOCATION_CONFIG: Record<string, { label: string; icon: typeof MapPin; className: string }> = {
-  classroom:    { label: 'In Class',    icon: Check,        className: 'bg-accent/15 text-accent-foreground border-accent/30' },
-  playground:   { label: 'Playground',  icon: TreePine,     className: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30' },
-  cafeteria:    { label: 'Cafeteria',   icon: Coffee,       className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30' },
-  pull_out:     { label: 'Pull-Out',    icon: BookOpen,     className: 'bg-primary/15 text-primary border-primary/30' },
-  therapist:    { label: 'Therapist',   icon: Stethoscope,  className: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30' },
-  office:       { label: 'Office',      icon: DoorOpen,     className: 'bg-muted text-muted-foreground border-border' },
-  with_staff:   { label: 'With Staff',  icon: Users,        className: 'bg-secondary text-secondary-foreground border-border' },
-  hallway:      { label: 'Hallway',     icon: MapPin,       className: 'bg-muted text-muted-foreground border-border' },
-  restroom:     { label: 'Restroom',    icon: MapPin,       className: 'bg-muted text-muted-foreground border-border' },
-  absent:       { label: 'Absent',      icon: DoorOpen,     className: 'bg-destructive/15 text-destructive border-destructive/30' },
-  on_break:     { label: 'Break',       icon: Coffee,       className: 'bg-muted text-muted-foreground border-border' },
+  classroom:    { label: 'In Class',    icon: Check,        className: 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900/30 dark:text-green-200 dark:border-green-700' },
+  playground:   { label: 'Playground',  icon: TreePine,     className: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700' },
+  cafeteria:    { label: 'Cafeteria',   icon: Coffee,       className: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700' },
+  pull_out:     { label: 'Pull-Out',    icon: BookOpen,     className: 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-700' },
+  therapist:    { label: 'Therapist',   icon: Stethoscope,  className: 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-700' },
+  office:       { label: 'Office',      icon: DoorOpen,     className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600' },
+  with_staff:   { label: 'With Staff',  icon: Users,        className: 'bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-700' },
+  hallway:      { label: 'Hallway',     icon: MapPin,       className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600' },
+  restroom:     { label: 'Restroom',    icon: MapPin,       className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600' },
+  absent:       { label: 'Absent',      icon: DoorOpen,     className: 'bg-red-100 text-red-900 border-red-300 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700' },
+  on_break:     { label: 'Break',       icon: Coffee,       className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600' },
 };
 
 interface Props {

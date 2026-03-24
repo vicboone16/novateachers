@@ -222,12 +222,12 @@ export function StaffActionSheet({
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2 flex-1 transition-all active:scale-95",
                   availability === opt.value
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/50 bg-card text-muted-foreground hover:bg-muted/50"
+                    ? "border-primary bg-primary/10 text-foreground font-bold"
+                    : "border-border/50 bg-card text-foreground hover:bg-muted/50"
                 )}
               >
-                <span className={cn("h-2 w-2 rounded-full shrink-0", opt.color)} />
-                <span className="text-[10px] font-medium">{opt.label}</span>
+                <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", opt.color)} />
+                <span className="text-[11px] font-semibold">{opt.label}</span>
               </button>
             ))}
           </div>

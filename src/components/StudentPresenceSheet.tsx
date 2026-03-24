@@ -155,10 +155,10 @@ export function StudentPresenceSheet({
                   key={s.value}
                   onClick={() => setStatus(s.value)}
                   className={cn(
-                    'flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all text-center',
+                    'flex-1 rounded-lg border px-2 py-1.5 text-xs transition-all text-center',
                     status === s.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/60 bg-card hover:bg-muted/50 text-foreground',
+                      ? 'border-primary bg-primary/10 text-foreground font-bold'
+                      : 'border-border/60 bg-card hover:bg-muted/50 text-foreground font-medium',
                   )}
                 >
                   {s.label}
