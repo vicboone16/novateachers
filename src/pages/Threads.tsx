@@ -33,9 +33,12 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   MessageCircle, Plus, ArrowLeft, Send, Hash, Lock,
-  Users, User, Smile, Loader2, Heart, ChevronRight,
-  MapPin, MoreVertical, Pencil, Globe, LockKeyhole,
+  Users, User, Smile, Loader2, Heart, ChevronRight, ChevronDown, ChevronUp,
+  MapPin, MoreVertical, Pencil, Globe, LockKeyhole, Users2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -51,6 +54,13 @@ function getThreadCategory(t: ThreadRow): 'channel' | 'dm' | 'parent' {
   if (t.thread_type === 'dm') return 'dm';
   if (t.thread_type === 'parent') return 'parent';
   return 'channel';
+}
+
+/** Display label for threads */
+function getThreadDisplayTitle(t: ThreadRow): string {
+  if (t.thread_type === 'agency') return '📢 Staff Feed';
+  if (t.title === '#staff-feed') return '📢 Staff Feed';
+  return t.title || 'Untitled';
 }
 
 const Threads = () => {
@@ -73,6 +83,7 @@ const Threads = () => {
   const [myPresence, setMyPresence] = useState<any>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [whosHereExpanded, setWhosHereExpanded] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
@@ -262,8 +273,10 @@ const Threads = () => {
     );
   }
 
-  // ── Group threads by new categories ──
-  const channelThreads = threads.filter(t => getThreadCategory(t) === 'channel');
+  // ── Group threads by categories ──
+  // Staff Feed (agency type) goes first, then other channels
+  const staffFeedThreads = threads.filter(t => t.thread_type === 'agency' || t.title === '#staff-feed');
+  const groupThreads = threads.filter(t => getThreadCategory(t) === 'channel' && t.thread_type !== 'agency' && t.title !== '#staff-feed');
   const dmThreads = threads.filter(t => getThreadCategory(t) === 'dm');
   const parentThreads = threads.filter(t => getThreadCategory(t) === 'parent');
 
@@ -299,9 +312,45 @@ const Threads = () => {
         </div>
       </div>
 
-      {/* Who's Here (pinned strip) */}
-      <div className="px-3 py-2 border-b border-border/40">
-        <WhosHerePanel agencyId={agencyId} variant="strip" />
+      {/* Who's Here (expandable panel) */}
+      <div className="border-b border-border/40">
+        <button
+          onClick={() => setWhosHereExpanded(!whosHereExpanded)}
+          className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-1.5">
+            <Users2 className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Who's Here</span>
+          </div>
+          {whosHereExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+        </button>
+        {whosHereExpanded ? (
+          <div className="px-3 pb-3">
+            <WhosHerePanel
+              agencyId={agencyId}
+              variant="full"
+              onMessageStaff={(uid) => {
+                // Find or create DM with this person
+                toast({ title: 'Opening DM...' });
+              }}
+              onRequestHelp={(ids) => setMsgText('🔔 Requesting support — anyone available?')}
+            />
+            {/* Update own status button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-2 h-7 text-[10px] gap-1.5"
+              onClick={() => setStatusSheetOpen(true)}
+            >
+              <MapPin className="h-3 w-3" />
+              Update My Status
+            </Button>
+          </div>
+        ) : (
+          <div className="px-3 pb-2">
+            <WhosHerePanel agencyId={agencyId} variant="strip" />
+          </div>
+        )}
       </div>
 
       {/* Thread groups */}
@@ -312,7 +361,12 @@ const Threads = () => {
           </div>
         ) : (
           <div className="py-1">
-            <ThreadGroup label="Channels" threads={channelThreads} onSelect={openThread} activeId={activeThread?.id} />
+            {/* Staff Feed section */}
+            {staffFeedThreads.length > 0 && (
+              <ThreadGroup label="Staff Feed" threads={staffFeedThreads} onSelect={openThread} activeId={activeThread?.id} />
+            )}
+            {/* Groups / Channels */}
+            <ThreadGroup label="Channels" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} showAddButton onAdd={() => setCreateOpen(true)} />
             <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} />
             {parentThreads.length > 0 && (
               <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} />
@@ -338,7 +392,7 @@ const Threads = () => {
 
     const TypeIcon = THREAD_TYPE_ICONS[activeThread.thread_type] || Hash;
     const category = getThreadCategory(activeThread);
-    const canManage = activeThread.thread_type !== 'agency'; // agency #general can't be renamed
+    const canManage = activeThread.thread_type !== 'agency'; // Staff Feed can't be renamed
 
     return (
       <div className="flex-1 flex flex-col min-w-0">
@@ -356,7 +410,7 @@ const Threads = () => {
               <TypeIcon className="h-4 w-4 text-muted-foreground shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm truncate">{activeThread.title || 'Untitled'}</h3>
+              <h3 className="font-semibold text-sm truncate">{getThreadDisplayTitle(activeThread)}</h3>
               <p className="text-[10px] text-muted-foreground">
                 {activeThread.is_private ? '🔒 Private' : '🌐 Public'} · {category}
               </p>
@@ -515,14 +569,23 @@ const Threads = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Status Sheet */}
+      {/* Status Sheet — safe render with fallback presence */}
       {user && statusSheetOpen && (
         <StaffActionSheet
           open={statusSheetOpen}
           onOpenChange={setStatusSheetOpen}
           userId={user.id}
           agencyId={agencyId}
-          currentPresence={myPresence}
+          currentPresence={myPresence || {
+            status: 'in_room' as PresenceStatus,
+            location_type: 'classroom',
+            location_label: null,
+            availability_status: 'available',
+            available_for_support: true,
+            assigned_student_id: null,
+            note: null,
+            classroom_group_id: null,
+          }}
           onUpdated={() => { loadMyPresence(); }}
         />
       )}
@@ -533,17 +596,26 @@ const Threads = () => {
 export default Threads;
 
 // ── Thread Group Component ──
-function ThreadGroup({ label, threads, onSelect, activeId }: {
+function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd }: {
   label: string;
   threads: ThreadRow[];
   onSelect: (t: ThreadRow) => void;
   activeId?: string;
+  showAddButton?: boolean;
+  onAdd?: () => void;
 }) {
-  if (threads.length === 0) return null;
+  if (threads.length === 0 && !showAddButton) return null;
 
   return (
     <div className="mb-1">
-      <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+        {showAddButton && onAdd && (
+          <button onClick={onAdd} className="text-muted-foreground hover:text-primary transition-colors">
+            <Plus className="h-3 w-3" />
+          </button>
+        )}
+      </div>
       {threads.map(thread => {
         const isActive = thread.id === activeId;
         return (
@@ -557,7 +629,7 @@ function ThreadGroup({ label, threads, onSelect, activeId }: {
             ) : (
               <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             )}
-            <span className="flex-1 truncate text-xs">{thread.title || 'Untitled'}</span>
+            <span className="flex-1 truncate text-xs">{getThreadDisplayTitle(thread)}</span>
             {thread.last_message_preview && (
               <span className="text-[9px] text-muted-foreground truncate max-w-[60px] hidden sm:inline">
                 {thread.last_message_preview}
@@ -580,7 +652,6 @@ function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken
   const [title, setTitle] = useState('');
   const [threadCategory, setThreadCategory] = useState<'channel' | 'dm' | 'parent'>('channel');
   const [isPrivate, setIsPrivate] = useState(false);
-  const [recipientSearch, setRecipientSearch] = useState('');
   const [recipients, setRecipients] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedRecipient, setSelectedRecipient] = useState('');
   const [parentContact, setParentContact] = useState({ name: '', email: '', phone: '' });
@@ -617,7 +688,6 @@ function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken
           toast({ title: 'DM opened' });
         }
       } else if (threadCategory === 'parent') {
-        // Create a parent thread — store parent contact info in metadata
         const { data, error } = await cloudSupabase
           .from('threads')
           .insert({
@@ -632,7 +702,6 @@ function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken
         if (error) throw error;
         if (data) {
           await cloudSupabase.from('thread_members').insert({ thread_id: data.id, user_id: userId, role: 'admin' });
-          // System message noting how to reach this parent
           const contactInfo = [parentContact.email, parentContact.phone].filter(Boolean).join(', ');
           if (contactInfo) {
             await cloudSupabase.from('thread_messages').insert({
@@ -645,7 +714,7 @@ function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken
           toast({ title: 'Parent thread created' });
         }
       } else {
-        // Channel
+        // Channel / Group
         if (!title.trim()) { toast({ title: 'Enter a channel name' }); setCreating(false); return; }
         const { data, error } = await cloudSupabase
           .from('threads')

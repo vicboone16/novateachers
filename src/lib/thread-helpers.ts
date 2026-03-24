@@ -47,7 +47,7 @@ export interface ThreadReactionRow {
 }
 
 export const THREAD_TYPE_CONFIG = {
-  agency:    { label: '#general', icon: 'hash', canDelete: false },
+  agency:    { label: 'Staff Feed', icon: 'hash', canDelete: false },
   classroom: { label: 'Classroom', icon: 'school', canDelete: false },
   dm:        { label: 'Direct Message', icon: 'user', canDelete: true },
   group:     { label: 'Group', icon: 'users', canDelete: true },
