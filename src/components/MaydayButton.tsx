@@ -208,10 +208,16 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       const recipientEmails = selected.filter(c => c.notify_email && c.email).map(c => c.email!);
       const recipientPhones = selected.filter(c => c.notify_sms && c.phone).map(c => c.phone!);
 
-      // Insert recipient records if alert was saved
+      // Insert recipient records using Core schema: mayday_id, recipient_user_id
       if (alertId) {
         const recipientRows = selected.filter(c => c.user_id).map(c => ({
-          alert_id: alertId, user_id: c.user_id, delivery_channel: 'in_app', status: 'pending',
+          mayday_id: alertId,
+          recipient_user_id: c.user_id,
+          delivery_channels_json: JSON.stringify({
+            email: c.notify_email && !!c.email,
+            sms: c.notify_sms && !!c.phone,
+            in_app: c.notify_in_app,
+          }),
         }));
         if (recipientRows.length > 0) {
           await supabase.from('mayday_recipients' as any).insert(recipientRows).then(({ error }) => {
