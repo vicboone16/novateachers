@@ -919,27 +919,99 @@ const ClassroomView = () => {
                       ))
                     )}
                     <div className="ml-auto flex gap-1">
-                      {manualActions.length > 0 && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button title="Manual points" className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
-                              <Zap className="h-3 w-3" />
+                      {/* + button: student goals, replacement behaviors, manual, quick +1 */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button title="Award points" className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
+                            <Zap className="h-3 w-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-2 space-y-1 max-h-72 overflow-y-auto" align="end" side="top">
+                          {/* Quick +1 */}
+                          <button
+                            onClick={async () => {
+                              handlePointChange(client.id, 1);
+                              setFlashCard(client.id);
+                              setTimeout(() => setFlashCard(null), 800);
+                              if ('vibrate' in navigator) navigator.vibrate(10);
+                              if (user) {
+                                const result = await writePointEntry({
+                                  studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId,
+                                  points: 1, reason: 'Quick +1', source: 'quick_action', entryKind: 'manual',
+                                });
+                                pushAction({
+                                  id: result.id || crypto.randomUUID(), label: 'Quick +1',
+                                  studentId: client.id, studentName: displayName(client),
+                                  ledgerRowId: result.id, points: 1, agencyId: effectiveAgencyId, staffId: user.id,
+                                });
+                              }
+                              toast({ title: `+1 ⭐ ${displayName(client)}` });
+                            }}
+                            className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
+                          >
+                            <span>⭐</span><span>Quick +1</span>
+                          </button>
+
+                          {/* Manual actions */}
+                          {manualActions.map(action => (
+                            <button
+                              key={action.id}
+                              onClick={() => handleTeacherAction(action, client)}
+                              className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
+                            >
+                              <span>{action.action_icon}</span>
+                              <span>{action.action_label}</span>
                             </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-44 p-2 space-y-1" align="end" side="top">
-                            {manualActions.map(action => (
-                              <button
-                                key={action.id}
-                                onClick={() => handleTeacherAction(action, client)}
-                                className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
-                              >
-                                <span>{action.action_icon}</span>
-                                <span>{action.action_label}</span>
-                              </button>
-                            ))}
-                          </PopoverContent>
-                        </Popover>
-                      )}
+                          ))}
+
+                          {/* Student-specific skill acquisition goals */}
+                          {(studentTargets[client.id] || []).length > 0 && (
+                            <>
+                              <div className="border-t border-border/30 pt-1 mt-1">
+                                <p className="text-[9px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wide">Skill Goals</p>
+                              </div>
+                              {studentTargets[client.id].map(target => (
+                                <button
+                                  key={target.id}
+                                  onClick={async () => {
+                                    handlePointChange(client.id, target.points);
+                                    setFlashCard(client.id);
+                                    setTimeout(() => setFlashCard(null), 800);
+                                    if ('vibrate' in navigator) navigator.vibrate(10);
+                                    if (user) {
+                                      const result = await writePointEntry({
+                                        studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId,
+                                        points: target.points, reason: target.name, source: 'goal_success',
+                                        entryKind: 'teacher_data_event',
+                                      });
+                                      pushAction({
+                                        id: result.id || crypto.randomUUID(), label: target.name,
+                                        studentId: client.id, studentName: displayName(client),
+                                        ledgerRowId: result.id, points: target.points, agencyId: effectiveAgencyId, staffId: user.id,
+                                      });
+                                      // Also log the event
+                                      writeUnifiedEvent({
+                                        studentId: client.id, staffId: user.id, agencyId: effectiveAgencyId,
+                                        eventType: 'skill_probe', eventSubtype: target.name,
+                                        eventValue: { points: target.points, target_id: target.id },
+                                        sourceModule: 'classroom_view',
+                                      });
+                                    }
+                                    toast({ title: `${target.icon || '🎯'} +${target.points} ${target.name} · ${displayName(client)}` });
+                                  }}
+                                  className="flex items-center justify-between w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <span>{target.icon || '🎯'}</span>
+                                    <span className="truncate max-w-[120px]">{target.name}</span>
+                                  </span>
+                                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0">+{target.points}</Badge>
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                       <button onClick={() => navigate('/rewards')} title="Rewards"
                         className="rounded-lg border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary active:scale-90 transition-colors">
                         <Gift className="h-3 w-3" />
