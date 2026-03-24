@@ -36,3 +36,6 @@ verify_jwt = false
 
 [functions.core-bridge]
 verify_jwt = false
+
+[functions.send-mayday-alert]
+verify_jwt = false
