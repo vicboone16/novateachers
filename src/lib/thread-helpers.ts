@@ -56,6 +56,50 @@ export const THREAD_TYPE_CONFIG = {
 } as const;
 
 /**
+ * Ensure an agency-wide staff feed thread exists (opt-in school/agency-wide announcements).
+ */
+export async function ensureAgencyFeedThread(agencyId: string, userId: string): Promise<string | null> {
+  try {
+    const { data: existing } = await cloudSupabase
+      .from('threads')
+      .select('id')
+      .eq('agency_id', agencyId)
+      .eq('thread_type', 'group')
+      .eq('title', '#staff-feed')
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) return existing.id;
+
+    const { data: created, error } = await cloudSupabase
+      .from('threads')
+      .insert({
+        agency_id: agencyId,
+        thread_type: 'group',
+        title: '#staff-feed',
+        is_private: false,
+        created_by: userId,
+      })
+      .select('id')
+      .single();
+
+    if (error) return null;
+
+    if (created) {
+      await cloudSupabase.from('thread_members').insert({
+        thread_id: created.id, user_id: userId, role: 'admin',
+      });
+      await cloudSupabase.from('thread_messages').insert({
+        thread_id: created.id, sender_id: userId,
+        body: 'Staff feed created — agency-wide updates and announcements',
+        message_type: 'system',
+      });
+    }
+    return created?.id || null;
+  } catch { return null; }
+}
+
+/**
  * Ensure the agency has a #general thread. Creates if missing.
  */
 export async function ensureAgencyThread(agencyId: string, userId: string): Promise<string | null> {
