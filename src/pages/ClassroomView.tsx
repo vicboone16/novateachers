@@ -916,7 +916,7 @@ const ClassroomView = () => {
                   </div>
 
                   {/* Behavior + engagement row */}
-                  <div className="border-t border-border/40 px-3 py-2 flex items-center gap-1.5">
+                  <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-1 flex-wrap">
                     {behaviorActions.length > 0 ? (
                       <>
                         {behaviorActions.slice(0, 3).map(action => (
@@ -924,9 +924,9 @@ const ClassroomView = () => {
                             key={action.id}
                             onClick={() => handleTeacherAction(action, client)}
                             title={action.action_label}
-                            className="flex items-center gap-1 rounded-xl border border-border/60 bg-secondary px-2 py-1.5 text-[10px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
+                            className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-secondary px-1.5 py-1 text-[9px] font-medium text-foreground hover:bg-destructive/10 hover:text-destructive active:scale-95 transition-colors"
                           >
-                            <span className="text-xs">{action.action_icon}</span>
+                            <span className="text-[10px]">{action.action_icon}</span>
                             {(action.default_behavior_name || action.action_label).slice(0, 4)}
                           </button>
                         ))}
