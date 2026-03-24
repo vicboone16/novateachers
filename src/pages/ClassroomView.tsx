@@ -97,6 +97,7 @@ const ClassroomView = () => {
   const [quickActionStudent, setQuickActionStudent] = useState<Client | null>(null);
   const [presenceSheetStudent, setPresenceSheetStudent] = useState<Client | null>(null);
   const [studentPresence, setStudentPresence] = useState<StudentPresenceMap>({});
+  const [responseCostMap, setResponseCostMap] = useState<ResponseCostMap>({});
   const [missionText, setMissionText] = useState('Be Kind, Be Safe, Be Respectful');
   const [wordOfWeek, setWordOfWeek] = useState('Perseverance');
   const [classGoal, setClassGoal] = useState({ current: 0, target: 100, label: 'Class Goal' });
