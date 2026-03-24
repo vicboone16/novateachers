@@ -10,7 +10,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
 import { Card, CardContent } from '@/components/ui/card';
