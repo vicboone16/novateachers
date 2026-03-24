@@ -80,8 +80,8 @@ export default function ExternalParentPortal() {
       // Load rewards
       let rewardsProgress: PortalData['rewardsProgress'] = [];
       try {
-        const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, emoji, point_cost').eq('is_active', true).order('point_cost', { ascending: true }).limit(4);
-        rewardsProgress = (rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.point_cost }));
+        const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
+        rewardsProgress = (rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
       } catch {}
 
       // Load safe feed posts
@@ -104,14 +104,14 @@ export default function ExternalParentPortal() {
       // Load recent redemptions
       let redemptions: PortalData['redemptions'] = [];
       try {
-        const { data: rd } = await supabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, created_at').eq('student_id', studentId).order('created_at', { ascending: false }).limit(5);
+        const { data: rd } = await supabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, redeemed_at').eq('student_id', studentId).order('redeemed_at', { ascending: false }).limit(5);
         if (rd && (rd as any[]).length > 0) {
           const rewardIds = [...new Set((rd as any[]).map(r => r.reward_id))];
           const { data: rwds } = await supabase.from('beacon_rewards' as any).select('id, name, emoji').in('id', rewardIds);
           const rwMap = new Map((rwds || []).map((r: any) => [r.id, r]));
           redemptions = (rd as any[]).map(r => {
             const rw = rwMap.get(r.reward_id) as any;
-            return { reward_name: rw?.name || 'Reward', reward_emoji: rw?.emoji || '🎁', points_spent: r.points_spent, created_at: r.created_at };
+            return { reward_name: rw?.name || 'Reward', reward_emoji: rw?.emoji || '🎁', points_spent: r.points_spent, created_at: r.redeemed_at || r.created_at };
           });
         }
       } catch {}
