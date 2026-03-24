@@ -160,11 +160,20 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   const loadAlerts = useCallback(async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from('mayday_alerts' as any).select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20);
+      const { data, error } = await supabase.from('mayday_alerts' as any).select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20);
+      if (error) {
+        console.warn('[Mayday] loadAlerts Core error, trying Cloud:', error.message);
+        // Fallback to Cloud mayday_contacts table check
+        const { data: cloudData } = await cloudSupabase.from('mayday_contacts').select('id').eq('agency_id', agencyId).limit(1);
+        if (!cloudData) console.warn('[Mayday] No mayday data available');
+        setActiveAlerts([]);
+        setAllAlerts([]);
+        return;
+      }
       const alerts = (data || []) as any as MaydayAlert[];
       setActiveAlerts(alerts.filter(a => a.status === 'active' || a.status === 'acknowledged'));
       setAllAlerts(alerts);
-    } catch { /* silent */ }
+    } catch (err) { console.warn('[Mayday] loadAlerts failed:', err); }
   }, [agencyId, user]);
 
   useEffect(() => {
@@ -180,27 +189,41 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
     setSending(true);
     try {
       const alertMsg = message.trim() || `${ALERT_TYPES.find(t => t.value === alertType)?.label} alert${studentName ? ` for ${studentName}` : ''}`;
-      const { data: alert, error: alertErr } = await supabase.from('mayday_alerts' as any).insert({
-        agency_id: agencyId, classroom_id: classroomId || null, student_id: studentId || null,
-        triggered_by: user.id, alert_type: alertType, urgency,
-        message: alertMsg, status: 'active',
-      }).select('id').single();
-      if (alertErr) throw alertErr;
+      
+      // Try Core first, then Cloud edge function as notification channel
+      let alertId: string | null = null;
+      try {
+        const { data: alert, error: alertErr } = await supabase.from('mayday_alerts' as any).insert({
+          agency_id: agencyId, classroom_id: classroomId || null, student_id: studentId || null,
+          triggered_by: user.id, alert_type: alertType, urgency,
+          message: alertMsg, status: 'active',
+        }).select('id').single();
+        if (alertErr) throw alertErr;
+        alertId = (alert as any).id;
+      } catch (coreErr) {
+        console.warn('[Mayday] Core insert failed, continuing with notifications:', coreErr);
+      }
 
       const selected = contacts.filter(c => selectedContacts.has(c.id));
       const recipientEmails = selected.filter(c => c.notify_email && c.email).map(c => c.email!);
       const recipientPhones = selected.filter(c => c.notify_sms && c.phone).map(c => c.phone!);
 
-      const recipientRows = selected.filter(c => c.user_id).map(c => ({
-        alert_id: (alert as any).id, user_id: c.user_id, delivery_channel: 'in_app', status: 'pending',
-      }));
-      if (recipientRows.length > 0) {
-        await supabase.from('mayday_recipients' as any).insert(recipientRows);
+      // Insert recipient records if alert was saved
+      if (alertId) {
+        const recipientRows = selected.filter(c => c.user_id).map(c => ({
+          alert_id: alertId, user_id: c.user_id, delivery_channel: 'in_app', status: 'pending',
+        }));
+        if (recipientRows.length > 0) {
+          await supabase.from('mayday_recipients' as any).insert(recipientRows).then(({ error }) => {
+            if (error) console.warn('[Mayday] recipient insert failed:', error.message);
+          });
+        }
       }
 
+      // Always try to send notifications via edge function
       if (recipientEmails.length > 0 || recipientPhones.length > 0) {
         try {
-          await cloudSupabase.functions.invoke('send-mayday-alert', {
+          const { data: fnResult, error: fnError } = await cloudSupabase.functions.invoke('send-mayday-alert', {
             body: {
               alert_type: alertType, urgency, message: alertMsg,
               classroom_name: classroomName || null, student_name: studentName || null,
@@ -208,7 +231,20 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
               recipient_emails: recipientEmails, recipient_phones: recipientPhones,
             },
           });
-        } catch (e) { console.warn('[Mayday] notification send failed:', e); }
+          if (fnError) {
+            console.warn('[Mayday] Edge function error:', fnError);
+            toast({ title: '⚠️ Alert partially sent', description: 'Notification delivery may have failed. Contacts were selected.', variant: 'destructive' });
+          } else {
+            console.log('[Mayday] Edge function result:', fnResult);
+          }
+        } catch (e) { 
+          console.warn('[Mayday] notification send failed:', e);
+          toast({ title: '⚠️ Notification error', description: 'Could not reach notification service.', variant: 'destructive' });
+        }
+      } else if (selected.length > 0 && recipientEmails.length === 0 && recipientPhones.length === 0) {
+        toast({ title: '⚠️ No email/phone configured', description: 'Selected contacts have no email or phone for notifications.', variant: 'destructive' });
+        setSending(false);
+        return;
       }
 
       toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selected.length} contact(s) notified` });
@@ -225,7 +261,12 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       const updateFields: any = { status: newStatus };
       if (newStatus === 'acknowledged') { updateFields.acknowledged_at = new Date().toISOString(); updateFields.acknowledged_by = user.id; }
       if (newStatus === 'resolved') { updateFields.resolved_at = new Date().toISOString(); updateFields.resolved_by = user.id; }
-      await supabase.from('mayday_alerts' as any).update(updateFields).eq('id', alertId);
+      const { error } = await supabase.from('mayday_alerts' as any).update(updateFields).eq('id', alertId);
+      if (error) {
+        console.warn('[Mayday] updateAlertStatus failed:', error.message);
+        toast({ title: 'Could not update alert', description: error.message, variant: 'destructive' });
+        return;
+      }
       toast({ title: newStatus === 'acknowledged' ? '✓ Alert acknowledged' : '✓ Alert resolved' });
       loadAlerts();
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
