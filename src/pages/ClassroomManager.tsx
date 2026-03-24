@@ -106,8 +106,8 @@ const ClassroomManager = () => {
   const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
-    if (currentWorkspace && isAdmin) loadAll();
-  }, [currentWorkspace, isAdmin]);
+    if (currentWorkspace) loadAll();
+  }, [currentWorkspace]);
 
   // ── Data loading ──
 
@@ -506,16 +506,7 @@ const ClassroomManager = () => {
     }
   };
 
-  // ── Guard ──
-
-  if (!isAdmin) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">Only agency admins can manage classroom groups.</p>
-        <Button variant="link" onClick={() => navigate('/students')}>Back to Students</Button>
-      </div>
-    );
-  }
+  // ── Guard removed — all staff can manage classrooms ──
 
   return (
     <div className="space-y-6">
