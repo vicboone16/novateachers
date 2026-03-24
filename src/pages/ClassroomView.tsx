@@ -248,11 +248,10 @@ const ClassroomView = () => {
   const loadTokenProgress = async () => {
     if (!activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('token_boards' as any)
-        .select('student_id, current_tokens, target_tokens')
-        .eq('classroom_id', activeGroupId)
-        .eq('is_active', true);
+      const { data } = await cloudSupabase
+        .from('token_boards')
+        .select('student_id, current_tokens, token_target')
+        .eq('classroom_id', activeGroupId);
       const progress: TokenProgress = {};
       for (const row of (data || []) as any[]) {
         progress[row.student_id] = { current: row.current_tokens || 0, target: row.target_tokens || 10 };
