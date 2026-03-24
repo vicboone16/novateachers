@@ -516,51 +516,49 @@ const ClassroomView = () => {
   }
 
   return (
-    <div className="space-y-4">
-      {/* ─── HEADER ─── */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              {allGroups.length > 1 ? (
-                <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
-                  <SelectTrigger className="h-8 text-base font-bold font-heading border-none shadow-none px-0 gap-1 max-w-[200px]">
-                    <SelectValue placeholder="Select classroom…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allGroups.map(g => (
-                      <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <h2 className="text-lg font-bold tracking-tight font-heading">
-                  {activeGroup?.name || 'My Classroom'}
-                </h2>
-              )}
-            </div>
-            <p className="text-[10px] text-muted-foreground">
+    <div className="space-y-5 pb-6">
+      {/* ─── HEADER BAND ─── */}
+      <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {allGroups.length > 1 ? (
+              <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+                <SelectTrigger className="h-auto text-lg font-bold font-heading border-none shadow-none px-0 gap-1.5 max-w-[220px] text-foreground">
+                  <SelectValue placeholder="Select classroom…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allGroups.map(g => (
+                    <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <h1 className="text-lg font-bold tracking-tight font-heading text-foreground">
+                {activeGroup?.name || 'My Classroom'}
+              </h1>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
               {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
               {' · '}{clients.length} students
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/game-board')}>
-            <Gamepad2 className="h-3.5 w-3.5" /> Game
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs px-2.5" onClick={() => navigate('/rewards')}>
-            <Gift className="h-3.5 w-3.5" /> Rewards
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
-            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/threads')} title="Threads">
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </Button>
-          {activeGroupId && (
-            <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/game-board')}>
+              <Gamepad2 className="h-3.5 w-3.5" /> Game
+            </Button>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/rewards')}>
+              <Gift className="h-3.5 w-3.5" /> Rewards
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => navigate('/threads')} title="Threads">
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            {activeGroupId && (
+              <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+            )}
+          </div>
         </div>
       </div>
 
