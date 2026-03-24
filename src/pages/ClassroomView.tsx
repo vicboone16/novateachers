@@ -546,12 +546,15 @@ const ClassroomView = () => {
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            {allGroups.length > 1 ? (
-              <Select value={activeGroupId || ''} onValueChange={setActiveGroupId}>
+            {allGroups.length > 0 ? (
+              <Select value={showAll ? '__all__' : (activeGroupId || '')} onValueChange={(v) => {
+                if (v === '__all__') { setShowAll(true); } else { setShowAll(false); setActiveGroupId(v); }
+              }}>
                 <SelectTrigger className="h-auto text-lg font-bold font-heading border-none shadow-none px-0 gap-1.5 max-w-[220px] text-foreground">
                   <SelectValue placeholder="Select classroom…" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__all__" className="text-sm font-medium">All Students</SelectItem>
                   {allGroups.map(g => (
                     <SelectItem key={g.group_id} value={g.group_id} className="text-sm">{g.name}</SelectItem>
                   ))}
