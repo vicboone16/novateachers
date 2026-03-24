@@ -266,8 +266,8 @@ export default function ClassroomBoard() {
 
     // Load top rewards preview
     try {
-      const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, emoji, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
-      setTopRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+      const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, image_url, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
+      setTopRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost })));
     } catch { /* silent */ }
   }, [classroomId, user]);
 

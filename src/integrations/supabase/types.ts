@@ -1399,6 +1399,124 @@ export type Database = {
         }
         Relationships: []
       }
+      student_reinforcement_profiles: {
+        Row: {
+          agency_id: string
+          bonus_points_enabled: boolean
+          classroom_id: string | null
+          created_at: string
+          created_by: string | null
+          custom_settings: Json
+          id: string
+          is_active: boolean
+          profile_name: string | null
+          reinforcement_mode: string
+          reinforcement_template_id: string | null
+          response_cost_enabled: boolean
+          student_id: string
+          updated_at: string
+          use_template_defaults: boolean
+        }
+        Insert: {
+          agency_id: string
+          bonus_points_enabled?: boolean
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_settings?: Json
+          id?: string
+          is_active?: boolean
+          profile_name?: string | null
+          reinforcement_mode?: string
+          reinforcement_template_id?: string | null
+          response_cost_enabled?: boolean
+          student_id: string
+          updated_at?: string
+          use_template_defaults?: boolean
+        }
+        Update: {
+          agency_id?: string
+          bonus_points_enabled?: boolean
+          classroom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_settings?: Json
+          id?: string
+          is_active?: boolean
+          profile_name?: string | null
+          reinforcement_mode?: string
+          reinforcement_template_id?: string | null
+          response_cost_enabled?: boolean
+          student_id?: string
+          updated_at?: string
+          use_template_defaults?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_reinforcement_profiles_reinforcement_template_id_fkey"
+            columns: ["reinforcement_template_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_reinforcement_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_reinforcement_rules: {
+        Row: {
+          behavior_category: string | null
+          behavior_name: string | null
+          created_at: string
+          event_type: string | null
+          id: string
+          is_active: boolean
+          linked_target_id: string | null
+          notes: string | null
+          points: number
+          rule_scope: string
+          rule_type: string
+          student_id: string
+          student_reinforcement_profile_id: string
+        }
+        Insert: {
+          behavior_category?: string | null
+          behavior_name?: string | null
+          created_at?: string
+          event_type?: string | null
+          id?: string
+          is_active?: boolean
+          linked_target_id?: string | null
+          notes?: string | null
+          points: number
+          rule_scope: string
+          rule_type?: string
+          student_id: string
+          student_reinforcement_profile_id: string
+        }
+        Update: {
+          behavior_category?: string | null
+          behavior_name?: string | null
+          created_at?: string
+          event_type?: string | null
+          id?: string
+          is_active?: boolean
+          linked_target_id?: string | null
+          notes?: string | null
+          points?: number
+          rule_scope?: string
+          rule_type?: string
+          student_id?: string
+          student_reinforcement_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_reinforcement_rules_student_reinforcement_profile__fkey"
+            columns: ["student_reinforcement_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_reinforcement_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_response_cost_settings: {
         Row: {
           agency_id: string

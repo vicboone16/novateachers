@@ -375,20 +375,35 @@ Deno.serve(async (req) => {
       const startOfDay = new Date();
       startOfDay.setUTCHours(0, 0, 0, 0);
 
-      let query = core
-        .from("teacher_data_events")
-        .select("event_id, student_id, event_type, event_subtype, event_value, recorded_at, source_module")
-        .eq("staff_id", userId)
-        .gte("recorded_at", startOfDay.toISOString())
-        .order("recorded_at", { ascending: false })
-        .limit(limit);
+      // Try with student_id first, fallback to client_id
+      let data: any[] | null = null;
+      let queryError: any = null;
 
-      if (agencyId) query = query.eq("agency_id", agencyId);
-      if (studentIds.length > 0) query = query.in("student_id", studentIds);
+      for (const studentCol of ["student_id", "client_id"]) {
+        let query = core
+          .from("teacher_data_events")
+          .select("event_id, " + studentCol + ", event_type, event_value, recorded_at, source_module")
+          .eq("staff_id", userId)
+          .gte("recorded_at", startOfDay.toISOString())
+          .order("recorded_at", { ascending: false })
+          .limit(limit);
 
-      const { data, error } = await query;
-      if (error) return json({ error: error.message }, 400);
+        if (agencyId) query = query.eq("agency_id", agencyId);
+        if (studentIds.length > 0) query = query.in(studentCol, studentIds);
 
+        const result = await query;
+        if (!result.error) {
+          data = (result.data || []).map((r: any) => ({
+            ...r,
+            student_id: r.student_id || r.client_id,
+          }));
+          queryError = null;
+          break;
+        }
+        queryError = result.error;
+      }
+
+      if (queryError) return json({ error: queryError.message }, 400);
       return json({ events: data || [] });
     }
 
