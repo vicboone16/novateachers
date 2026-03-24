@@ -198,13 +198,21 @@ const Threads = () => {
         resolveNames(msgs.map(m => m.sender_id));
         setReactions([]);
       } else {
-        const { data } = await supabase
+        let query = supabase
           .from('messages' as any)
           .select('*')
           .eq('thread_id', threadId)
-          .eq('is_deleted', false)
           .order('created_at', { ascending: true });
-        const msgs = (data || []) as any as Message[];
+        // Try with is_deleted filter, fall back without it
+        const { data, error: msgErr } = await query;
+        let msgs: Message[];
+        if (msgErr) {
+          // Column might not exist — retry without filter
+          const { data: d2 } = await supabase.from('messages' as any).select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+          msgs = (d2 || []) as any as Message[];
+        } else {
+          msgs = ((data || []) as any[]).filter((m: any) => m.is_deleted !== true) as Message[];
+        }
         setMessages(msgs);
         resolveNames(msgs.map(m => m.sender_id));
 
