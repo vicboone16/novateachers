@@ -1,7 +1,7 @@
 /**
  * Threads — Slack-style threaded messaging with responsive sidebar layout.
- * Uses local Cloud tables: threads, thread_messages, thread_members, thread_message_reactions.
- * Who's Here panel integrated at top. Auto-creates agency + classroom threads.
+ * Thread types: Channel (public/private), DM, Parent.
+ * Who's Here panel pinned at top. Status update available.
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -11,15 +11,18 @@ import { resolveDisplayNames } from '@/lib/resolve-names';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { WhosHerePanel } from '@/components/WhosHerePanel';
+import { StaffActionSheet } from '@/components/StaffActionSheet';
+import { PRESENCE_STATUS_MAP, type PresenceStatus } from '@/components/StaffPresencePanel';
 import {
   ensureAgencyThread, ensureAgencyFeedThread, backfillClassroomThreads, createDMThread,
   type ThreadRow, type ThreadMessageRow, type ThreadReactionRow,
 } from '@/lib/thread-helpers';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -27,17 +30,28 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   MessageCircle, Plus, ArrowLeft, Send, Hash, Lock,
-  Users, User, Smile, Loader2, School, Heart, ChevronRight,
+  Users, User, Smile, Loader2, Heart, ChevronRight,
+  MapPin, MoreVertical, Pencil, Globe, LockKeyhole,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 const THREAD_TYPE_ICONS: Record<string, typeof Hash> = {
-  agency: Hash, classroom: School, dm: User, group: Users, parent: Heart, team: Users,
+  agency: Hash, classroom: Hash, dm: User, group: Hash, parent: Heart, team: Hash, channel: Hash,
 };
 
 const QUICK_EMOJIS = ['👍', '❤️', '🎉', '👀', '✅', '🙏'];
+
+/** Map old types to display categories */
+function getThreadCategory(t: ThreadRow): 'channel' | 'dm' | 'parent' {
+  if (t.thread_type === 'dm') return 'dm';
+  if (t.thread_type === 'parent') return 'parent';
+  return 'channel';
+}
 
 const Threads = () => {
   const { user, session } = useAuth();
@@ -53,13 +67,27 @@ const Threads = () => {
   const [msgText, setMsgText] = useState('');
   const [sending, setSending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newType, setNewType] = useState('group');
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
   const [initialized, setInitialized] = useState(false);
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const [myPresence, setMyPresence] = useState<any>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
+
+  // ── Load my presence for status button ──
+  const loadMyPresence = useCallback(async () => {
+    if (!user || !agencyId) return;
+    const { data } = await cloudSupabase
+      .from('staff_presence')
+      .select('*')
+      .eq('agency_id', agencyId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    setMyPresence(data);
+  }, [user, agencyId]);
 
   // ── Initialize: ensure agency thread + backfill classroom threads ──
   useEffect(() => {
@@ -93,7 +121,12 @@ const Threads = () => {
     setLoading(false);
   }, [user, agencyId]);
 
-  useEffect(() => { if (initialized) loadThreads(); }, [initialized, loadThreads]);
+  useEffect(() => {
+    if (initialized) {
+      loadThreads();
+      loadMyPresence();
+    }
+  }, [initialized, loadThreads, loadMyPresence]);
 
   // ── Realtime on messages ──
   useEffect(() => {
@@ -139,7 +172,6 @@ const Threads = () => {
       setMessages(msgs);
       resolveNames(msgs.map(m => m.sender_id));
 
-      // Load reactions
       const msgIds = msgs.map(m => m.id);
       if (msgIds.length > 0) {
         const { data: rxns } = await cloudSupabase
@@ -176,47 +208,10 @@ const Threads = () => {
         });
       if (error) throw error;
       setMsgText('');
-      // Realtime will add the message
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
     } finally {
       setSending(false);
-    }
-  };
-
-  // ── Create thread ──
-  const handleCreateThread = async () => {
-    if (!newTitle.trim() || !user) return;
-    try {
-      const { data, error } = await cloudSupabase
-        .from('threads')
-        .insert({
-          agency_id: agencyId,
-          thread_type: newType,
-          title: newTitle.trim(),
-          is_private: newType === 'dm' || newType === 'parent',
-          created_by: user.id,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      // Add creator as member
-      if (data) {
-        await cloudSupabase.from('thread_members').insert({
-          thread_id: data.id,
-          user_id: user.id,
-          role: 'admin',
-        });
-      }
-
-      setCreateOpen(false);
-      setNewTitle('');
-      setNewType('group');
-      loadThreads();
-      toast({ title: 'Thread created' });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -237,6 +232,26 @@ const Threads = () => {
     }
   };
 
+  // ── Rename thread ──
+  const handleRename = async () => {
+    if (!activeThread || !renameValue.trim()) return;
+    await cloudSupabase.from('threads').update({ title: renameValue.trim() }).eq('id', activeThread.id);
+    setActiveThread(prev => prev ? { ...prev, title: renameValue.trim() } : null);
+    setRenameOpen(false);
+    loadThreads();
+    toast({ title: 'Thread renamed' });
+  };
+
+  // ── Toggle privacy ──
+  const togglePrivacy = async () => {
+    if (!activeThread) return;
+    const newPrivacy = !activeThread.is_private;
+    await cloudSupabase.from('threads').update({ is_private: newPrivacy }).eq('id', activeThread.id);
+    setActiveThread(prev => prev ? { ...prev, is_private: newPrivacy } : null);
+    loadThreads();
+    toast({ title: newPrivacy ? 'Thread set to private' : 'Thread set to public' });
+  };
+
   if (isSoloMode) {
     return (
       <div className="py-12 text-center">
@@ -247,12 +262,17 @@ const Threads = () => {
     );
   }
 
-  // ── Group threads by type ──
-  const agencyThreads = threads.filter(t => t.thread_type === 'agency');
-  const classroomThreads = threads.filter(t => t.thread_type === 'classroom');
-  const dmThreads = threads.filter(t => t.thread_type === 'dm');
-  const groupThreads = threads.filter(t => t.thread_type === 'group' || t.thread_type === 'team');
-  const parentThreads = threads.filter(t => t.thread_type === 'parent');
+  // ── Group threads by new categories ──
+  const channelThreads = threads.filter(t => getThreadCategory(t) === 'channel');
+  const dmThreads = threads.filter(t => getThreadCategory(t) === 'dm');
+  const parentThreads = threads.filter(t => getThreadCategory(t) === 'parent');
+
+  const myStatusLabel = myPresence
+    ? PRESENCE_STATUS_MAP[myPresence.status as PresenceStatus]?.label || 'Set Status'
+    : 'Set Status';
+  const myStatusDot = myPresence
+    ? PRESENCE_STATUS_MAP[myPresence.status as PresenceStatus]?.dot || 'bg-muted-foreground'
+    : 'bg-muted-foreground';
 
   // ── Sidebar ──
   const ThreadSidebar = () => (
@@ -260,15 +280,26 @@ const Threads = () => {
       'flex flex-col border-r border-border/40 bg-card/50',
       isMobile ? 'w-full' : 'w-64 shrink-0'
     )}>
-      {/* Header */}
+      {/* Header with Set Status */}
       <div className="flex items-center justify-between p-3 border-b border-border/40">
         <h2 className="text-sm font-bold font-heading">Threads</h2>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 text-[10px] px-2 gap-1"
+            onClick={() => setStatusSheetOpen(true)}
+          >
+            <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', myStatusDot)} />
+            {myStatusLabel}
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Who's Here (compact) */}
+      {/* Who's Here (pinned strip) */}
       <div className="px-3 py-2 border-b border-border/40">
         <WhosHerePanel agencyId={agencyId} variant="strip" />
       </div>
@@ -281,10 +312,8 @@ const Threads = () => {
           </div>
         ) : (
           <div className="py-1">
-            <ThreadGroup label="Agency" threads={agencyThreads} onSelect={openThread} activeId={activeThread?.id} />
-            <ThreadGroup label="Classrooms" threads={classroomThreads} onSelect={openThread} activeId={activeThread?.id} />
+            <ThreadGroup label="Channels" threads={channelThreads} onSelect={openThread} activeId={activeThread?.id} />
             <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} />
-            <ThreadGroup label="Groups" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} />
             {parentThreads.length > 0 && (
               <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} />
             )}
@@ -308,6 +337,8 @@ const Threads = () => {
     }
 
     const TypeIcon = THREAD_TYPE_ICONS[activeThread.thread_type] || Hash;
+    const category = getThreadCategory(activeThread);
+    const canManage = activeThread.thread_type !== 'agency'; // agency #general can't be renamed
 
     return (
       <div className="flex-1 flex flex-col min-w-0">
@@ -319,12 +350,39 @@ const Threads = () => {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <TypeIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+            {activeThread.is_private ? (
+              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+            ) : (
+              <TypeIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+            )}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm truncate">{activeThread.title || 'Untitled'}</h3>
-              <p className="text-[10px] text-muted-foreground capitalize">{activeThread.thread_type} thread</p>
+              <p className="text-[10px] text-muted-foreground">
+                {activeThread.is_private ? '🔒 Private' : '🌐 Public'} · {category}
+              </p>
             </div>
-            {activeThread.is_private && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+
+            {canManage && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => { setRenameValue(activeThread.title || ''); setRenameOpen(true); }}>
+                    <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={togglePrivacy}>
+                    {activeThread.is_private ? (
+                      <><Globe className="h-3.5 w-3.5 mr-2" /> Make Public</>
+                    ) : (
+                      <><LockKeyhole className="h-3.5 w-3.5 mr-2" /> Make Private</>
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Who's Here strip in thread */}
@@ -332,12 +390,8 @@ const Threads = () => {
             agencyId={agencyId}
             classroomId={activeThread.classroom_id}
             variant="strip"
-            onRequestHelp={(staffIds) => {
-              setMsgText('🔔 Requesting support — anyone available?');
-            }}
-            onNotifyRoom={(staffIds) => {
-              setMsgText(`📢 Room notification: `);
-            }}
+            onRequestHelp={() => setMsgText('🔔 Requesting support — anyone available?')}
+            onNotifyRoom={() => setMsgText('📢 Room notification: ')}
           />
         </div>
 
@@ -419,37 +473,60 @@ const Threads = () => {
     );
   };
 
-  // ── Responsive layout ──
-  // Mobile: show sidebar OR messages, not both
-  // Desktop: sidebar + messages side by side
-  if (isMobile) {
-    return (
-      <div className="h-[calc(100vh-12rem)]">
-        {activeThread ? <MessageView /> : <ThreadSidebar />}
-
-        {/* Create Thread Dialog */}
-        <CreateThreadDialog
-          open={createOpen} onOpenChange={setCreateOpen}
-          title={newTitle} onTitleChange={setNewTitle}
-          type={newType} onTypeChange={setNewType}
-          onCreate={handleCreateThread}
-        />
-      </div>
-    );
-  }
-
-  return (
+  const content = isMobile ? (
+    <div className="h-[calc(100vh-12rem)]">
+      {activeThread ? <MessageView /> : <ThreadSidebar />}
+    </div>
+  ) : (
     <div className="flex h-[calc(100vh-12rem)] rounded-xl border border-border/40 overflow-hidden bg-background">
       <ThreadSidebar />
       <MessageView />
-
-      <CreateThreadDialog
-        open={createOpen} onOpenChange={setCreateOpen}
-        title={newTitle} onTitleChange={setNewTitle}
-        type={newType} onTypeChange={setNewType}
-        onCreate={handleCreateThread}
-      />
     </div>
+  );
+
+  return (
+    <>
+      {content}
+
+      {/* Create Thread Dialog */}
+      <CreateThreadDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        agencyId={agencyId}
+        userId={user?.id || ''}
+        sessionToken={session?.access_token}
+        onCreated={(thread) => {
+          loadThreads();
+          if (thread) openThread(thread);
+          setCreateOpen(false);
+        }}
+      />
+
+      {/* Rename Dialog */}
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-sm">Rename Thread</DialogTitle>
+          </DialogHeader>
+          <Input value={renameValue} onChange={e => setRenameValue(e.target.value)} placeholder="Thread name…" />
+          <div className="flex justify-end">
+            <Button onClick={handleRename} disabled={!renameValue.trim()} size="sm">Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Status Sheet */}
+      {user && statusSheetOpen && (
+        <StaffActionSheet
+          open={statusSheetOpen}
+          onOpenChange={setStatusSheetOpen}
+          userId={user.id}
+          agencyId={agencyId}
+          currentPresence={myPresence}
+          onUpdated={() => { loadMyPresence(); }}
+        />
+      )}
+    </>
   );
 };
 
@@ -468,7 +545,6 @@ function ThreadGroup({ label, threads, onSelect, activeId }: {
     <div className="mb-1">
       <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
       {threads.map(thread => {
-        const Icon = THREAD_TYPE_ICONS[thread.thread_type] || Hash;
         const isActive = thread.id === activeId;
         return (
           <button key={thread.id} onClick={() => onSelect(thread)}
@@ -476,9 +552,12 @@ function ThreadGroup({ label, threads, onSelect, activeId }: {
               'flex items-center gap-2 w-full px-3 py-2 text-left transition-colors text-sm',
               isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground/80 hover:bg-muted/50'
             )}>
-            <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            {thread.is_private ? (
+              <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            ) : (
+              <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            )}
             <span className="flex-1 truncate text-xs">{thread.title || 'Untitled'}</span>
-            {thread.is_private && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
             {thread.last_message_preview && (
               <span className="text-[9px] text-muted-foreground truncate max-w-[60px] hidden sm:inline">
                 {thread.last_message_preview}
@@ -492,12 +571,110 @@ function ThreadGroup({ label, threads, onSelect, activeId }: {
 }
 
 // ── Create Thread Dialog ──
-function CreateThreadDialog({ open, onOpenChange, title, onTitleChange, type, onTypeChange, onCreate }: {
+function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken, onCreated }: {
   open: boolean; onOpenChange: (v: boolean) => void;
-  title: string; onTitleChange: (v: string) => void;
-  type: string; onTypeChange: (v: string) => void;
-  onCreate: () => void;
+  agencyId: string; userId: string; sessionToken?: string;
+  onCreated: (thread?: ThreadRow) => void;
 }) {
+  const { toast } = useToast();
+  const [title, setTitle] = useState('');
+  const [threadCategory, setThreadCategory] = useState<'channel' | 'dm' | 'parent'>('channel');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipients, setRecipients] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState('');
+  const [parentContact, setParentContact] = useState({ name: '', email: '', phone: '' });
+  const [creating, setCreating] = useState(false);
+
+  // Load recipients for DM / parent
+  useEffect(() => {
+    if (!open || threadCategory === 'channel') return;
+    (async () => {
+      try {
+        const { data } = await cloudSupabase
+          .from('classroom_group_teachers')
+          .select('user_id')
+          .limit(50);
+        const ids = [...new Set((data || []).map(r => r.user_id).filter(id => id !== userId))];
+        if (ids.length > 0) {
+          const names = await resolveDisplayNames(ids, sessionToken);
+          setRecipients(ids.map(id => ({ id, name: names.get(id) || id.slice(0, 8) })));
+        }
+      } catch { /* silent */ }
+    })();
+  }, [open, threadCategory, userId, sessionToken]);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      if (threadCategory === 'dm') {
+        if (!selectedRecipient) { toast({ title: 'Select a person' }); setCreating(false); return; }
+        const recipName = recipients.find(r => r.id === selectedRecipient)?.name || 'DM';
+        const threadId = await createDMThread(agencyId, userId, selectedRecipient, recipName);
+        if (threadId) {
+          const { data: t } = await cloudSupabase.from('threads').select('*').eq('id', threadId).single();
+          onCreated(t as ThreadRow);
+          toast({ title: 'DM opened' });
+        }
+      } else if (threadCategory === 'parent') {
+        // Create a parent thread — store parent contact info in metadata
+        const { data, error } = await cloudSupabase
+          .from('threads')
+          .insert({
+            agency_id: agencyId,
+            thread_type: 'parent',
+            title: parentContact.name || title || 'Parent',
+            is_private: true,
+            created_by: userId,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) {
+          await cloudSupabase.from('thread_members').insert({ thread_id: data.id, user_id: userId, role: 'admin' });
+          // System message noting how to reach this parent
+          const contactInfo = [parentContact.email, parentContact.phone].filter(Boolean).join(', ');
+          if (contactInfo) {
+            await cloudSupabase.from('thread_messages').insert({
+              thread_id: data.id, sender_id: userId,
+              body: `Parent contact: ${contactInfo}`,
+              message_type: 'system',
+            });
+          }
+          onCreated(data as ThreadRow);
+          toast({ title: 'Parent thread created' });
+        }
+      } else {
+        // Channel
+        if (!title.trim()) { toast({ title: 'Enter a channel name' }); setCreating(false); return; }
+        const { data, error } = await cloudSupabase
+          .from('threads')
+          .insert({
+            agency_id: agencyId,
+            thread_type: 'group',
+            title: title.trim().startsWith('#') ? title.trim() : `#${title.trim()}`,
+            is_private: isPrivate,
+            created_by: userId,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) {
+          await cloudSupabase.from('thread_members').insert({ thread_id: data.id, user_id: userId, role: 'admin' });
+          onCreated(data as ThreadRow);
+          toast({ title: 'Channel created' });
+        }
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setCreating(false);
+      setTitle('');
+      setSelectedRecipient('');
+      setParentContact({ name: '', email: '', phone: '' });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -505,19 +682,78 @@ function CreateThreadDialog({ open, onOpenChange, title, onTitleChange, type, on
           <DialogTitle className="font-heading">New Thread</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input value={title} onChange={e => onTitleChange(e.target.value)} placeholder="Thread name…" />
-          <Select value={type} onValueChange={onTypeChange}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="group">Group</SelectItem>
-              <SelectItem value="team">Team</SelectItem>
-              <SelectItem value="dm">Direct Message</SelectItem>
-              <SelectItem value="parent">Parent</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Category picker */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Type</Label>
+            <Select value={threadCategory} onValueChange={(v: any) => setThreadCategory(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="channel">Channel</SelectItem>
+                <SelectItem value="dm">Direct Message</SelectItem>
+                <SelectItem value="parent">Parent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Channel-specific */}
+          {threadCategory === 'channel' && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Channel Name</Label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="#channel-name" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={isPrivate} onCheckedChange={setIsPrivate} id="private-toggle" />
+                <Label htmlFor="private-toggle" className="text-xs flex items-center gap-1.5">
+                  {isPrivate ? <><Lock className="h-3 w-3" /> Private</> : <><Globe className="h-3 w-3" /> Public</>}
+                </Label>
+              </div>
+            </>
+          )}
+
+          {/* DM-specific */}
+          {threadCategory === 'dm' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Select Person</Label>
+              <Select value={selectedRecipient} onValueChange={setSelectedRecipient}>
+                <SelectTrigger><SelectValue placeholder="Choose team member…" /></SelectTrigger>
+                <SelectContent>
+                  {recipients.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                  {recipients.length === 0 && (
+                    <SelectItem value="__none" disabled>No team members found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Parent-specific */}
+          {threadCategory === 'parent' && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Parent Name</Label>
+                <Input value={parentContact.name} onChange={e => setParentContact(p => ({ ...p, name: e.target.value }))} placeholder="Parent name" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email (for notifications)</Label>
+                <Input type="email" value={parentContact.email} onChange={e => setParentContact(p => ({ ...p, email: e.target.value }))} placeholder="parent@email.com" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Phone (for SMS)</Label>
+                <Input type="tel" value={parentContact.phone} onChange={e => setParentContact(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555-123-4567" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Messages will be sent via email/SMS if the parent isn't on the app yet.
+              </p>
+            </>
+          )}
+
           <div className="flex justify-end">
-            <Button onClick={onCreate} disabled={!title.trim()} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Create Thread
+            <Button onClick={handleCreate} disabled={creating} className="gap-1.5">
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {threadCategory === 'dm' ? 'Open DM' : threadCategory === 'parent' ? 'Create Parent Thread' : 'Create Channel'}
             </Button>
           </div>
         </div>
