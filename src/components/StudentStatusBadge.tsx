@@ -1,9 +1,9 @@
 /**
  * StudentStatusBadge — Brightwheel-style tap-to-toggle student attendance status.
- * Reads/writes to Core-owned `student_attendance_status` table.
+ * Reads/writes to Lovable Cloud `student_attendance_status` table.
  */
 import { useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,8 +69,8 @@ export function StudentStatusBadge({
       const today = new Date().toISOString().slice(0, 10);
       // Core-owned table: student_attendance_status
       // Upsert by student + classroom + date
-      const { error } = await supabase
-        .from('student_attendance_status' as any)
+      const { error } = await cloudSupabase
+        .from('student_attendance_status')
         .upsert(
           {
             student_id: studentId,

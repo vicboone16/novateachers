@@ -175,7 +175,7 @@ export default function ClassroomBoard() {
 
     // Load board settings from Core
     try {
-      const { data } = await supabase.from('classroom_board_settings' as any).select('*').eq('classroom_id', classroomId).maybeSingle();
+      const { data } = await cloudSupabase.from('classroom_board_settings').select('*').eq('classroom_id', classroomId).maybeSingle();
       if (data) setSettings(prev => ({ ...prev, ...data as any }));
     } catch { /* use defaults */ }
 

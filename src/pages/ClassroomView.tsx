@@ -232,8 +232,8 @@ const ClassroomView = () => {
   const loadAttendance = async () => {
     if (!user || !activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('student_attendance_status' as any)
+      const { data } = await cloudSupabase
+        .from('student_attendance_status')
         .select('student_id, status')
         .eq('classroom_id', activeGroupId)
         .eq('recorded_date', today);
@@ -248,14 +248,13 @@ const ClassroomView = () => {
   const loadTokenProgress = async () => {
     if (!activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('token_boards' as any)
-        .select('student_id, current_tokens, target_tokens')
-        .eq('classroom_id', activeGroupId)
-        .eq('is_active', true);
+      const { data } = await cloudSupabase
+        .from('token_boards')
+        .select('student_id, current_tokens, token_target')
+        .eq('classroom_id', activeGroupId);
       const progress: TokenProgress = {};
       for (const row of (data || []) as any[]) {
-        progress[row.student_id] = { current: row.current_tokens || 0, target: row.target_tokens || 10 };
+        progress[row.student_id] = { current: row.current_tokens || 0, target: row.token_target || 10 };
       }
       setTokenProgress(progress);
     } catch { /* silent */ }
@@ -281,9 +280,9 @@ const ClassroomView = () => {
         });
         return;
       }
-      // Fallback to Core board settings
-      const { data } = await supabase
-        .from('classroom_board_settings' as any)
+      // Fallback to Cloud board settings
+      const { data } = await cloudSupabase
+        .from('classroom_board_settings')
         .select('mission_text, word_of_week, class_goal_label, class_goal_target, class_goal_current')
         .eq('classroom_id', activeGroupId)
         .maybeSingle();
@@ -394,8 +393,8 @@ const ClassroomView = () => {
   const loadStudentPresence = useCallback(async () => {
     if (!activeGroupId) return;
     try {
-      const { data } = await supabase
-        .from('v_classroom_student_presence' as any)
+      const { data } = await cloudSupabase
+        .from('v_classroom_student_presence')
         .select('student_id, location_type, location_label, status, assigned_staff_id, updated_at')
         .eq('classroom_group_id', activeGroupId);
       const map: StudentPresenceMap = {};
@@ -410,13 +409,13 @@ const ClassroomView = () => {
   useEffect(() => {
     if (!activeGroupId) return;
     loadStudentPresence();
-    const channel = supabase
+    const channel = cloudSupabase
       .channel(`student_presence_${activeGroupId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'student_presence' }, () => {
         loadStudentPresence();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { cloudSupabase.removeChannel(channel); };
   }, [activeGroupId, loadStudentPresence]);
 
   const handlePointChange = (studentId: string, delta: number) => {
@@ -590,7 +589,7 @@ const ClassroomView = () => {
           group_id: activeGroupId, agency_id: effectiveAgencyId, word_of_week: val,
         }, { onConflict: 'group_id' });
       } catch {
-        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+        try { await cloudSupabase.from('classroom_board_settings').upsert({ classroom_id: activeGroupId, word_of_week: val } as any, { onConflict: 'classroom_id' }); } catch {}
       }
     }
   };
@@ -605,7 +604,7 @@ const ClassroomView = () => {
           group_id: activeGroupId, agency_id: effectiveAgencyId, mission_text: val,
         }, { onConflict: 'group_id' });
       } catch {
-        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+        try { await cloudSupabase.from('classroom_board_settings').upsert({ classroom_id: activeGroupId, mission_text: val } as any, { onConflict: 'classroom_id' }); } catch {}
       }
     }
   };
