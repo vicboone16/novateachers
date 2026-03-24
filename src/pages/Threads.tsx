@@ -177,10 +177,11 @@ const Threads = () => {
   const loadMessages = async (threadId: string) => {
     try {
       if (useLocalMode) {
-        // Load from teacher_messages
+        // Load ALL messages for this thread in the agency — any staff can read
         const { data } = await cloudSupabase
           .from('teacher_messages')
           .select('*')
+          .eq('agency_id', agencyId)
           .eq('thread_id', threadId)
           .order('created_at', { ascending: true });
         const msgs = (data || []).map((m: any) => ({
