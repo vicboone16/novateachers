@@ -1197,6 +1197,34 @@ const ClassroomView = () => {
 
       {/* Undo Toast */}
       <UndoToast action={pendingAction} onUndo={handleUndoComplete} onDismiss={dismissAction} />
+
+      {/* Bulk Award Panel */}
+      {activeGroupId && (
+        <BulkAwardPanel
+          open={bulkAwardOpen}
+          onOpenChange={setBulkAwardOpen}
+          agencyId={effectiveAgencyId}
+          groupId={activeGroupId}
+          staffId={user?.id || ''}
+          studentIds={clients.map(c => c.id)}
+          classGoal={{ target: classGoal.target, label: classGoal.label }}
+          onClassGoalChange={(g) => setClassGoal(prev => ({ ...prev, ...g }))}
+          onPointsAwarded={(pts) => {
+            clients.forEach(c => handlePointChange(c.id, pts));
+          }}
+        />
+      )}
+
+      {/* Reinforcement Assign Panel */}
+      {reinforceStudent && (
+        <ReinforcementAssignPanel
+          open={!!reinforceStudent}
+          onOpenChange={(open) => { if (!open) setReinforceStudent(null); }}
+          studentId={reinforceStudent.id}
+          studentName={displayName(reinforceStudent)}
+          agencyId={effectiveAgencyId}
+        />
+      )}
     </div>
   );
 };
