@@ -152,7 +152,7 @@ export function StaffActionSheet({
       const payload = {
         agency_id: agencyId,
         user_id: userId,
-        classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
+        classroom_group_id: newStatus === 'in_room' ? (currentGroupId || null) : null,
         location_type: newStatus === 'in_room' ? 'classroom' : locationType,
         status: newStatus,
         availability_status: isAvailable ? 'available' : 'unavailable',
