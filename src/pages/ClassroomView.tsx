@@ -281,6 +281,21 @@ const ClassroomView = () => {
     } catch { setStaffCount(0); }
   };
 
+  const loadResponseCostSettings = async () => {
+    if (!effectiveAgencyId) return;
+    try {
+      const { data } = await cloudSupabase
+        .from('student_response_cost_settings')
+        .select('student_id, response_cost_enabled')
+        .eq('agency_id', effectiveAgencyId);
+      const map: ResponseCostMap = {};
+      for (const row of (data || []) as any[]) {
+        map[row.student_id] = row.response_cost_enabled;
+      }
+      setResponseCostMap(map);
+    } catch { /* silent */ }
+  };
+
   const handleStudentStatusChange = (studentId: string, status: StudentStatus) => {
     setStudentStatuses(prev => ({ ...prev, [studentId]: status }));
   };
