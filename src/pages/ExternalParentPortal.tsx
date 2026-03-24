@@ -104,7 +104,7 @@ export default function ExternalParentPortal() {
       // Load recent redemptions
       let redemptions: PortalData['redemptions'] = [];
       try {
-        const { data: rd } = await supabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, created_at').eq('student_id', studentId).order('created_at', { ascending: false }).limit(5);
+        const { data: rd } = await supabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, redeemed_at').eq('student_id', studentId).order('redeemed_at', { ascending: false }).limit(5);
         if (rd && (rd as any[]).length > 0) {
           const rewardIds = [...new Set((rd as any[]).map(r => r.reward_id))];
           const { data: rwds } = await supabase.from('beacon_rewards' as any).select('id, name, emoji').in('id', rewardIds);
