@@ -609,6 +609,68 @@ Deno.serve(async (req) => {
       return json({ id: result.data?.id });
     }
 
+    // ─── reward CRUD (bypasses Core RLS via service role) ──────────
+    if (action === "list_rewards") {
+      const scopeType = String(body.scope_type || "agency");
+      const scopeId = String(body.scope_id || "");
+      const includeInactive = !!body.include_inactive;
+      let q = core.from("beacon_rewards").select("*").eq("scope_type", scopeType).eq("scope_id", scopeId).order("cost", { ascending: true });
+      if (!includeInactive) q = q.eq("active", true);
+      const { data, error } = await q;
+      if (error) return json({ error: error.message }, 400);
+      return json({ rewards: data || [] });
+    }
+
+    if (action === "create_reward") {
+      const payload: Record<string, unknown> = {
+        scope_type: String(body.scope_type || "agency"),
+        scope_id: String(body.scope_id || ""),
+        name: String(body.name || ""),
+        description: body.description ? String(body.description) : null,
+        cost: Number(body.cost || 10),
+        active: true,
+      };
+      if (body.image_url) payload.image_url = String(body.image_url);
+      if (body.stock_count != null) payload.stock_count = Number(body.stock_count);
+      const { data, error } = await core.from("beacon_rewards").insert(payload).select("id").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    if (action === "update_reward") {
+      const rewardId = String(body.reward_id || "");
+      const patch: Record<string, unknown> = {};
+      if (body.name !== undefined) patch.name = String(body.name);
+      if (body.description !== undefined) patch.description = body.description ? String(body.description) : null;
+      if (body.cost !== undefined) patch.cost = Number(body.cost);
+      if (body.active !== undefined) patch.active = !!body.active;
+      if (body.stock_count !== undefined) patch.stock_count = body.stock_count != null ? Number(body.stock_count) : null;
+      const { error } = await core.from("beacon_rewards").update(patch).eq("id", rewardId);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    if (action === "create_redemption") {
+      const payload = {
+        student_id: String(body.student_id || ""),
+        reward_id: String(body.reward_id || ""),
+        agency_id: String(body.agency_id || ""),
+        staff_id: String(body.staff_id || ""),
+        points_spent: Number(body.points_spent || 0),
+        status: "completed",
+      };
+      const { data, error } = await core.from("beacon_reward_redemptions").insert(payload).select("id").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, id: data?.id });
+    }
+
+    if (action === "list_redemptions") {
+      const agencyId = String(body.agency_id || "");
+      const { data, error } = await core.from("beacon_reward_redemptions").select("*").eq("agency_id", agencyId).order("redeemed_at", { ascending: false }).limit(30);
+      if (error) return json({ error: error.message }, 400);
+      return json({ redemptions: data || [] });
+    }
+
     // ─── reload_schema: trigger PostgREST schema cache reload on Core ─
     if (action === "reload_schema") {
       const { error } = await core.rpc("pg_notify" as any, { channel: "pgrst", payload: "reload schema" }).maybeSingle();

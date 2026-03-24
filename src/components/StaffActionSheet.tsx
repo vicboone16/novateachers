@@ -4,7 +4,7 @@
  * Writes via Nova Core RPC: set_staff_presence(...).
  */
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -86,33 +86,58 @@ export function StaffActionSheet({
     setSaving(true);
     try {
       const isAvailable = availability === 'available' || availability === 'limited';
-      const { error } = await supabase.rpc('set_staff_presence', {
-        p_agency_id: agencyId,
-        p_user_id: userId,
-        p_classroom_group_id: status === 'in_room' ? currentGroupId : (currentPresence?.classroom_group_id || null),
-        p_location_type: locationType,
-        p_location_label: locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null,
-        p_status: status,
-        p_availability_status: availability,
-        p_available_for_support: isAvailable,
-        p_assigned_student_id: assignedStudentId || null,
-        p_note: note || null,
-        p_changed_by: user?.id || null,
-      });
+      const payload = {
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: status === 'in_room' ? currentGroupId : (currentPresence?.classroom_group_id || null),
+        location_type: locationType,
+        location_label: locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null,
+        status,
+        availability_status: availability,
+        available_for_support: isAvailable,
+        assigned_student_id: assignedStudentId || null,
+        note: note || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Upsert into Lovable Cloud staff_presence table
+      const { error } = await cloudSupabase
+        .from('staff_presence')
+        .upsert(payload, { onConflict: 'agency_id,user_id' });
 
       if (error) {
-        console.warn('[StaffAction] save RPC failed:', error.message);
-        toast({ title: 'Status saved locally', description: 'Backend sync pending.' });
+        // Fallback: try insert if upsert fails (no existing row with unique constraint)
+        const { error: insertErr } = await cloudSupabase.from('staff_presence').insert(payload);
+        if (insertErr) {
+          console.warn('[StaffAction] save failed:', insertErr.message);
+          toast({ title: 'Error saving status', description: insertErr.message, variant: 'destructive' });
+        } else {
+          toast({ title: '✓ Status updated' });
+        }
       } else {
         toast({ title: '✓ Status updated' });
       }
+
+      // Also log to history
+      await cloudSupabase.from('staff_presence_history').insert({
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: payload.classroom_group_id,
+        location_type: locationType,
+        location_label: payload.location_label,
+        status,
+        availability_status: availability,
+        available_for_support: isAvailable,
+        assigned_student_id: assignedStudentId || null,
+        note: note || null,
+        changed_by: user?.id || null,
+      });
+
       onUpdated();
       onOpenChange(false);
     } catch (err: any) {
       console.error('[StaffAction] save failed:', err);
-      toast({ title: 'Status saved locally', description: 'Could not reach backend.' });
-      onUpdated();
-      onOpenChange(false);
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -123,28 +148,44 @@ export function StaffActionSheet({
     if (!isMe) { setStatus(newStatus); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('set_staff_presence', {
-        p_agency_id: agencyId,
-        p_user_id: userId,
-        p_classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
-        p_location_type: newStatus === 'in_room' ? 'classroom' : locationType,
-        p_status: newStatus,
-        p_available_for_support: newStatus === 'in_room' || newStatus === 'floating',
-        p_changed_by: user?.id || null,
-      });
+      const isAvailable = newStatus === 'in_room' || newStatus === 'floating';
+      const payload = {
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: newStatus === 'in_room' ? currentGroupId : null,
+        location_type: newStatus === 'in_room' ? 'classroom' : locationType,
+        status: newStatus,
+        availability_status: isAvailable ? 'available' : 'unavailable',
+        available_for_support: isAvailable,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await cloudSupabase
+        .from('staff_presence')
+        .upsert(payload, { onConflict: 'agency_id,user_id' });
+
       if (error) {
-        console.warn('[StaffAction] quickMove RPC failed:', error.message);
-        toast({ title: 'Status saved locally', description: 'Backend sync pending — Core RPC may not be available yet.' });
-      } else {
-        toast({ title: `✓ ${PRESENCE_STATUS_MAP[newStatus].label}` });
+        await cloudSupabase.from('staff_presence').insert(payload);
       }
+
+      // Log history
+      await cloudSupabase.from('staff_presence_history').insert({
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: payload.classroom_group_id,
+        location_type: payload.location_type,
+        status: newStatus,
+        availability_status: payload.availability_status,
+        available_for_support: isAvailable,
+        changed_by: user?.id || null,
+      });
+
+      toast({ title: `✓ ${PRESENCE_STATUS_MAP[newStatus].label}` });
       onUpdated();
       onOpenChange(false);
     } catch (err: any) {
       console.warn('[StaffAction] quickMove error:', err);
-      toast({ title: 'Status saved locally', description: 'Could not reach backend.' });
-      onUpdated();
-      onOpenChange(false);
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }

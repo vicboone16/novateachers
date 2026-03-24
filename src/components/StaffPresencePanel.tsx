@@ -95,31 +95,17 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
 
   const loadPresence = useCallback(async () => {
     try {
-      const { data } = await supabase
-        .from('v_classroom_staff_presence' as any)
+      // Read from Lovable Cloud staff_presence table
+      const { data } = await cloudSupabase
+        .from('staff_presence')
         .select('*')
-        .eq('classroom_group_id', groupId);
-      const rows = (data || []) as any as StaffPresenceRow[];
+        .eq('agency_id', agencyId);
+      const allRows = (data || []) as any as StaffPresenceRow[];
 
-      const { data: available } = await supabase
-        .from('v_available_support_staff' as any)
-        .select('*')
-        .eq('agency_id', agencyId)
-        .neq('classroom_group_id', groupId);
-      const availableRows = (available || []) as any as StaffPresenceRow[];
+      // Filter: in this classroom + others
+      setPresenceRows(allRows);
 
-      const seen = new Set(rows.map(r => r.user_id));
-      const merged = [...rows];
-      for (const r of availableRows) {
-        if (!seen.has(r.user_id)) {
-          seen.add(r.user_id);
-          merged.push(r);
-        }
-      }
-
-      setPresenceRows(merged);
-
-      const allIds = merged.map(r => r.user_id);
+      const allIds = allRows.map(r => r.user_id);
       if (allIds.length > 0) {
         try {
           const names = await resolveDisplayNames(allIds);
@@ -131,7 +117,7 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
     } finally {
       setLoading(false);
     }
-  }, [groupId, agencyId]);
+  }, [agencyId]);
 
   useEffect(() => {
     loadPresence();
@@ -142,19 +128,18 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
 
   // Realtime subscription
   useEffect(() => {
-    const channel = supabase
+    const channel = cloudSupabase
       .channel('staff_presence_live')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'staff_presence',
-        filter: `agency_id=eq.${agencyId}`,
       }, () => {
         loadPresence();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { cloudSupabase.removeChannel(channel); };
   }, [agencyId, loadPresence]);
 
   const myPresence = presenceRows.find(r => r.user_id === user?.id);

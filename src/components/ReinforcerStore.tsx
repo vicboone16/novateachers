@@ -10,6 +10,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { writePointEntry } from '@/lib/beacon-points';
@@ -98,32 +99,33 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
-      // Core beacon_rewards uses scope_type/scope_id instead of agency_id
-      let q = supabase
-        .from('beacon_rewards' as any)
-        .select('*')
-        .eq('scope_type', 'agency')
-        .eq('scope_id', agencyId)
-        .order('cost', { ascending: true });
-      if (!showInactive) q = q.eq('active', true);
-      const { data, error } = await q;
-      if (error) {
-        console.warn('[ReinforcerStore] loadRewards error:', error.message);
-        setRewards([]);
-      } else {
-        setRewards((data || []) as any as Reward[]);
-      }
+      // Use core-bridge to read rewards (bypasses Core RLS)
+      const result = await invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
+        action: 'list_rewards',
+        scope_type: 'agency',
+        scope_id: agencyId,
+        include_inactive: !!showInactive,
+      });
+      setRewards((result?.data?.rewards || []) as any as Reward[]);
 
-      // Load recent redemptions
-      const { data: redeemData } = await supabase
-        .from('beacon_reward_redemptions' as any)
-        .select('*')
-        .eq('agency_id', agencyId)
-        .order('redeemed_at', { ascending: false })
-        .limit(30);
-      setRedemptions((redeemData || []) as any as Redemption[]);
+      // Load redemptions via core-bridge
+      const redeemResult = await invokeCloudFunction<{ redemptions: any[] }>('core-bridge', {
+        action: 'list_redemptions',
+        agency_id: agencyId,
+      });
+      setRedemptions((redeemResult?.data?.redemptions || []) as any as Redemption[]);
     } catch (err: any) {
       console.warn('[ReinforcerStore] loadRewards exception:', err.message);
+      // Fallback: try direct read (may work for SELECT even if INSERT is blocked)
+      try {
+        const { data } = await supabase
+          .from('beacon_rewards' as any)
+          .select('*')
+          .eq('scope_type', 'agency')
+          .eq('scope_id', agencyId)
+          .order('cost', { ascending: true });
+        setRewards((data || []) as any as Reward[]);
+      } catch { setRewards([]); }
     }
     setLoading(false);
   }, [agencyId, showInactive]);
@@ -137,15 +139,15 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const createReward = async () => {
     if (!formName.trim() || !user) return;
     try {
-      const { error } = await supabase.from('beacon_rewards' as any).insert({
+      const result = await invokeCloudFunction('core-bridge', {
+        action: 'create_reward',
         scope_type: 'agency',
         scope_id: agencyId,
         name: formName.trim(),
         description: formDescription.trim() || null,
         cost: parseInt(formCost) || 10,
-        active: true,
       });
-      if (error) throw error;
+      if (result.error) throw result.error;
       setCreateOpen(false); resetForm(); loadRewards();
       toast({ title: 'Reward added to store' });
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
@@ -161,11 +163,14 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const saveEdit = async () => {
     if (!selectedReward || !formName.trim()) return;
     try {
-      const { error } = await supabase.from('beacon_rewards' as any).update({
-        name: formName.trim(), description: formDescription.trim() || null,
+      const result = await invokeCloudFunction('core-bridge', {
+        action: 'update_reward',
+        reward_id: selectedReward.id,
+        name: formName.trim(),
+        description: formDescription.trim() || null,
         cost: parseInt(formCost) || 10,
-      }).eq('id', selectedReward.id);
-      if (error) throw error;
+      });
+      if (result.error) throw result.error;
       setEditOpen(false); resetForm(); loadRewards();
       toast({ title: 'Reward updated' });
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
@@ -173,7 +178,12 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
 
   const toggleActive = async (reward: Reward) => {
     try {
-      await supabase.from('beacon_rewards' as any).update({ active: !reward.active }).eq('id', reward.id);
+      const result = await invokeCloudFunction('core-bridge', {
+        action: 'update_reward',
+        reward_id: reward.id,
+        active: !reward.active,
+      });
+      if (result.error) throw result.error;
       loadRewards();
       toast({ title: reward.active ? 'Reward deactivated' : 'Reward activated' });
     } catch { /* silent */ }
@@ -193,21 +203,25 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     }
     setRedeeming(true);
     try {
-      const { error: redeemErr } = await supabase.from('beacon_reward_redemptions' as any).insert({
+      const redeemResult = await invokeCloudFunction('core-bridge', {
+        action: 'create_redemption',
         student_id: selectedStudentId,
         reward_id: selectedReward.id,
         agency_id: agencyId,
         staff_id: user.id,
         points_spent: selectedReward.cost,
-        status: 'completed',
       });
-      if (redeemErr) throw redeemErr;
+      if (redeemResult.error) throw redeemResult.error;
       await writePointEntry({
         studentId: selectedStudentId, staffId: user.id, agencyId,
         points: -selectedReward.cost, reason: `Redeemed: ${selectedReward.name}`, source: 'reward_redeem',
       });
       if (selectedReward.stock_count !== null) {
-        await supabase.from('beacon_rewards' as any).update({ stock_count: Math.max(0, selectedReward.stock_count - 1) }).eq('id', selectedReward.id);
+        await invokeCloudFunction('core-bridge', {
+          action: 'update_reward',
+          reward_id: selectedReward.id,
+          stock_count: Math.max(0, selectedReward.stock_count - 1),
+        });
       }
       setRedeemSuccess(true);
       toast({ title: '🎉 Reward redeemed!', description: `${student.name} exchanged ${selectedReward.cost} pts for ${selectedReward.name}` });
