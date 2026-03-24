@@ -89,7 +89,7 @@ export function StaffActionSheet({
       const payload = {
         agency_id: agencyId,
         user_id: userId,
-        classroom_group_id: status === 'in_room' ? currentGroupId : (currentPresence?.classroom_group_id || null),
+        classroom_group_id: status === 'in_room' ? (currentGroupId || currentPresence?.classroom_group_id || null) : (currentPresence?.classroom_group_id || null),
         location_type: locationType,
         location_label: locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null,
         status,
