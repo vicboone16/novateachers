@@ -985,11 +985,13 @@ const ClassroomView = () => {
 };
 
 /* ── Summary chip for the horizontal bar ── */
-function SummaryChip({ icon: Icon, label, value, color }: {
+function SummaryChip({ icon: Icon, label, value, color, draggable, onDragStart, onDragOver, onDrop }: {
   icon: any; label: string; value: string; color: string;
+  draggable?: boolean; onDragStart?: () => void; onDragOver?: (e: React.DragEvent) => void; onDrop?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0">
+    <div className={cn("flex items-center gap-2 rounded-xl border border-border/40 bg-card px-3 py-2 shrink-0", draggable && "cursor-grab")}
+      draggable={draggable} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop}>
       <Icon className={cn('h-3.5 w-3.5', color)} />
       <div>
         <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</p>
