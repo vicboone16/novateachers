@@ -583,7 +583,13 @@ const ClassroomView = () => {
     setWordOfWeek(val);
     setEditingWord(false);
     if (activeGroupId) {
-      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+      try {
+        await cloudSupabase.from('classroom_settings').upsert({
+          group_id: activeGroupId, agency_id: effectiveAgencyId, word_of_week: val,
+        }, { onConflict: 'group_id' });
+      } catch {
+        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, word_of_week: val }, { onConflict: 'classroom_id' }); } catch {}
+      }
     }
   };
 
@@ -592,7 +598,13 @@ const ClassroomView = () => {
     setMissionText(val);
     setEditingMission(false);
     if (activeGroupId) {
-      try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+      try {
+        await cloudSupabase.from('classroom_settings').upsert({
+          group_id: activeGroupId, agency_id: effectiveAgencyId, mission_text: val,
+        }, { onConflict: 'group_id' });
+      } catch {
+        try { await supabase.from('classroom_board_settings' as any).upsert({ classroom_id: activeGroupId, mission_text: val }, { onConflict: 'classroom_id' }); } catch {}
+      }
     }
   };
 
