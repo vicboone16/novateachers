@@ -160,14 +160,14 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
   const loadAlerts = useCallback(async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase.from('mayday_alerts' as any).select('*').eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(20);
+      const { data, error } = await cloudSupabase.from('mayday_alerts')
+        .select('*')
+        .eq('agency_id', agencyId)
+        .order('created_at', { ascending: false })
+        .limit(20);
       if (error) {
-        console.warn('[Mayday] loadAlerts Core error, trying Cloud:', error.message);
-        // Fallback to Cloud mayday_contacts table check
-        const { data: cloudData } = await cloudSupabase.from('mayday_contacts').select('id').eq('agency_id', agencyId).limit(1);
-        if (!cloudData) console.warn('[Mayday] No mayday data available');
-        setActiveAlerts([]);
-        setAllAlerts([]);
+        console.warn('[Mayday] loadAlerts error:', error.message);
+        setActiveAlerts([]); setAllAlerts([]);
         return;
       }
       const alerts = (data || []) as any as MaydayAlert[];
