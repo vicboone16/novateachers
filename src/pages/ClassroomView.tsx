@@ -280,9 +280,9 @@ const ClassroomView = () => {
         });
         return;
       }
-      // Fallback to Core board settings
-      const { data } = await supabase
-        .from('classroom_board_settings' as any)
+      // Fallback to Cloud board settings
+      const { data } = await cloudSupabase
+        .from('classroom_board_settings')
         .select('mission_text, word_of_week, class_goal_label, class_goal_target, class_goal_current')
         .eq('classroom_id', activeGroupId)
         .maybeSingle();
