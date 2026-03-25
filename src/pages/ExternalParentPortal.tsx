@@ -157,10 +157,12 @@ export default function ExternalParentPortal() {
     <div className="min-h-screen bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4 py-6 safe-top safe-bottom">
       <div className="max-w-md mx-auto space-y-5">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="text-5xl">{data.avatarEmoji}</div>
-          <h1 className="text-xl font-bold">{data.studentName}</h1>
-          <p className="text-xs text-muted-foreground">Parent View</p>
+        <div className="text-center space-y-2 pt-2">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-4xl mx-auto">
+            {data.avatarEmoji}
+          </div>
+          <h1 className="text-xl font-bold font-heading">{data.studentName}</h1>
+          <p className="text-xs text-muted-foreground">Parent View · {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
         </div>
 
         {/* Points */}
