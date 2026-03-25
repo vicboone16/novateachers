@@ -491,7 +491,7 @@ const ClassroomView = () => {
         supabase
           .from('teacher_frequency_entries')
           .select('client_id, count')
-          .eq('user_id', user.id)
+          .eq('staff_id', user.id)
           .eq('logged_date', today)
           .in('client_id', clientIds),
         listRecentClassroomEvents({
