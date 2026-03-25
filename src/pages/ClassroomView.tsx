@@ -1391,6 +1391,23 @@ const ClassroomView = () => {
           currentEmoji={gameProfiles[avatarPickerStudent.id]?.avatar_emoji || '👤'}
         />
       )}
+
+      {/* Session Summary Popup */}
+      <SessionSummaryPopup
+        open={sessionSummaryOpen}
+        onOpenChange={setSessionSummaryOpen}
+        agencyId={effectiveAgencyId}
+        studentIds={clients.map(c => c.id)}
+        studentNames={studentNameMap}
+      />
+
+      {/* Quick Start Setup */}
+      <QuickStartSetup
+        open={quickStartOpen}
+        onOpenChange={setQuickStartOpen}
+        agencyId={effectiveAgencyId}
+        onComplete={(groupId) => { setActiveGroupId(groupId); loadClients(); }}
+      />
     </div>
   );
 };
