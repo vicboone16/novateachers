@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, useRef } from 'react';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
-import { StudentLevelBadge } from '@/components/StudentLevelBadge';
+// StudentLevelBadge hidden for hybrid v1
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -157,11 +157,6 @@ export default function StudentPortal() {
         <div className="text-center space-y-2">
           <span className="text-6xl">{gameProfiles[account.student_id]?.avatar_emoji || account.avatar_emoji}</span>
           <h1 className="text-2xl font-bold font-heading">{account.display_name}</h1>
-          <StudentLevelBadge
-            level={gameProfiles[account.student_id]?.current_level || 1}
-            xp={gameProfiles[account.student_id]?.current_xp || 0}
-            showXpBar
-          />
           <p className="text-sm text-muted-foreground">My Rewards Portal</p>
         </div>
 
@@ -176,6 +171,25 @@ export default function StudentPortal() {
           </CardContent>
         </Card>
 
+        {/* Race Progress Card — hybrid v1 */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              <span className="text-sm font-bold">Race Progress</span>
+            </div>
+            <div className="relative">
+              <Progress value={Math.min(100, balance)} className="h-4" />
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">
+                {balance} pts
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1 text-center">
+              Keep earning points to move ahead! 🏎️
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Reward Goals */}
         {goals.length > 0 && (
           <div className="space-y-3">
@@ -186,6 +200,7 @@ export default function StudentPortal() {
             {goals.map(goal => {
               const pct = Math.min(100, goal.progress_pct || 0);
               const achieved = pct >= 100;
+              const pointsAway = Math.max(0, goal.target_points - (goal.current_points || balance));
               return (
                 <Card key={goal.id} className={cn('border-border/40', achieved && 'border-accent/50 bg-accent/5')}>
                   <CardContent className="p-4">
@@ -194,7 +209,7 @@ export default function StudentPortal() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold">{goal.reward_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {goal.current_points || balance}/{goal.target_points} points
+                          {achieved ? '🎉 Ready to redeem!' : `${pointsAway} points away`}
                         </p>
                       </div>
                       {achieved && (

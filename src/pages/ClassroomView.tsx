@@ -851,7 +851,8 @@ const ClassroomView = () => {
                           <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                             {displayName(client)}
                           </p>
-                          <StudentLevelBadge level={level} xp={xp} compact />
+                          {/* Level badge hidden for hybrid v1 — uncomment when ready */}
+                          {/* <StudentLevelBadge level={level} xp={xp} compact /> */}
                         </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           {client.grade && <span>Gr {client.grade}</span>}
@@ -914,8 +915,13 @@ const ClassroomView = () => {
                         </Badge>
                       )}
                     </div>
-                    {/* XP progress bar */}
-                    <StudentLevelBadge level={level} xp={xp} showXpBar compact />
+                    {/* Token board progress — hybrid v1 shows token progress, not XP */}
+                    {tp && (
+                      <div className="relative mt-1">
+                        <Progress value={tokenPct} className="h-2" />
+                        <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">{tp.current}/{tp.target}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Quick award row */}
