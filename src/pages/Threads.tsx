@@ -592,6 +592,19 @@ const Threads = () => {
           <div ref={msgEndRef} />
         </div>
 
+        {/* Reply preview */}
+        {replyTo && (
+          <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/40 bg-accent/10">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-primary">
+                Replying to {userNames.get(replyTo.sender_id) || 'Staff'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{replyTo.body.slice(0, 80)}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="text-muted-foreground hover:text-foreground text-sm">✕</button>
+          </div>
+        )}
+
         {/* Compose */}
         <div className="flex gap-2 px-4 py-3 border-t border-border/40 bg-card/30">
           <Textarea
