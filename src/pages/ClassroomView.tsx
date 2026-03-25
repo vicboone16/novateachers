@@ -56,7 +56,7 @@ import {
   BarChart3, AlertTriangle, Users, Star, Sparkles,
   Target, BookOpen, MessageSquare, Zap, ChevronDown,
   Gamepad2, Gift, KeyRound, Copy, MoreHorizontal,
-  Pencil, GripVertical, Settings2,
+  Pencil, GripVertical, Settings2, Brain,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -755,6 +755,9 @@ const ClassroomView = () => {
             </Button>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)}>
               <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/classroom-insights')}>
+              <Brain className="h-3.5 w-3.5" /> Insights
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
               <ExternalLink className="h-3.5 w-3.5" />

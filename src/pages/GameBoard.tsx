@@ -30,7 +30,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame, Scroll } from 'lucide-react';
+import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame, Scroll, Gamepad2 } from 'lucide-react';
+import { GameModeSelector } from '@/components/GameModeSelector';
 import { cn } from '@/lib/utils';
 
 const CHECKPOINT_INTERVAL = 10;
@@ -66,6 +67,7 @@ const GameBoard = () => {
   const [trackSelectorOpen, setTrackSelectorOpen] = useState(false);
   const [teamManagerOpen, setTeamManagerOpen] = useState(false);
   const [gameMode, setGameMode] = useState<string>('race');
+  const [modeSelectorOpen, setModeSelectorOpen] = useState(false);
 
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
@@ -361,6 +363,7 @@ const GameBoard = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate('/classroom')} className="gap-1"><ArrowLeft className="h-4 w-4" /> Classroom</Button>
         <h1 className="text-lg font-bold font-heading flex items-center gap-2"><Flag className="h-5 w-5 text-accent" /> Race Board</h1>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setModeSelectorOpen(true)} title="Game Mode"><Gamepad2 className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTeamManagerOpen(true)} title="Teams"><Users className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTrackSelectorOpen(true)} title="Change Track"><Map className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/game-settings')} title="Game Settings"><Settings className="h-4 w-4 text-muted-foreground" /></Button>
@@ -568,6 +571,18 @@ const GameBoard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Game Mode Selector */}
+      {activeGroupId && (
+        <GameModeSelector
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          currentModeSlug={gameMode}
+          open={modeSelectorOpen}
+          onOpenChange={setModeSelectorOpen}
+          onModeChange={(mode) => { setGameMode(mode.slug); loadBoard(); }}
+        />
+      )}
     </div>
   );
 };
