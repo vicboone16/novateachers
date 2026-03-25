@@ -38,10 +38,9 @@ export default function ExternalParentPortal() {
     setError(null);
     try {
       const { data: linkData, error: linkErr } = await cloudSupabase
-        .from('external_access_links' as any)
+        .from('parent_access_links' as any)
         .select('*')
         .eq('token', t)
-        .eq('link_type', 'parent')
         .eq('is_active', true)
         .maybeSingle();
       if (linkErr) throw linkErr;
