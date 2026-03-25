@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { ParentInsightCards } from '@/components/ParentInsightCards';
 import { ParentActionButtons } from '@/components/ParentActionButtons';
@@ -44,7 +44,7 @@ export default function ExternalParentPortal() {
     setError(null);
     try {
       // Resolve token to student
-      const { data: linkData, error: linkErr } = await supabase
+      const { data: linkData, error: linkErr } = await cloudSupabase
         .from('external_access_links' as any)
         .select('*')
         .eq('token', t)
@@ -62,17 +62,17 @@ export default function ExternalParentPortal() {
       const studentId = link.student_id;
 
       // Update last_used_at
-      supabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
+      cloudSupabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
 
       // Load student name
       let studentName = 'Your Child';
       let avatarEmoji = '👤';
       try {
-        const { data: client } = await supabase.from('clients' as any).select('first_name, last_name').eq('id', studentId).maybeSingle();
+        const { data: client } = await cloudSupabase.from('clients' as any).select('first_name, last_name').eq('id', studentId).maybeSingle();
         if (client) studentName = `${(client as any).first_name || ''} ${((client as any).last_name || '')[0] || ''}`.trim();
       } catch {}
       try {
-        const { data: profile } = await supabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle();
+        const { data: profile } = await cloudSupabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle();
         if (profile) avatarEmoji = (profile as any).avatar_emoji || '👤';
       } catch {}
 
@@ -86,7 +86,7 @@ export default function ExternalParentPortal() {
       // Load rewards
       let rewardsProgress: PortalData['rewardsProgress'] = [];
       try {
-        const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, image_url, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
+        const { data: rws } = await cloudSupabase.from('beacon_rewards' as any).select('name, image_url, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
         rewardsProgress = (rws || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost }));
       } catch {}
 
@@ -110,10 +110,10 @@ export default function ExternalParentPortal() {
       // Load recent redemptions
       let redemptions: PortalData['redemptions'] = [];
       try {
-        const { data: rd } = await supabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, redeemed_at').eq('student_id', studentId).order('redeemed_at', { ascending: false }).limit(5);
+        const { data: rd } = await cloudSupabase.from('beacon_reward_redemptions' as any).select('reward_id, points_spent, redeemed_at').eq('student_id', studentId).order('redeemed_at', { ascending: false }).limit(5);
         if (rd && (rd as any[]).length > 0) {
           const rewardIds = [...new Set((rd as any[]).map(r => r.reward_id))];
-          const { data: rwds } = await supabase.from('beacon_rewards' as any).select('id, name, image_url').in('id', rewardIds);
+          const { data: rwds } = await cloudSupabase.from('beacon_rewards' as any).select('id, name, image_url').in('id', rewardIds);
           const rwMap = new Map((rwds || []).map((r: any) => [r.id, { ...r, emoji: r.image_url || '🎁' }]));
           redemptions = (rd as any[]).map(r => {
             const rw = rwMap.get(r.reward_id) as any;
@@ -140,10 +140,13 @@ export default function ExternalParentPortal() {
 
   if (error) return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4">
-      <div className="text-center space-y-3 max-w-xs">
-        <AlertTriangle className="h-10 w-10 text-destructive/60 mx-auto" />
-        <p className="text-sm font-medium text-destructive">{error}</p>
-        <Button variant="outline" size="sm" onClick={() => token && loadPortal(token)}>Retry</Button>
+      <div className="text-center space-y-4 max-w-xs">
+        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-destructive/10 mx-auto">
+          <AlertTriangle className="h-7 w-7 text-destructive/60" />
+        </div>
+        <p className="text-sm font-medium text-foreground">{error}</p>
+        <p className="text-xs text-muted-foreground">If this keeps happening, ask your child's teacher for a new link.</p>
+        <Button variant="outline" size="sm" onClick={() => token && loadPortal(token)}>Try Again</Button>
       </div>
     </div>
   );
@@ -154,10 +157,12 @@ export default function ExternalParentPortal() {
     <div className="min-h-screen bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4 py-6 safe-top safe-bottom">
       <div className="max-w-md mx-auto space-y-5">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="text-5xl">{data.avatarEmoji}</div>
-          <h1 className="text-xl font-bold">{data.studentName}</h1>
-          <p className="text-xs text-muted-foreground">Parent View</p>
+        <div className="text-center space-y-2 pt-2">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-4xl mx-auto">
+            {data.avatarEmoji}
+          </div>
+          <h1 className="text-xl font-bold font-heading">{data.studentName}</h1>
+          <p className="text-xs text-muted-foreground">Parent View · {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
         </div>
 
         {/* Points */}
@@ -172,7 +177,7 @@ export default function ExternalParentPortal() {
         {/* Rewards Progress */}
         {data.rewardsProgress.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <p className="section-header">
               <Gift className="h-3 w-3" /> Rewards Progress
             </p>
             <div className="space-y-2">
@@ -205,7 +210,7 @@ export default function ExternalParentPortal() {
         {/* Feed */}
         {data.feedPosts.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <p className="section-header">
               <Sparkles className="h-3 w-3" /> Class Updates
             </p>
             {data.feedPosts.map(p => (
@@ -223,7 +228,7 @@ export default function ExternalParentPortal() {
         {/* Recent Redemptions */}
         {data.redemptions.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <p className="section-header">
               <Heart className="h-3 w-3" /> Recent Rewards
             </p>
             {data.redemptions.map((r, i) => (
@@ -249,12 +254,14 @@ export default function ExternalParentPortal() {
         <ParentActionButtons studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
 
         {/* Funnel CTA */}
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 text-center space-y-2">
-            <Sparkles className="h-5 w-5 text-primary mx-auto" />
-            <p className="text-sm font-semibold">Want more updates?</p>
-            <p className="text-xs text-muted-foreground">Get full access to insights, messaging, and progress.</p>
-            <Button size="sm" className="gap-1.5" onClick={() => window.location.href = '/'}>
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+          <CardContent className="p-5 text-center space-y-3">
+            <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 mx-auto">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-sm font-bold font-heading">Want more updates?</p>
+            <p className="text-xs text-muted-foreground max-w-[220px] mx-auto">Get full access to insights, messaging, and your child's progress.</p>
+            <Button size="sm" className="gap-1.5 rounded-xl" onClick={() => window.location.href = '/'}>
               Continue in Parent App <ArrowRight className="h-3 w-3" />
             </Button>
           </CardContent>

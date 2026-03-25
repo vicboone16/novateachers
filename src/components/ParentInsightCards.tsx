@@ -54,14 +54,14 @@ export function ParentInsightCards({ studentId, agencyId, maxItems = 5, classNam
 
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+      <p className="section-header">
         <Sparkles className="h-3 w-3" /> Updates for You
       </p>
       {insights.map(ins => {
         const config = INSIGHT_CONFIG[ins.insight_type] || INSIGHT_CONFIG.win;
         const Icon = config.icon;
         return (
-          <Card key={ins.id} className={cn('border-border/40 transition-all', !ins.is_read && 'ring-1 ring-primary/20')}>
+          <Card key={ins.id} className={cn('border-border/40 hover-lift transition-all', !ins.is_read && 'ring-1 ring-primary/20')}>
             <CardContent className="p-3">
               <div className="flex items-start gap-2.5">
                 <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', config.color)} />

@@ -231,9 +231,11 @@ const RewardsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2"><Star className="h-5 w-5 text-amber-500" /> Beacon Points & Rewards</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Manage points, token boards, and reward store</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight font-heading flex items-center gap-2"><Star className="h-5 w-5 text-amber-500" /> Beacon Rewards</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Points, token boards, and the reward store</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
