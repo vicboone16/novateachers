@@ -218,8 +218,8 @@ export async function getStudentUnlocks(studentId: string): Promise<StudentUnloc
 // ── Streaks ──
 
 export async function getStudentStreaks(studentId: string): Promise<StudentStreak[]> {
-  const { data } = await supabase
-    .from('student_streaks' as any)
+  const { data } = await cloudSupabase
+    .from('student_streaks')
     .select('*')
     .eq('student_id', studentId)
     .order('current_count', { ascending: false });
