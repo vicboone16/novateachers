@@ -62,7 +62,7 @@ export default function ExternalParentPortal() {
       const studentId = link.student_id;
 
       // Update last_used_at
-      supabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
+      cloudSupabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
 
       // Load student name
       let studentName = 'Your Child';
