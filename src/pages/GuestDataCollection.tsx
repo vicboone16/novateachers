@@ -52,6 +52,19 @@ const GuestDataCollection = () => {
         return;
       }
       setSession(data);
+      // Resolve student names from classroom_group_students
+      if (data.student_ids?.length > 0) {
+        const { data: students } = await supabase
+          .from('classroom_group_students')
+          .select('client_id, first_name, last_name')
+          .in('client_id', data.student_ids);
+        const names: Record<string, string> = {};
+        for (const s of (students || []) as any[]) {
+          const name = ((s.first_name || '') + ' ' + (s.last_name || '')).trim();
+          if (name) names[s.client_id] = name;
+        }
+        setStudentNames(names);
+      }
       if (data.student_ids?.length === 1) setSelectedStudent(data.student_ids[0]);
     } catch {
       setError('Failed to validate code');
