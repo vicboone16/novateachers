@@ -19,11 +19,10 @@ export async function invokeCloudFunction<T = any>(
   authToken?: string
 ): Promise<InvokeResult<T>> {
   try {
-    // Auto-resolve auth token from current session if not provided
+    // Auto-resolve auth token using centralized helper (see auth-token.ts)
     let token = authToken;
     if (!token) {
-      const { data: sessionData } = await authSupabase.auth.getSession();
-      token = sessionData?.session?.access_token || undefined;
+      token = (await getAuthToken()) || undefined;
     }
 
     const headers: Record<string, string> = {
