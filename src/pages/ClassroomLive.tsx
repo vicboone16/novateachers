@@ -1,27 +1,42 @@
 /**
  * ClassroomLive — Public read-only classroom game board.
  * Accessed via /class/:slug/live — no auth required.
- * Reads from Core Phase 5 tables.
+ * Reads from Cloud tables (classroom_public_links, classroom_game_settings, classroom_group_students, beacon_points_ledger).
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { POINT_SKINS, type ClassroomGameSettings, type StudentGameProgress, type TeamScore } from '@/lib/game-types';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { POINT_SKINS } from '@/lib/game-types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Trophy, Flag, Star, Lock, Sparkles } from 'lucide-react';
+import { Trophy, Flag, Lock, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
 const CHECKPOINT_INTERVAL = 20;
 
+interface LiveStudent {
+  student_id: string;
+  first_name: string;
+  last_name: string;
+  avatar_emoji: string;
+  points_balance: number;
+  track_position: number;
+}
+
+interface TeamScore {
+  team_id: string;
+  team_name: string;
+  team_color: string;
+  team_icon: string;
+  total_points: number;
+}
+
 export default function ClassroomLive() {
   const { slug } = useParams<{ slug: string }>();
-  const [settings, setSettings] = useState<ClassroomGameSettings | null>(null);
-  const [students, setStudents] = useState<StudentGameProgress[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+  const [students, setStudents] = useState<LiveStudent[]>([]);
   const [teams, setTeams] = useState<TeamScore[]>([]);
-  const [groupId, setGroupId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -32,8 +47,8 @@ export default function ClassroomLive() {
   const loadLive = async (s: string) => {
     setLoading(true);
     try {
-      // Resolve slug to group_id
-      const { data: link } = await supabase
+      // Resolve slug → group_id via Cloud
+      const { data: link } = await cloudSupabase
         .from('classroom_public_links' as any)
         .select('group_id')
         .eq('slug', s)
@@ -42,19 +57,98 @@ export default function ClassroomLive() {
 
       if (!link) { setError('Invalid or expired link'); setLoading(false); return; }
       const gid = (link as any).group_id;
-      setGroupId(gid);
 
-      // Load data
-      const [settingsData, progressData, teamData] = await Promise.all([
-        supabase.from('classroom_game_settings' as any).select('*').eq('group_id', gid).maybeSingle(),
-        supabase.from('v_classroom_student_game_progress' as any).select('*').eq('group_id', gid).order('track_position', { ascending: false }),
-        supabase.from('v_student_team_scores' as any).select('*').eq('group_id', gid).order('total_points', { ascending: false }),
-      ]);
+      // Load game settings from Cloud
+      const { data: settingsData } = await cloudSupabase
+        .from('classroom_game_settings')
+        .select('*')
+        .eq('group_id', gid)
+        .maybeSingle();
+      setSettings(settingsData);
 
-      setSettings(settingsData.data as any);
-      setStudents((progressData.data || []) as any[]);
-      setTeams((teamData.data || []) as any[]);
-    } catch {
+      // Load students with names from Cloud
+      const { data: groupStudents } = await cloudSupabase
+        .from('classroom_group_students')
+        .select('client_id, first_name, last_name')
+        .eq('group_id', gid);
+      const studentRows = (groupStudents || []) as any[];
+      const studentIds = studentRows.map((r: any) => r.client_id);
+
+      if (studentIds.length === 0) {
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+
+      // Load balances from Cloud ledger
+      const { data: ledger } = await cloudSupabase
+        .from('beacon_points_ledger')
+        .select('student_id, points')
+        .in('student_id', studentIds);
+      const balMap = new Map<string, number>();
+      for (const row of (ledger || [])) {
+        balMap.set(row.student_id, (balMap.get(row.student_id) || 0) + row.points);
+      }
+
+      // Load avatars from Cloud game profiles
+      let avatarMap = new Map<string, string>();
+      try {
+        const { data: profiles } = await cloudSupabase
+          .from('student_game_profiles')
+          .select('student_id, avatar_emoji')
+          .in('student_id', studentIds);
+        for (const p of (profiles || []) as any[]) {
+          avatarMap.set(p.student_id, p.avatar_emoji || '');
+        }
+      } catch { /* silent */ }
+
+      const totalSteps = (settingsData as any)?.total_steps || TRACK_LENGTH;
+
+      const liveStudents: LiveStudent[] = studentRows.map((r: any) => {
+        const bal = balMap.get(r.client_id) || 0;
+        return {
+          student_id: r.client_id,
+          first_name: r.first_name || '',
+          last_name: r.last_name || '',
+          avatar_emoji: avatarMap.get(r.client_id) || '👤',
+          points_balance: bal,
+          track_position: Math.min(bal, totalSteps),
+        };
+      });
+
+      setStudents(liveStudents.sort((a, b) => b.points_balance - a.points_balance));
+
+      // Load teams if enabled
+      if ((settingsData as any)?.allow_team_mode) {
+        try {
+          const { data: teamData } = await cloudSupabase
+            .from('classroom_teams')
+            .select('id, team_name, team_color, team_icon')
+            .eq('group_id', gid);
+          
+          // Calculate team points from members
+          const { data: members } = await cloudSupabase
+            .from('classroom_team_members')
+            .select('team_id, student_id')
+            .eq('group_id', gid);
+          
+          const teamPoints = new Map<string, number>();
+          for (const m of (members || []) as any[]) {
+            const pts = balMap.get(m.student_id) || 0;
+            teamPoints.set(m.team_id, (teamPoints.get(m.team_id) || 0) + pts);
+          }
+
+          setTeams(((teamData || []) as any[]).map(t => ({
+            team_id: t.id,
+            team_name: t.team_name,
+            team_color: t.team_color,
+            team_icon: t.team_icon,
+            total_points: teamPoints.get(t.id) || 0,
+          })).sort((a, b) => b.total_points - a.total_points));
+        } catch { /* silent */ }
+      }
+    } catch (err) {
+      console.error('[ClassroomLive] Error:', err);
       setError('Something went wrong');
     }
     setLoading(false);
@@ -86,14 +180,15 @@ export default function ClassroomLive() {
     );
   }
 
-  const skin = POINT_SKINS[(settings as any)?.point_display_type || 'stars'];
-  const totalPoints = students.reduce((sum, s) => sum + (s.points_balance || 0), 0);
+  const skin = POINT_SKINS[settings?.point_display_type || 'stars'] || POINT_SKINS.stars;
+  const totalPoints = students.reduce((sum, s) => sum + s.points_balance, 0);
 
-  const getDisplayName = (s: StudentGameProgress) => {
-    const mode = (settings as any)?.privacy_mode || 'first_names';
+  const getDisplayName = (s: LiveStudent) => {
+    const mode = settings?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
     if (mode === 'initials') return `${(s.first_name || '')[0] || ''}${(s.last_name || '')[0] || ''}`;
-    return s.first_name || '';
+    if (mode === 'first_names') return s.first_name || s.student_id.slice(0, 6);
+    return `${s.first_name} ${s.last_name}`.trim() || s.student_id.slice(0, 6);
   };
 
   const checkpoints = Array.from({ length: TRACK_LENGTH / CHECKPOINT_INTERVAL }, (_, i) => (i + 1) * CHECKPOINT_INTERVAL);
@@ -107,11 +202,11 @@ export default function ClassroomLive() {
             <p className="text-3xl font-bold tabular-nums">{skin.icon} {totalPoints.toLocaleString()}</p>
             <p className="text-sm text-muted-foreground mt-1">Class Total {skin.plural}</p>
             <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
-              {(settings as any)?.mission_of_the_day && (
-                <Badge variant="outline">🎯 {(settings as any).mission_of_the_day}</Badge>
+              {settings?.mission_text && (
+                <Badge variant="outline">🎯 {settings.mission_text}</Badge>
               )}
-              {(settings as any)?.word_of_the_week && (
-                <Badge variant="outline">📖 {(settings as any).word_of_the_week}</Badge>
+              {settings?.word_of_week && (
+                <Badge variant="outline">📖 {settings.word_of_week}</Badge>
               )}
             </div>
           </CardContent>
@@ -173,7 +268,7 @@ export default function ClassroomLive() {
         </Card>
 
         {/* Leaderboard */}
-        {settings?.show_leaderboard && (
+        {(settings?.show_leaderboard !== false) && (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
