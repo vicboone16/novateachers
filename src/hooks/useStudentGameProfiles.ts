@@ -10,6 +10,11 @@ export interface GameProfile {
   avatar_emoji: string;
   current_level: number;
   current_xp: number;
+  identity_title: string | null;
+  identity_emoji: string | null;
+  momentum_state: string | null;
+  comeback_active: boolean;
+  daily_narrative: string | null;
 }
 
 export function useStudentGameProfiles(studentIds: string[]) {
