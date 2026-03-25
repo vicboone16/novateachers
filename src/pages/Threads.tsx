@@ -74,6 +74,8 @@ const Threads = () => {
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null);
   const [messages, setMessages] = useState<ThreadMessageRow[]>([]);
   const [reactions, setReactions] = useState<ThreadReactionRow[]>([]);
+  const [readReceipts, setReadReceipts] = useState<Record<string, string>>({}); // threadId -> last_read_at
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({}); // threadId -> count
   const [msgText, setMsgText] = useState('');
   const [sending, setSending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
