@@ -316,7 +316,7 @@ const GameBoard = () => {
         streakEmoji: status?.emoji || null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, studentStatuses]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, getAnimState, studentStatuses]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
