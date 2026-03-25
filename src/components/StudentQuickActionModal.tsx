@@ -13,6 +13,8 @@ import { writePointEntry } from '@/lib/beacon-points';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { ExternalAccessSheet } from '@/components/ExternalAccessSheet';
 import { BeaconTeacherSupportPanel } from '@/components/BeaconTeacherSupportPanel';
+import { ReinforcementAICards } from '@/components/ReinforcementAICards';
+import { ReinforcementAssignPanel } from '@/components/ReinforcementAssignPanel';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -64,6 +66,7 @@ export function StudentQuickActionModal({
   const [codeLoading, setCodeLoading] = useState(false);
   const [externalSheetOpen, setExternalSheetOpen] = useState(false);
   const [supportPanelOpen, setSupportPanelOpen] = useState(false);
+  const [reinforcementEditorOpen, setReinforcementEditorOpen] = useState(false);
 
   // Duration timer state
   const [timerRunning, setTimerRunning] = useState(false);
@@ -339,6 +342,20 @@ export function StudentQuickActionModal({
             </div>
           </Section>
 
+          {/* §6b AI RECOMMENDATIONS */}
+          <Section label="AI Insights">
+            <ReinforcementAICards
+              studentId={studentId}
+              studentName={studentName}
+              agencyId={agencyId}
+              compact
+              onOpenEditor={() => {
+                onOpenChange(false);
+                setReinforcementEditorOpen(true);
+              }}
+            />
+          </Section>
+
           {/* §7 PROMPT SNOOZE */}
           <Section label="Prompt">
             <div className="flex gap-1.5">
@@ -369,6 +386,14 @@ export function StudentQuickActionModal({
     <BeaconTeacherSupportPanel
       open={supportPanelOpen}
       onOpenChange={setSupportPanelOpen}
+      studentId={studentId}
+      studentName={studentName}
+      agencyId={agencyId}
+    />
+
+    <ReinforcementAssignPanel
+      open={reinforcementEditorOpen}
+      onOpenChange={setReinforcementEditorOpen}
       studentId={studentId}
       studentName={studentName}
       agencyId={agencyId}
