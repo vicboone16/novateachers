@@ -254,12 +254,14 @@ export default function ExternalParentPortal() {
         <ParentActionButtons studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
 
         {/* Funnel CTA */}
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 text-center space-y-2">
-            <Sparkles className="h-5 w-5 text-primary mx-auto" />
-            <p className="text-sm font-semibold">Want more updates?</p>
-            <p className="text-xs text-muted-foreground">Get full access to insights, messaging, and progress.</p>
-            <Button size="sm" className="gap-1.5" onClick={() => window.location.href = '/'}>
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+          <CardContent className="p-5 text-center space-y-3">
+            <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 mx-auto">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-sm font-bold font-heading">Want more updates?</p>
+            <p className="text-xs text-muted-foreground max-w-[220px] mx-auto">Get full access to insights, messaging, and your child's progress.</p>
+            <Button size="sm" className="gap-1.5 rounded-xl" onClick={() => window.location.href = '/'}>
               Continue in Parent App <ArrowRight className="h-3 w-3" />
             </Button>
           </CardContent>
