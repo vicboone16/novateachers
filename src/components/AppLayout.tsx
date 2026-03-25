@@ -258,6 +258,7 @@ function MoreNavDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          data-walkthrough="more-menu"
           className={cn(
             'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
             isActive
