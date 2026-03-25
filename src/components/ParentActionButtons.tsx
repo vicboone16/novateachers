@@ -59,8 +59,26 @@ export function ParentActionButtons({ studentId, agencyId, parentName, parentUse
         });
       }
 
+      // Award bonus points for parent engagement (reinforcement feedback loop)
+      const bonusPoints = activeAction.type === 'praise_at_home' ? 2
+        : activeAction.type === 'home_followup' ? 3
+        : activeAction.type === 'noticed_too' ? 1
+        : 0;
+
+      if (bonusPoints > 0) {
+        // Log parent reinforcement event
+        await cloudSupabase.from('parent_reinforcement_events').insert({
+          student_id: studentId,
+          agency_id: agencyId,
+          action_type: activeAction.type,
+          bonus_points_awarded: bonusPoints,
+          momentum_boost: activeAction.type === 'praise_at_home',
+        });
+      }
+
       setRecentlySubmitted(prev => new Set(prev).add(activeAction.type));
-      toast({ title: '✨ Sent!', description: 'Your teacher will see this.' });
+      const bonusMsg = bonusPoints > 0 ? ` (+${bonusPoints} bonus points for your child!)` : '';
+      toast({ title: '✨ Sent!', description: `Your teacher will see this.${bonusMsg}` });
       setActiveAction(null);
       setMessage('');
     } catch (err: any) {
