@@ -294,7 +294,7 @@ const FeatureTour = () => {
             </Button>
             <Button
               size="sm"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/')}
               className="gap-1.5"
             >
               <LogIn className="h-4 w-4" />
@@ -506,7 +506,7 @@ const FeatureTour = () => {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Button
               size="lg"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/')}
               className="gap-2 px-8"
             >
               <LogIn className="h-5 w-5" />
