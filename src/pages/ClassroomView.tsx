@@ -1094,7 +1094,49 @@ const ClassroomView = () => {
 
                   {/* Behavior + engagement row */}
                   <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-                    {behaviorActions.length > 0 ? (
+                    {/* Per-student custom behaviors take priority */}
+                    {(studentBehaviors[client.id] || []).length > 0 ? (
+                      <>
+                        {studentBehaviors[client.id].slice(0, 3).map((rule, idx) => (
+                          <button
+                            key={`${rule.behavior_name}-${idx}`}
+                            onClick={() => logBehavior(client.id, rule.behavior_name)}
+                            title={`${rule.behavior_name} (${rule.rule_type === 'response_cost' ? `-${rule.points}` : `+${rule.points}`})`}
+                            className={cn(
+                              "flex items-center gap-0.5 rounded-lg border px-1.5 py-1 text-[9px] font-medium active:scale-95 transition-colors",
+                              rule.rule_type === 'response_cost'
+                                ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                : "border-border/60 bg-secondary text-foreground hover:bg-destructive/10 hover:text-destructive"
+                            )}
+                          >
+                            {rule.behavior_name.slice(0, 5)}
+                          </button>
+                        ))}
+                        {studentBehaviors[client.id].length > 3 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="rounded-xl border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-52 p-2 space-y-1" align="start" side="top">
+                              {studentBehaviors[client.id].slice(3).map((rule, idx) => (
+                                <button
+                                  key={`${rule.behavior_name}-overflow-${idx}`}
+                                  onClick={() => logBehavior(client.id, rule.behavior_name)}
+                                  className="flex items-center justify-between w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-destructive/10 transition-colors text-left"
+                                >
+                                  <span>{rule.behavior_name}</span>
+                                  <Badge variant={rule.rule_type === 'response_cost' ? 'destructive' : 'secondary'} className="text-[9px] h-4 px-1.5">
+                                    {rule.rule_type === 'response_cost' ? `-${rule.points}` : `+${rule.points}`}
+                                  </Badge>
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </>
+                    ) : behaviorActions.length > 0 ? (
                       <>
                         {behaviorActions.slice(0, 3).map(action => (
                           <button
