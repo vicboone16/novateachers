@@ -181,7 +181,7 @@ const GameBoard = () => {
       const bals = await getStudentBalances(user.id, sids);
       setLiveBalances(bals);
 
-      let nameMap = new Map<string, { first_name: string; last_name: string }>();
+      const nameMap = new Map<string, { first_name: string; last_name: string }>();
       try {
         const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
         const aid = (grpData as any)?.agency_id;
