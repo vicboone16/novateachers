@@ -222,9 +222,18 @@ const Threads = () => {
     } catch { /* silent */ }
   };
 
-  const openThread = (thread: ThreadRow) => {
+  const openThread = async (thread: ThreadRow) => {
     setActiveThread(thread);
     loadMessages(thread.id);
+    // Mark thread as read
+    if (user) {
+      await cloudSupabase.from('thread_read_receipts').upsert(
+        { thread_id: thread.id, user_id: user.id, last_read_at: new Date().toISOString() },
+        { onConflict: 'thread_id,user_id' }
+      );
+      setUnreadCounts(prev => { const n = { ...prev }; delete n[thread.id]; return n; });
+      setReadReceipts(prev => ({ ...prev, [thread.id]: new Date().toISOString() }));
+    }
   };
 
   // ── Send message ──
