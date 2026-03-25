@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
 import { useGameTrack } from '@/hooks/useGameTrack';
+import { useGameEvents } from '@/hooks/useGameEvents';
 import { CurvedTrackBoard } from '@/components/CurvedTrackBoard';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +64,7 @@ const GameBoard = () => {
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
   const { track } = useGameTrack(activeGroupId);
+  const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
 
   const TRACK_LENGTH = track?.total_steps || 100;
 
@@ -244,9 +246,10 @@ const GameBoard = () => {
         laps: getLaps(bal, TRACK_LENGTH),
         isFlashing: flash === s.student_id,
         teamColor: s.team_color,
+        activeEffect: getEffect(s.student_id)?.effect ?? null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
