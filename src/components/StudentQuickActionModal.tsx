@@ -13,6 +13,8 @@ import { writePointEntry } from '@/lib/beacon-points';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { ExternalAccessSheet } from '@/components/ExternalAccessSheet';
 import { BeaconTeacherSupportPanel } from '@/components/BeaconTeacherSupportPanel';
+import { ReinforcementAICards } from '@/components/ReinforcementAICards';
+import { ReinforcementAssignPanel } from '@/components/ReinforcementAssignPanel';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
