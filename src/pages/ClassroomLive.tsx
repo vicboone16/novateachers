@@ -90,7 +90,7 @@ export default function ClassroomLive() {
   const totalPoints = students.reduce((sum, s) => sum + (s.points_balance || 0), 0);
 
   const getDisplayName = (s: StudentGameProgress) => {
-    const mode = settings?.privacy_mode || 'first_names';
+    const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
     if (mode === 'initials') return `${(s.first_name || '')[0] || ''}${(s.last_name || '')[0] || ''}`;
     return s.first_name || '';
