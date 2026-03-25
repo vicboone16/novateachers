@@ -462,8 +462,8 @@ const GameBoard = () => {
       {settings?.leaderboard_enabled !== false && students.length > 0 && (
         <Card className="border-border/40">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3"><Trophy className="h-4 w-4 text-amber-500" /><p className="text-sm font-bold">Standings</p></div>
-            <div className="space-y-1">
+             <div className="flex items-center gap-2 mb-3"><Trophy className="h-4 w-4 text-amber-500" /><p className="text-sm font-bold font-heading">Standings</p></div>
+            <div className="space-y-0.5">
               {sortedStudents.slice(0, 10).map((s, i) => {
                 const bal = getEffectiveBalance(s);
                 const pos = getPosition(bal, TRACK_LENGTH);
@@ -475,12 +475,13 @@ const GameBoard = () => {
 
                 return (
                   <div key={s.student_id} className={cn(
-                    "flex items-center gap-3 rounded-lg px-2.5 py-2 transition-all duration-500",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-500",
                     isFlashing && "bg-accent/10 ring-1 ring-accent/30",
                     laps > 0 && "bg-accent/5"
                   )}>
                     <span className={cn("text-sm font-bold w-5 text-center tabular-nums",
-                      i === 0 && "text-amber-500", i === 1 && "text-muted-foreground", i === 2 && "text-orange-400"
+                      i === 0 && "rank-gold", i === 1 && "rank-silver", i === 2 && "rank-bronze",
+                      i > 2 && "text-muted-foreground"
                     )}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
                     <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
