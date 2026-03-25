@@ -72,8 +72,16 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Try clients table first with client_id
+    // Try clients table - log what we're looking for
     let coreData: any[] = [];
+    console.log("Looking for client_ids:", JSON.stringify(clientIds));
+
+    // First check how many clients exist total
+    const { count: totalCount } = await coreClient
+      .from("clients")
+      .select("*", { count: "exact", head: true });
+    console.log("Total clients in Core:", totalCount);
+
     const { data: clients, error: clientsErr } = await coreClient
       .from("clients")
       .select("client_id, first_name, last_name")
