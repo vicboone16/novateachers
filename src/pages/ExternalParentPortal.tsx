@@ -250,6 +250,9 @@ export default function ExternalParentPortal() {
         {/* Quests */}
         <StudentQuestCards studentId={data.studentId} agencyId={data.agencyId} />
 
+        {/* Parent-Teacher Conversation */}
+        <ParentTeacherThread studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
+
         {/* Parent Actions */}
         <ParentActionButtons studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
 
