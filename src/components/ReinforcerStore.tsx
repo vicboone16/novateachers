@@ -159,14 +159,15 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const saveEdit = async () => {
     if (!selectedReward || !formName.trim()) return;
     try {
-      const result = await invokeCloudFunction('core-bridge', {
-        action: 'update_reward',
-        reward_id: selectedReward.id,
+      const { error } = await cloudSupabase.from('beacon_rewards').update({
         name: formName.trim(),
         description: formDescription.trim() || null,
         cost: parseInt(formCost) || 10,
-      });
-      if (result.error) throw result.error;
+        category: formCategory,
+        emoji: formEmoji,
+        updated_at: new Date().toISOString(),
+      }).eq('id', selectedReward.id);
+      if (error) throw error;
       setEditOpen(false); resetForm(); loadRewards();
       toast({ title: 'Reward updated' });
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
