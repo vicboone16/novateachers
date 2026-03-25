@@ -387,9 +387,12 @@ const GameBoard = () => {
                         </div>
                       </div>
                       <span className="text-[10px] font-bold text-center truncate w-full text-foreground">{getDisplayName(s)}</span>
-                      <Badge variant="outline" className="text-[9px] tabular-nums gap-0.5 h-4 px-1.5">
-                        {skin.icon} {bal}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || s.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || s.current_xp || 0} compact />
+                        <Badge variant="outline" className="text-[9px] tabular-nums gap-0.5 h-4 px-1.5">
+                          {skin.icon} {bal}
+                        </Badge>
+                      </div>
                       <Progress value={pct} className="h-1.5 w-full" />
                     </div>
                   );
