@@ -848,6 +848,54 @@ export type Database = {
           },
         ]
       }
+      help_interactions: {
+        Row: {
+          agency_id: string | null
+          completed_at: string | null
+          context_json: Json
+          created_at: string
+          dismissed_at: string | null
+          help_item_id: string
+          help_item_type: string
+          id: string
+          route: string | null
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agency_id?: string | null
+          completed_at?: string | null
+          context_json?: Json
+          created_at?: string
+          dismissed_at?: string | null
+          help_item_id: string
+          help_item_type: string
+          id?: string
+          route?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agency_id?: string | null
+          completed_at?: string | null
+          context_json?: Json
+          created_at?: string
+          dismissed_at?: string | null
+          help_item_id?: string
+          help_item_type?: string
+          id?: string
+          route?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       iep_documents: {
         Row: {
           agency_id: string
@@ -3078,6 +3126,18 @@ export type Database = {
         }
         Relationships: []
       }
+      v_help_progress: {
+        Row: {
+          agency_id: string | null
+          completed_count: number | null
+          dismissed_count: number | null
+          help_item_type: string | null
+          last_activity: string | null
+          total_items_touched: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       v_student_points_balance: {
         Row: {
           agency_id: string | null
@@ -3146,6 +3206,36 @@ export type Database = {
           p_student: string
         }
         Returns: undefined
+      }
+      generate_rec_reinforcement_too_thin: {
+        Args: {
+          p_agency_id?: string
+          p_lookback_days?: number
+          p_max_positive_point_events?: number
+          p_min_events?: number
+        }
+        Returns: number
+      }
+      generate_rec_response_cost_backfiring: {
+        Args: {
+          p_agency_id?: string
+          p_lookback_days?: number
+          p_min_response_cost_events?: number
+          p_negative_to_positive_ratio?: number
+        }
+        Returns: number
+      }
+      generate_rec_token_goal_too_high: {
+        Args: {
+          p_agency_id?: string
+          p_low_progress_ratio?: number
+          p_min_goal?: number
+        }
+        Returns: number
+      }
+      generate_reinforcement_ai_recommendations: {
+        Args: { p_agency_id?: string }
+        Returns: Json
       }
       get_matching_teacher_point_rule: {
         Args: {
@@ -3292,6 +3382,18 @@ export type Database = {
           p_location_label?: string
           p_location_type?: string
           p_note?: string
+          p_status?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      track_help_interaction: {
+        Args: {
+          p_agency_id?: string
+          p_context_json?: Json
+          p_help_item_id?: string
+          p_help_item_type?: string
+          p_route?: string
           p_status?: string
           p_user_id: string
         }
