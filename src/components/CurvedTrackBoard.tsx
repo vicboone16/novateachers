@@ -24,6 +24,7 @@ interface StudentPosition {
   avatarAnimState?: AvatarAnimState;
   hasComeback?: boolean;
   streakEmoji?: string | null;
+  activeZone?: { type: string; color: string; label: string; multiplier: number } | null;
 }
 
 interface Props {
