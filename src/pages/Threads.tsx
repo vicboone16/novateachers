@@ -652,13 +652,14 @@ const Threads = () => {
 export default Threads;
 
 // ── Thread Group Component ──
-function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd }: {
+function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd, unreadCounts }: {
   label: string;
   threads: ThreadRow[];
   onSelect: (t: ThreadRow) => void;
   activeId?: string;
   showAddButton?: boolean;
   onAdd?: () => void;
+  unreadCounts?: Record<string, number>;
 }) {
   if (threads.length === 0 && !showAddButton) return null;
 
@@ -674,11 +675,13 @@ function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd 
       </div>
       {threads.map(thread => {
         const isActive = thread.id === activeId;
+        const hasUnread = !!(unreadCounts && unreadCounts[thread.id]);
         return (
           <button key={thread.id} onClick={() => onSelect(thread)}
             className={cn(
               'flex items-center gap-2 w-full px-3 py-2 text-left transition-colors text-sm',
-              isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground/80 hover:bg-muted/50'
+              isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground/80 hover:bg-muted/50',
+              hasUnread && !isActive && 'font-semibold'
             )}>
             {thread.is_private ? (
               <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -686,7 +689,10 @@ function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd 
               <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             )}
             <span className="flex-1 truncate text-xs">{getThreadDisplayTitle(thread)}</span>
-            {thread.last_message_preview && (
+            {hasUnread && !isActive && (
+              <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+            )}
+            {!hasUnread && thread.last_message_preview && (
               <span className="text-[9px] text-muted-foreground truncate max-w-[60px] hidden sm:inline">
                 {thread.last_message_preview}
               </span>
