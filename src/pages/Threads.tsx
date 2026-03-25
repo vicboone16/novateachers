@@ -86,6 +86,7 @@ const Threads = () => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [whosHereExpanded, setWhosHereExpanded] = useState(false);
+  const [replyTo, setReplyTo] = useState<ThreadMessageRow | null>(null);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
