@@ -198,26 +198,15 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     }
     setRedeeming(true);
     try {
-      const redeemResult = await invokeCloudFunction('core-bridge', {
-        action: 'create_redemption',
-        student_id: selectedStudentId,
-        reward_id: selectedReward.id,
-        agency_id: agencyId,
-        staff_id: user.id,
-        points_spent: selectedReward.cost,
+      // Use atomic RPC for redemption + point deduction
+      const { data, error } = await (cloudSupabase.rpc as any)('redeem_reward', {
+        p_student_id: selectedStudentId,
+        p_reward_id: selectedReward.id,
+        p_staff_id: user.id,
+        p_agency_id: agencyId,
       });
-      if (redeemResult.error) throw redeemResult.error;
-      await writePointEntry({
-        studentId: selectedStudentId, staffId: user.id, agencyId,
-        points: -selectedReward.cost, reason: `Redeemed: ${selectedReward.name}`, source: 'reward_redeem',
-      });
-      if (selectedReward.stock_count !== null) {
-        await invokeCloudFunction('core-bridge', {
-          action: 'update_reward',
-          reward_id: selectedReward.id,
-          stock_count: Math.max(0, selectedReward.stock_count - 1),
-        });
-      }
+      if (error) throw error;
+      if (data && !data.ok) throw new Error(data.error || 'Redemption failed');
       setRedeemSuccess(true);
       toast({ title: '🎉 Reward redeemed!', description: `${student.name} exchanged ${selectedReward.cost} pts for ${selectedReward.name}` });
       loadRewards();
