@@ -194,7 +194,7 @@ const GameBoard = () => {
         }
       } catch { /* silent */ }
 
-      let avatarMap = new Map<string, string>();
+      const avatarMap = new Map<string, string>();
       try {
         const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', sids);
         for (const p of (profiles || []) as any[]) avatarMap.set(p.student_id, p.avatar_emoji || '');
