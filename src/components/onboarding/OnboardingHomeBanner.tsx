@@ -8,7 +8,9 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface OnboardingHomeBannerProps {
   onboardingDay: number;
-  onActionTap?: (action: string) => void;
+  onLogBehavior?: () => void;
+  onSendUpdate?: () => void;
+  onWhosHere?: () => void;
 }
 
 const ACTION_CARDS = [
@@ -18,7 +20,6 @@ const ACTION_CARDS = [
     title: 'Tap a Behavior',
     subtitle: 'Takes 2 seconds',
     color: 'bg-accent/10 text-accent',
-    route: '/classroom',
   },
   {
     key: 'send_update',
@@ -26,7 +27,6 @@ const ACTION_CARDS = [
     title: 'Send Update',
     subtitle: 'Keep everyone in the loop',
     color: 'bg-primary/10 text-primary',
-    route: '/threads',
   },
   {
     key: 'whos_here',
@@ -34,7 +34,6 @@ const ACTION_CARDS = [
     title: "Who's Here",
     subtitle: 'See your classroom at a glance',
     color: 'bg-warning/10 text-warning',
-    route: '/classroom',
   },
 ] as const;
 
