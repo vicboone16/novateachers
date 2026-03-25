@@ -40,7 +40,7 @@ interface FreqEntry { behavior_name: string; count: number; logged_date: string;
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
 interface QuickNote { behavior_name: string | null; note: string; logged_at: string; }
 interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; }
-interface UnifiedEvent { event_type: string; event_subtype: string | null; event_value: any; recorded_at: string; }
+interface UnifiedEvent { event_type: string; event_subtype?: string | null; event_value: any; recorded_at: string; }
 
 export const WeeklyDataSummary = () => {
   const { user } = useAuth();
