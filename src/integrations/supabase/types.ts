@@ -989,6 +989,36 @@ export type Database = {
         }
         Relationships: []
       }
+      game_events: {
+        Row: {
+          agency_id: string
+          classroom_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          student_id: string | null
+        }
+        Insert: {
+          agency_id: string
+          classroom_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          student_id?: string | null
+        }
+        Update: {
+          agency_id?: string
+          classroom_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          student_id?: string | null
+        }
+        Relationships: []
+      }
       game_tracks: {
         Row: {
           agency_id: string | null
