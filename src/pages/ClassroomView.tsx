@@ -114,6 +114,7 @@ const ClassroomView = () => {
   const [staffCount, setStaffCount] = useState(0);
   const [teacherActions, setTeacherActions] = useState<TeacherPointAction[]>([]);
   const [studentTargets, setStudentTargets] = useState<StudentTargetMap>({});
+  const [studentBehaviors, setStudentBehaviors] = useState<StudentBehaviorMap>({});
   const [editingWord, setEditingWord] = useState(false);
   const [editingMission, setEditingMission] = useState(false);
   const [wordDraft, setWordDraft] = useState('');
