@@ -88,12 +88,16 @@ export function ThreadPresenceHeader({
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap py-1.5">
-      {inRoom.slice(0, 3).map(p => (
-        <Badge key={p.user_id} variant="secondary" className="text-[9px] h-5 px-1.5 gap-1">
-          <UserCheck className="h-2.5 w-2.5 text-green-500" />
-          {getName(p.user_id)}
-        </Badge>
-      ))}
+      {inRoom.slice(0, 3).map(p => {
+        const avail = p.availability || (p.available_for_support ? 'available' : 'busy');
+        const dotColor = avail === 'available' ? 'text-green-500' : avail === 'nearby' ? 'text-amber-500' : 'text-muted-foreground';
+        return (
+          <Badge key={p.user_id} variant="secondary" className="text-[9px] h-5 px-1.5 gap-1">
+            <UserCheck className={cn("h-2.5 w-2.5", dotColor)} />
+            {getName(p.user_id)}
+          </Badge>
+        );
+      })}
       {inRoom.length > 3 && (
         <Badge variant="outline" className="text-[9px] h-5 px-1.5">+{inRoom.length - 3}</Badge>
       )}

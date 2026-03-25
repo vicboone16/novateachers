@@ -127,11 +127,6 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
           }
         }
 
-        const presenceMap = new Map<string, any>();
-        for (const s of [...(roomStaff || []), ...(supportStaff || [])] as any[]) {
-          if (!presenceMap.has(s.user_id)) presenceMap.set(s.user_id, s);
-        }
-
         for (const c of allContacts) {
           const isLeadership = LEADERSHIP_ROLES.some(r => (c.role_label || '').toLowerCase().includes(r));
           const sp = c.user_id ? presenceMap.get(c.user_id) : null;
