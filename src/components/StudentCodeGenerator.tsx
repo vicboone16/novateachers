@@ -26,7 +26,7 @@ export const StudentCodeGenerator = ({ studentId, agencyId, studentName }: Props
   const checkExisting = async () => {
     setLoading(true);
     const existing = await getActiveStudentCode(studentId);
-    setCode(existing);
+    setCode(existing as any);
     setChecked(true);
     setLoading(false);
   };
