@@ -41,7 +41,6 @@ export const useStaffOnboarding = () => {
     lastMilestoneShown: null,
   });
 
-  // Load or create onboarding row
   useEffect(() => {
     if (!user || !agencyId) return;
     loadOnboarding();
@@ -50,8 +49,9 @@ export const useStaffOnboarding = () => {
   const loadOnboarding = async () => {
     if (!user || !agencyId) return;
 
+    // Use raw fetch to avoid type issues with new tables
     const { data, error } = await supabase
-      .from('staff_onboarding')
+      .from('staff_onboarding' as any)
       .select('*')
       .eq('user_id', user.id)
       .eq('agency_id', agencyId)
@@ -59,11 +59,9 @@ export const useStaffOnboarding = () => {
 
     if (!data && !error) {
       // First login — create record
-      const { data: newRow } = await supabase
-        .from('staff_onboarding')
-        .insert({ user_id: user.id, agency_id: agencyId })
-        .select()
-        .single();
+      await supabase
+        .from('staff_onboarding' as any)
+        .insert({ user_id: user.id, agency_id: agencyId } as any);
 
       setState({
         loading: false,
@@ -79,25 +77,26 @@ export const useStaffOnboarding = () => {
     }
 
     if (data) {
-      const daysSinceFirst = data.first_login_at
-        ? Math.max(1, Math.ceil((Date.now() - new Date(data.first_login_at).getTime()) / 86400000))
+      const row = data as any;
+      const daysSinceFirst = row.first_login_at
+        ? Math.max(1, Math.ceil((Date.now() - new Date(row.first_login_at).getTime()) / 86400000))
         : 1;
 
       setState({
         loading: false,
-        isFirstLogin: !data.welcome_dismissed,
-        welcomeDismissed: data.welcome_dismissed ?? false,
-        walkthroughCompleted: data.walkthrough_completed ?? false,
-        firstActionCompleted: data.first_action_completed ?? false,
+        isFirstLogin: !row.welcome_dismissed,
+        welcomeDismissed: row.welcome_dismissed ?? false,
+        walkthroughCompleted: row.walkthrough_completed ?? false,
+        firstActionCompleted: row.first_action_completed ?? false,
         onboardingDay: daysSinceFirst,
-        totalActions: data.total_actions ?? 0,
-        lastMilestoneShown: data.last_milestone_shown,
+        totalActions: row.total_actions ?? 0,
+        lastMilestoneShown: row.last_milestone_shown,
       });
 
       // Update last_active
       supabase
-        .from('staff_onboarding')
-        .update({ last_active_at: new Date().toISOString() })
+        .from('staff_onboarding' as any)
+        .update({ last_active_at: new Date().toISOString() } as any)
         .eq('user_id', user.id)
         .eq('agency_id', agencyId)
         .then(() => {});
@@ -110,8 +109,8 @@ export const useStaffOnboarding = () => {
     if (!user || !agencyId) return;
     setState((s) => ({ ...s, welcomeDismissed: true, isFirstLogin: false }));
     await supabase
-      .from('staff_onboarding')
-      .update({ welcome_dismissed: true })
+      .from('staff_onboarding' as any)
+      .update({ welcome_dismissed: true } as any)
       .eq('user_id', user.id)
       .eq('agency_id', agencyId);
   }, [user, agencyId]);
@@ -120,8 +119,8 @@ export const useStaffOnboarding = () => {
     if (!user || !agencyId) return;
     setState((s) => ({ ...s, walkthroughCompleted: true }));
     await supabase
-      .from('staff_onboarding')
-      .update({ walkthrough_completed: true })
+      .from('staff_onboarding' as any)
+      .update({ walkthrough_completed: true } as any)
       .eq('user_id', user.id)
       .eq('agency_id', agencyId);
   }, [user, agencyId]);
@@ -131,8 +130,8 @@ export const useStaffOnboarding = () => {
 
     // Log activity
     await supabase
-      .from('staff_activity_log')
-      .insert({ user_id: user.id, agency_id: agencyId, activity_type: activityType });
+      .from('staff_activity_log' as any)
+      .insert({ user_id: user.id, agency_id: agencyId, activity_type: activityType } as any);
 
     const newTotal = state.totalActions + 1;
     const updates: Record<string, unknown> = {
@@ -149,7 +148,6 @@ export const useStaffOnboarding = () => {
     let newMilestone: string | null = null;
     for (const m of MILESTONES) {
       if (newTotal >= m.threshold && state.lastMilestoneShown !== m.key) {
-        // Only show next unshown milestone
         const alreadyShown = MILESTONES.findIndex((x) => x.key === state.lastMilestoneShown);
         const thisIndex = MILESTONES.findIndex((x) => x.key === m.key);
         if (thisIndex > alreadyShown) {
@@ -161,8 +159,8 @@ export const useStaffOnboarding = () => {
     }
 
     await supabase
-      .from('staff_onboarding')
-      .update(updates)
+      .from('staff_onboarding' as any)
+      .update(updates as any)
       .eq('user_id', user.id)
       .eq('agency_id', agencyId);
 
