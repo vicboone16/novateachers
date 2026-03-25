@@ -311,6 +311,15 @@ export default function StudentPortalEnhanced() {
           </div>
         )}
 
+        {/* Daily Quests */}
+        {groupId && agencyId && studentId && (
+          <DailyQuestPanel
+            groupId={groupId}
+            agencyId={agencyId}
+            studentId={studentId}
+          />
+        )}
+
         <p className="text-center text-[10px] text-muted-foreground pt-4 pb-8">
           <Sparkles className="h-3 w-3 inline mr-1" /> Powered by Beacon Points™
         </p>
