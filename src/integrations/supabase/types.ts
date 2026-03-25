@@ -1551,6 +1551,72 @@ export type Database = {
         }
         Relationships: []
       }
+      reinforcement_ai_recommendations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          action_notes: string | null
+          agency_id: string | null
+          created_at: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          evidence_json: Json
+          explanation: string
+          id: string
+          priority: string
+          recommendation_type: string
+          resolved_at: string | null
+          status: string
+          student_id: string
+          suggested_action: string | null
+          suggested_payload: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          action_notes?: string | null
+          agency_id?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          evidence_json?: Json
+          explanation: string
+          id?: string
+          priority?: string
+          recommendation_type: string
+          resolved_at?: string | null
+          status?: string
+          student_id: string
+          suggested_action?: string | null
+          suggested_payload?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          action_notes?: string | null
+          agency_id?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          evidence_json?: Json
+          explanation?: string
+          id?: string
+          priority?: string
+          recommendation_type?: string
+          resolved_at?: string | null
+          status?: string
+          student_id?: string
+          suggested_action?: string | null
+          suggested_payload?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_presence: {
         Row: {
           agency_id: string
@@ -3138,6 +3204,51 @@ export type Database = {
         }
         Relationships: []
       }
+      v_open_reinforcement_ai_recommendations: {
+        Row: {
+          agency_id: string | null
+          created_at: string | null
+          evidence_json: Json | null
+          explanation: string | null
+          id: string | null
+          priority: string | null
+          recommendation_type: string | null
+          status: string | null
+          student_id: string | null
+          suggested_action: string | null
+          suggested_payload: Json | null
+          title: string | null
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string | null
+          evidence_json?: Json | null
+          explanation?: string | null
+          id?: string | null
+          priority?: string | null
+          recommendation_type?: string | null
+          status?: string | null
+          student_id?: string | null
+          suggested_action?: string | null
+          suggested_payload?: Json | null
+          title?: string | null
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string | null
+          evidence_json?: Json | null
+          explanation?: string | null
+          id?: string | null
+          priority?: string | null
+          recommendation_type?: string | null
+          status?: string | null
+          student_id?: string | null
+          suggested_action?: string | null
+          suggested_payload?: Json | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       v_student_points_balance: {
         Row: {
           agency_id: string | null
@@ -3152,6 +3263,14 @@ export type Database = {
       }
     }
     Functions: {
+      accept_reinforcement_ai_recommendation: {
+        Args: {
+          p_action_notes?: string
+          p_recommendation_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       apply_invite_code_access: {
         Args: {
           p_code: string
@@ -3196,6 +3315,14 @@ export type Database = {
             }
             Returns: string
           }
+      dismiss_reinforcement_ai_recommendation: {
+        Args: {
+          p_action_notes?: string
+          p_recommendation_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       generate_beacon_teacher_plan: {
         Args: {
           p_classroom_id?: string
@@ -3370,6 +3497,14 @@ export type Database = {
           redeemed: boolean
           role_slug: string
         }[]
+      }
+      resolve_reinforcement_ai_recommendation: {
+        Args: {
+          p_action_notes?: string
+          p_recommendation_id: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       set_staff_presence: {
         Args: {
