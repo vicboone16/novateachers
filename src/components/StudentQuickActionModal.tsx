@@ -66,6 +66,7 @@ export function StudentQuickActionModal({
   const [codeLoading, setCodeLoading] = useState(false);
   const [externalSheetOpen, setExternalSheetOpen] = useState(false);
   const [supportPanelOpen, setSupportPanelOpen] = useState(false);
+  const [reinforcementEditorOpen, setReinforcementEditorOpen] = useState(false);
 
   // Duration timer state
   const [timerRunning, setTimerRunning] = useState(false);
