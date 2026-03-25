@@ -390,6 +390,14 @@ export function StudentQuickActionModal({
       studentName={studentName}
       agencyId={agencyId}
     />
+
+    <ReinforcementAssignPanel
+      open={reinforcementEditorOpen}
+      onOpenChange={setReinforcementEditorOpen}
+      studentId={studentId}
+      studentName={studentName}
+      agencyId={agencyId}
+    />
     </>
   );
 }
