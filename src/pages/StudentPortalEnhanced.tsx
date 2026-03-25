@@ -196,7 +196,38 @@ export default function StudentPortalEnhanced() {
           </CardContent>
         </Card>
 
-        {/* Mission & Word */}
+        {/* Level & XP */}
+        <Card className="border-border/40">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold", levelColor(currentLevel))}>
+                {currentLevel}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold">Level {currentLevel}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Progress value={xpPct} className="h-2 flex-1" />
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{currentXp}/{xpForNext} XP</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Unlocked Badges */}
+        {unlocks.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-bold flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> Badges Earned</h2>
+            <div className="flex flex-wrap gap-2">
+              {unlocks.map((u, i) => (
+                <Badge key={i} variant="outline" className="text-xs gap-1 py-1.5 px-3">
+                  <span>{u.emoji}</span> {u.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {(missionOfDay || wordOfWeek) && (
           <div className="flex gap-3">
             {missionOfDay && <Card className="flex-1 border-border/40"><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mission</p><p className="text-xs font-semibold mt-1">🎯 {missionOfDay}</p></CardContent></Card>}
