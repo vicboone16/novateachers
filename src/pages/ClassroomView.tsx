@@ -6,6 +6,8 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { OnboardingHomeBanner } from '@/components/onboarding/OnboardingHomeBanner';
+import { useStaffOnboarding } from '@/hooks/useStaffOnboarding';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
