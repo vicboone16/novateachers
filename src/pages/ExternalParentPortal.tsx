@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { ParentInsightCards } from '@/components/ParentInsightCards';
 import { ParentActionButtons } from '@/components/ParentActionButtons';
