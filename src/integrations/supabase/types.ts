@@ -2417,6 +2417,39 @@ export type Database = {
         }
         Relationships: []
       }
+      parent_reinforcement_events: {
+        Row: {
+          action_type: string
+          agency_id: string
+          bonus_points_awarded: number | null
+          created_at: string
+          id: string
+          momentum_boost: boolean | null
+          parent_action_id: string | null
+          student_id: string
+        }
+        Insert: {
+          action_type: string
+          agency_id: string
+          bonus_points_awarded?: number | null
+          created_at?: string
+          id?: string
+          momentum_boost?: boolean | null
+          parent_action_id?: string | null
+          student_id: string
+        }
+        Update: {
+          action_type?: string
+          agency_id?: string
+          bonus_points_awarded?: number | null
+          created_at?: string
+          id?: string
+          momentum_boost?: boolean | null
+          parent_action_id?: string | null
+          student_id?: string
+        }
+        Relationships: []
+      }
       pending_student_changes: {
         Row: {
           agency_id: string
@@ -3047,11 +3080,17 @@ export type Database = {
           agency_id: string
           avatar_emoji: string
           avatar_items: Json
+          comeback_active: boolean | null
           created_at: string
           current_level: number
           current_xp: number
+          daily_narrative: string | null
+          daily_narrative_at: string | null
           id: string
+          identity_emoji: string | null
+          identity_title: string | null
           login_mode: string
+          momentum_state: string | null
           portal_enabled: boolean
           student_id: string
           updated_at: string
@@ -3060,11 +3099,17 @@ export type Database = {
           agency_id: string
           avatar_emoji?: string
           avatar_items?: Json
+          comeback_active?: boolean | null
           created_at?: string
           current_level?: number
           current_xp?: number
+          daily_narrative?: string | null
+          daily_narrative_at?: string | null
           id?: string
+          identity_emoji?: string | null
+          identity_title?: string | null
           login_mode?: string
+          momentum_state?: string | null
           portal_enabled?: boolean
           student_id: string
           updated_at?: string
@@ -3073,11 +3118,17 @@ export type Database = {
           agency_id?: string
           avatar_emoji?: string
           avatar_items?: Json
+          comeback_active?: boolean | null
           created_at?: string
           current_level?: number
           current_xp?: number
+          daily_narrative?: string | null
+          daily_narrative_at?: string | null
           id?: string
+          identity_emoji?: string | null
+          identity_title?: string | null
           login_mode?: string
+          momentum_state?: string | null
           portal_enabled?: boolean
           student_id?: string
           updated_at?: string
