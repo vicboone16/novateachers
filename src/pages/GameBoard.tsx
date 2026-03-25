@@ -321,7 +321,7 @@ const GameBoard = () => {
         activeZone: activeZone ? { type: activeZone.type, color: activeZone.color, label: activeZone.label, multiplier: activeZone.multiplier } : null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, getAnimState, studentStatuses, track?.zones]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, (settings as any)?.privacy_mode, getEffect, getAnimState, studentStatuses, track?.zones]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
