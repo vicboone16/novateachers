@@ -349,6 +349,13 @@ export type Database = {
             referencedRelation: "beacon_rewards"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "beacon_reward_redemptions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "v_reward_store"
+            referencedColumns: ["id"]
+          },
         ]
       }
       beacon_rewards: {
@@ -378,6 +385,7 @@ export type Database = {
           scope_type: string
           sort_order: number
           stock_count: number | null
+          tier: string
           time_sensitive_until: string | null
           updated_at: string
         }
@@ -407,6 +415,7 @@ export type Database = {
           scope_type?: string
           sort_order?: number
           stock_count?: number | null
+          tier?: string
           time_sensitive_until?: string | null
           updated_at?: string
         }
@@ -436,6 +445,7 @@ export type Database = {
           scope_type?: string
           sort_order?: number
           stock_count?: number | null
+          tier?: string
           time_sensitive_until?: string | null
           updated_at?: string
         }
@@ -1793,6 +1803,54 @@ export type Database = {
         }
         Relationships: []
       }
+      reward_dynamic_prices: {
+        Row: {
+          agency_id: string
+          classroom_id: string | null
+          computed_price: number
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string | null
+          reward_id: string
+        }
+        Insert: {
+          agency_id: string
+          classroom_id?: string | null
+          computed_price: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          reward_id: string
+        }
+        Update: {
+          agency_id?: string
+          classroom_id?: string | null
+          computed_price?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          reward_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_dynamic_prices_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_dynamic_prices_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "v_reward_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reward_economy_settings: {
         Row: {
           agency_id: string
@@ -1834,6 +1892,54 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reward_inventory: {
+        Row: {
+          agency_id: string
+          classroom_id: string | null
+          created_at: string
+          id: string
+          is_limited: boolean
+          quantity_available: number
+          reward_id: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          classroom_id?: string | null
+          created_at?: string
+          id?: string
+          is_limited?: boolean
+          quantity_available?: number
+          reward_id: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          classroom_id?: string | null
+          created_at?: string
+          id?: string
+          is_limited?: boolean
+          quantity_available?: number
+          reward_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_inventory_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_inventory_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "v_reward_store"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reward_transactions: {
         Row: {
@@ -1890,6 +1996,13 @@ export type Database = {
             columns: ["reward_id"]
             isOneToOne: false
             referencedRelation: "beacon_rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_transactions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "v_reward_store"
             referencedColumns: ["id"]
           },
         ]
@@ -3800,6 +3913,33 @@ export type Database = {
         }
         Relationships: []
       }
+      v_reward_store: {
+        Row: {
+          active: boolean | null
+          agency_id: string | null
+          base_cost: number | null
+          cost: number | null
+          current_dynamic_price: number | null
+          description: string | null
+          dynamic_pricing_enabled: boolean | null
+          emoji: string | null
+          id: string | null
+          inventory_enabled: boolean | null
+          is_limited: boolean | null
+          max_cost: number | null
+          min_cost: number | null
+          name: string | null
+          quantity_available: number | null
+          redemption_count_24h: number | null
+          reward_type: string | null
+          scope_id: string | null
+          scope_type: string | null
+          sort_order: number | null
+          stock_count: number | null
+          tier: string | null
+        }
+        Relationships: []
+      }
       v_staff_engagement: {
         Row: {
           first_action_completed: boolean | null
@@ -3822,6 +3962,38 @@ export type Database = {
           total_spent: number | null
         }
         Relationships: []
+      }
+      v_student_reward_history: {
+        Row: {
+          agency_id: string | null
+          balance_after: number | null
+          balance_before: number | null
+          created_at: string | null
+          id: string | null
+          metadata_json: Json | null
+          point_cost: number | null
+          reward_emoji: string | null
+          reward_id: string | null
+          reward_name: string | null
+          student_id: string | null
+          transaction_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_transactions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reward_transactions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "v_reward_store"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -4047,6 +4219,16 @@ export type Database = {
         }
         Returns: Json
       }
+      override_reward_price: {
+        Args: {
+          p_agency_id: string
+          p_created_by?: string
+          p_new_price: number
+          p_reason?: string
+          p_reward_id: string
+        }
+        Returns: Json
+      }
       redeem_invite_code: {
         Args: {
           p_code: string
@@ -4087,6 +4269,16 @@ export type Database = {
           p_action_notes?: string
           p_recommendation_id: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      restock_reward_inventory: {
+        Args: {
+          p_agency_id: string
+          p_classroom_id?: string
+          p_created_by?: string
+          p_quantity: number
+          p_reward_id: string
         }
         Returns: Json
       }
