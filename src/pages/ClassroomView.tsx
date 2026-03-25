@@ -709,7 +709,7 @@ const ClassroomView = () => {
     <div className="space-y-5 pb-6">
       {/* ─── HEADER BAND ─── */}
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
             {allGroups.length > 0 ? (
               <Select value={showAll ? '__all__' : (activeGroupId || '')} onValueChange={(v) => {
@@ -732,36 +732,36 @@ const ClassroomView = () => {
             )}
             <p className="text-xs text-muted-foreground mt-0.5">
               {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
-              {' · '}{clients.length} students
+              {' · '}{clients.length} student{clients.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <ScrollArea className="w-full">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/game-board')}>
-                <Gamepad2 className="h-3.5 w-3.5" /> Game
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/rewards')}>
-                <Gift className="h-3.5 w-3.5" /> Rewards
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setBulkAwardOpen(true)} title="Award all students">
-                <Users className="h-3.5 w-3.5" /> Award All
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
-                <Settings2 className="h-3.5 w-3.5" /> Reinforcement
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => navigate('/threads')} title="Threads">
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-              {activeGroupId && (
-                <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-              )}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          {activeGroupId && (
+            <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+          )}
         </div>
+        <ScrollArea className="w-full">
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/game-board')}>
+              <Gamepad2 className="h-3.5 w-3.5" /> Game
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/rewards')}>
+              <Gift className="h-3.5 w-3.5" /> Rewards
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/threads')}>
+              <MessageSquare className="h-3.5 w-3.5" /> Threads
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setBulkAwardOpen(true)}>
+              <Users className="h-3.5 w-3.5" /> Award All
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)}>
+              <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
 
       {/* ─── SUMMARY BAR (horizontally scrollable, drag-to-reorder) ─── */}
