@@ -1800,6 +1800,48 @@ export type Database = {
         }
         Relationships: []
       }
+      student_game_profiles: {
+        Row: {
+          agency_id: string
+          avatar_emoji: string
+          avatar_items: Json
+          created_at: string
+          current_level: number
+          current_xp: number
+          id: string
+          login_mode: string
+          portal_enabled: boolean
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          avatar_emoji?: string
+          avatar_items?: Json
+          created_at?: string
+          current_level?: number
+          current_xp?: number
+          id?: string
+          login_mode?: string
+          portal_enabled?: boolean
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          avatar_emoji?: string
+          avatar_items?: Json
+          created_at?: string
+          current_level?: number
+          current_xp?: number
+          id?: string
+          login_mode?: string
+          portal_enabled?: boolean
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       student_presence: {
         Row: {
           agency_id: string
