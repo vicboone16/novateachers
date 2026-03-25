@@ -1,10 +1,12 @@
 /**
- * GameBoard — Race Track with deterministic engine, realtime updates, and reset flow.
- * Formula: position = min(balance, TRACK_LENGTH). Checkpoints every CHECKPOINT_INTERVAL.
- * When a student reaches TRACK_LENGTH, they "lap" — balance continues, lap count increments.
+ * GameBoard — Curved Track Race Board with dynamic track from game_tracks.
+ * Uses nodes_json for SVG path, interpolates student positions along the curve.
+ * Supports laps, realtime updates, checkpoint celebrations, and team mode.
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { useGameTrack } from '@/hooks/useGameTrack';
+import { CurvedTrackBoard } from '@/components/CurvedTrackBoard';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,24 +23,20 @@ import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Sparkles, Users, Flag, Star, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const TRACK_LENGTH = 100;
-const CHECKPOINT_INTERVAL = 10; // every 10 points
-const CHECKPOINTS = Array.from({ length: TRACK_LENGTH / CHECKPOINT_INTERVAL }, (_, i) => (i + 1) * CHECKPOINT_INTERVAL);
+const CHECKPOINT_INTERVAL = 10;
 
-const getPosition = (balance: number) => {
-  // Position wraps within TRACK_LENGTH (lap system)
-  const effective = balance % TRACK_LENGTH;
-  return effective === 0 && balance > 0 ? TRACK_LENGTH : effective;
+const getPosition = (balance: number, trackLength: number) => {
+  const effective = balance % trackLength;
+  return effective === 0 && balance > 0 ? trackLength : effective;
 };
-const getLaps = (balance: number) => Math.floor(balance / TRACK_LENGTH);
+const getLaps = (balance: number, trackLength: number) => Math.floor(balance / trackLength);
 const getCheckpointsReached = (pos: number) => Math.floor(pos / CHECKPOINT_INTERVAL);
 
 const GameBoard = () => {
@@ -64,6 +62,9 @@ const GameBoard = () => {
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
+  const { track } = useGameTrack(activeGroupId);
+
+  const TRACK_LENGTH = track?.total_steps || 100;
 
   // Load all groups for selector
   useEffect(() => {
@@ -119,7 +120,6 @@ const GameBoard = () => {
       const bals = await getStudentBalances(user.id, studentIds);
       setLiveBalances(bals);
 
-      // Load names — try by agency (more reliable than by individual IDs)
       let nameMap = new Map<string, { first_name: string; last_name: string }>();
       try {
         const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
@@ -133,7 +133,6 @@ const GameBoard = () => {
         }
       } catch { /* silent */ }
 
-      // Direct ID lookup fallback
       if (nameMap.size < studentIds.length) {
         try {
           const { data: clients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').in('client_id', studentIds);
@@ -158,7 +157,7 @@ const GameBoard = () => {
           last_name: names?.last_name || '',
           avatar_emoji: avatarMap.get(sid) || '👤',
           points_balance: bals[sid] || 0,
-          track_position: getPosition(bals[sid] || 0),
+          track_position: getPosition(bals[sid] || 0, TRACK_LENGTH),
           team_name: undefined,
           team_color: undefined,
           team_icon: undefined,
@@ -171,7 +170,7 @@ const GameBoard = () => {
     }
   };
 
-  // Realtime subscription — refetch balances instead of accumulating to prevent glitches
+  // Realtime subscription
   useEffect(() => {
     if (!user) return;
     const channel = cloudSupabase.channel('game-board-live').on('postgres_changes', {
@@ -179,15 +178,14 @@ const GameBoard = () => {
     }, async (payload: any) => {
       const sid = payload.new?.student_id;
       if (sid && students.some(s => s.student_id === sid)) {
-        // Refetch all balances to get accurate totals (prevents glitch between 0 and N)
         const studentIds = students.map(s => s.student_id);
         const bals = await getStudentBalances(user.id, studentIds);
         setLiveBalances(prev => {
           const prevBal = prev[sid] || 0;
           const newBal = bals[sid] || 0;
-          const prevCp = getCheckpointsReached(getPosition(prevBal));
-          const newCp = getCheckpointsReached(getPosition(newBal));
-          if (newCp > prevCp || getLaps(newBal) > getLaps(prevBal)) {
+          const prevCp = getCheckpointsReached(getPosition(prevBal, TRACK_LENGTH));
+          const newCp = getCheckpointsReached(getPosition(newBal, TRACK_LENGTH));
+          if (newCp > prevCp || getLaps(newBal, TRACK_LENGTH) > getLaps(prevBal, TRACK_LENGTH)) {
             setRecentCheckpoint(sid);
             setTimeout(() => setRecentCheckpoint(null), 3000);
           }
@@ -198,7 +196,7 @@ const GameBoard = () => {
       }
     }).subscribe();
     return () => { cloudSupabase.removeChannel(channel); };
-  }, [user, students]);
+  }, [user, students, TRACK_LENGTH]);
 
   const handleReset = async () => {
     if (!user || !activeGroupId) return;
@@ -230,6 +228,25 @@ const GameBoard = () => {
     if (mode === 'initials') return `${first[0] || ''}${last[0] || ''}`.toUpperCase() || s.student_id.slice(0, 4);
     return first || last || s.student_id.slice(0, 6);
   };
+
+  // Build student positions for curved track
+  const trackStudents = useMemo(() => {
+    return students.map(s => {
+      const bal = getEffectiveBalance(s);
+      const pos = getPosition(bal, TRACK_LENGTH);
+      const progress = Math.min(pos / TRACK_LENGTH, 1);
+      return {
+        student_id: s.student_id,
+        avatar_emoji: s.avatar_emoji || '👤',
+        name: getDisplayName(s),
+        progress,
+        balance: bal,
+        laps: getLaps(bal, TRACK_LENGTH),
+        isFlashing: flash === s.student_id,
+        teamColor: s.team_color,
+      };
+    });
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
@@ -327,12 +344,12 @@ const GameBoard = () => {
         </div>
       )}
 
-      {/* Race Track */}
-      <Card className="border-border/40">
-        <CardContent className="p-4">
+      {/* Curved Race Track */}
+      <Card className="border-border/40 overflow-hidden">
+        <CardContent className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent" /><p className="text-sm font-bold">Race Track</p></div>
-            <p className="text-[10px] text-muted-foreground">{TRACK_LENGTH}pt lap · {CHECKPOINT_INTERVAL}pt checkpoints</p>
+            <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent" /><p className="text-sm font-bold">{track?.name || 'Race Track'}</p></div>
+            <p className="text-[10px] text-muted-foreground">{TRACK_LENGTH}pt lap · {track?.nodes.length || 0} waypoints</p>
           </div>
 
           {students.length === 0 ? (
@@ -341,65 +358,14 @@ const GameBoard = () => {
               <p className="text-sm text-muted-foreground">No students in this classroom group yet.</p>
               <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/classrooms')}>Add Students</Button>
             </div>
-          ) : (
-            <div className="relative bg-muted/30 rounded-2xl p-4 overflow-hidden border border-border/30">
-              {/* Track line */}
-              <div className="relative mx-4 h-3 bg-border/60 rounded-full mb-4">
-                {CHECKPOINTS.map(cp => (
-                  <div key={cp} className={cn(
-                    "absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 transition-all duration-500",
-                    totalClassPoints > 0 && students.some(s => getPosition(getEffectiveBalance(s)) >= cp)
-                      ? "bg-accent border-accent shadow-md shadow-accent/30 scale-110" : "bg-background border-muted-foreground/30"
-                  )} style={{ left: `${(cp / TRACK_LENGTH) * 100}%`, transform: 'translate(-50%, -50%)' }}>
-                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-muted-foreground whitespace-nowrap">{cp}</span>
-                  </div>
-                ))}
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 text-lg">🏁</div>
-              </div>
-
-              {/* Student grid — card-based layout instead of absolute positioning */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                {sortedStudents.map((s) => {
-                  const bal = getEffectiveBalance(s);
-                  const pos = getPosition(bal);
-                  const laps = getLaps(bal);
-                  const pct = (pos / TRACK_LENGTH) * 100;
-                  const isFlashing = flash === s.student_id;
-                  const isCheckpoint = recentCheckpoint === s.student_id;
-                  const hasLapped = laps > 0;
-
-                  return (
-                    <div key={s.student_id} className={cn(
-                      "flex flex-col items-center gap-1 rounded-xl border p-2.5 transition-all duration-500",
-                      isFlashing && "scale-105 z-20 ring-2 ring-amber-400 bg-amber-50 dark:bg-amber-900/20",
-                      isCheckpoint && "scale-110 z-30 ring-2 ring-accent",
-                      hasLapped ? "border-accent/40 bg-accent/5" : "border-border/40 bg-card/50",
-                    )}>
-                      {isCheckpoint && <span className="text-sm animate-bounce">⭐</span>}
-                      <div className="relative">
-                        {hasLapped && <span className="absolute -top-2 -right-2 text-[8px] font-bold bg-accent text-accent-foreground rounded-full px-1">🏆{laps}</span>}
-                        <div className={cn(
-                          "flex items-center justify-center w-10 h-10 rounded-full transition-all",
-                          isFlashing ? "shadow-lg shadow-amber-400/40" : "shadow-sm",
-                          hasLapped && "ring-2 ring-accent shadow-accent/30",
-                        )} style={s.team_color ? { borderColor: s.team_color, borderWidth: 2 } : {}}>
-                          <span className="text-2xl">{s.avatar_emoji || '👤'}</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold text-center truncate w-full text-foreground">{getDisplayName(s)}</span>
-                      <div className="flex items-center gap-1">
-                        <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || s.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || s.current_xp || 0} compact />
-                        <Badge variant="outline" className="text-[9px] tabular-nums gap-0.5 h-4 px-1.5">
-                          {skin.icon} {bal}
-                        </Badge>
-                      </div>
-                      <Progress value={pct} className="h-1.5 w-full" />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          ) : track ? (
+            <CurvedTrackBoard
+              nodes={track.nodes}
+              totalSteps={TRACK_LENGTH}
+              students={trackStudents}
+              className="border border-border/30"
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -411,11 +377,12 @@ const GameBoard = () => {
             <div className="space-y-1">
               {sortedStudents.slice(0, 10).map((s, i) => {
                 const bal = getEffectiveBalance(s);
-                const pos = getPosition(bal);
-                const laps = getLaps(bal);
+                const pos = getPosition(bal, TRACK_LENGTH);
+                const laps = getLaps(bal, TRACK_LENGTH);
                 const isFlashing = flash === s.student_id;
                 const cp = getCheckpointsReached(pos);
                 const name = getDisplayName(s);
+                const distToFinish = Math.max(0, TRACK_LENGTH - pos);
 
                 return (
                   <div key={s.student_id} className={cn(
@@ -429,7 +396,7 @@ const GameBoard = () => {
                     <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || 0} compact />
                     {laps > 0 && <Badge className="text-[9px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><CheckCircle className="h-2 w-2" />Lap {laps}</Badge>}
                     <Badge variant="outline" className="text-[10px] tabular-nums gap-0.5 shrink-0">{skin.icon} {bal}</Badge>
-                    <div className="w-16 shrink-0"><Progress value={(pos / TRACK_LENGTH) * 100} className="h-2" /></div>
+                    {distToFinish > 0 && <span className="text-[9px] text-muted-foreground shrink-0 whitespace-nowrap">{distToFinish}pts left</span>}
                     {cp > 0 && <span className="text-[9px] text-muted-foreground shrink-0">{cp}cp</span>}
                   </div>
                 );
