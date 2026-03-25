@@ -100,6 +100,8 @@ function AnimatedAvatarGroup({
   const isBurst = eff === 'burst';
   const isSparkle = eff === 'sparkle';
   const isCardFlash = eff === 'card-flash';
+  const isFlame = eff === 'flame';
+  const isTeamPulse = eff === 'team-pulse';
   const isDimmed = isShake;
 
   return (
