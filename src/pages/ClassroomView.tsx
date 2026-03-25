@@ -26,6 +26,10 @@ import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { AnimatedAvatar } from '@/components/AnimatedAvatar';
+import { ClassroomMomentum } from '@/components/ClassroomMomentum';
+import { TeacherWinsFeed } from '@/components/TeacherWinsFeed';
+import { SessionSummaryPopup } from '@/components/SessionSummaryPopup';
+import { QuickStartSetup } from '@/components/QuickStartSetup';
 import { useGameEvents } from '@/hooks/useGameEvents';
 import { eventTypeToAnimState } from '@/lib/avatar-animations';
 import { UndoToast } from '@/components/UndoToast';
@@ -125,8 +129,11 @@ const ClassroomView = () => {
   const [editingMission, setEditingMission] = useState(false);
   const [wordDraft, setWordDraft] = useState('');
   const [missionDraft, setMissionDraft] = useState('');
-  const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
+  const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['momentum', 'points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
   const [dragChip, setDragChip] = useState<string | null>(null);
+  const [sessionSummaryOpen, setSessionSummaryOpen] = useState(false);
+  const [quickStartOpen, setQuickStartOpen] = useState(false);
+  const [sessionStartTime] = useState(() => Date.now());
   const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
   const handleUndoComplete = async () => {
     const ok = await undoAction();
@@ -656,6 +663,12 @@ const ClassroomView = () => {
   const behaviorActions = teacherActions.filter(a => a.action_group === 'behavior');
   const manualActions = teacherActions.filter(a => a.action_group === 'manual');
 
+  // Student name map for wins/summary
+  const studentNameMap = Object.fromEntries(clients.map(c => [c.id, displayName(c)]));
+
+  // Session duration check (30+ minutes → allow end session)
+  const sessionMinutes = Math.floor((Date.now() - sessionStartTime) / 60000);
+
   if (loading || classroomLoading) {
     return (
       <div className="flex items-center justify-center py-16 flex-col gap-3">
@@ -677,8 +690,17 @@ const ClassroomView = () => {
           <div className="flex gap-2 justify-center">
             <Button variant="outline" size="sm" onClick={loadClients}>Retry</Button>
             <Button variant="outline" size="sm" onClick={() => navigate('/classrooms')}>Classroom Manager</Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setQuickStartOpen(true)}>
+              <Zap className="h-3.5 w-3.5" /> Quick Start
+            </Button>
           </div>
         </div>
+        <QuickStartSetup
+          open={quickStartOpen}
+          onOpenChange={setQuickStartOpen}
+          agencyId={effectiveAgencyId}
+          onComplete={(groupId) => { setActiveGroupId(groupId); loadClients(); }}
+        />
       </div>
     );
   }
@@ -746,6 +768,7 @@ const ClassroomView = () => {
       <ScrollArea className="w-full">
         <div className="flex gap-2.5 pb-2">
           {summaryChipOrder.map(chipKey => {
+            if (chipKey === 'momentum') return activeGroupId ? <ClassroomMomentum key={chipKey} agencyId={effectiveAgencyId} classroomId={activeGroupId} studentIds={clients.map(c => c.id)} /> : null;
             if (chipKey === 'points') return <SummaryChip key={chipKey} icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-600 dark:text-amber-400" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'engagement') return <SummaryChip key={chipKey} icon={Target} label="Engagement" value={engagement.total > 0 ? `${engagementPct}%` : '—'} color="text-accent" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'events') return <SummaryChip key={chipKey} icon={BarChart3} label="Events" value={String(totalToday)} color="text-primary" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
@@ -1236,6 +1259,15 @@ const ClassroomView = () => {
         </div>
       )}
 
+      {/* ─── TEACHER WINS FEED ─── */}
+      {clients.length > 0 && (
+        <TeacherWinsFeed
+          agencyId={effectiveAgencyId}
+          studentIds={clients.map(c => c.id)}
+          studentNames={studentNameMap}
+        />
+      )}
+
       {/* ─── BOTTOM BAND: Reward Preview + Celebration Feed ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Reward preview strip */}
@@ -1262,6 +1294,20 @@ const ClassroomView = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── END SESSION BUTTON ─── */}
+      {sessionMinutes >= 10 && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs rounded-xl"
+            onClick={() => setSessionSummaryOpen(true)}
+          >
+            <BarChart3 className="h-3.5 w-3.5" /> End Session · View Summary
+          </Button>
+        </div>
+      )}
 
       {/* Quick Action Modal */}
       {quickActionStudent && (
@@ -1345,6 +1391,23 @@ const ClassroomView = () => {
           currentEmoji={gameProfiles[avatarPickerStudent.id]?.avatar_emoji || '👤'}
         />
       )}
+
+      {/* Session Summary Popup */}
+      <SessionSummaryPopup
+        open={sessionSummaryOpen}
+        onOpenChange={setSessionSummaryOpen}
+        agencyId={effectiveAgencyId}
+        studentIds={clients.map(c => c.id)}
+        studentNames={studentNameMap}
+      />
+
+      {/* Quick Start Setup */}
+      <QuickStartSetup
+        open={quickStartOpen}
+        onOpenChange={setQuickStartOpen}
+        agencyId={effectiveAgencyId}
+        onComplete={(groupId) => { setActiveGroupId(groupId); loadClients(); }}
+      />
     </div>
   );
 };
