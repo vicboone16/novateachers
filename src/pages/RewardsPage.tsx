@@ -373,6 +373,10 @@ const RewardsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="economy">
+          <RewardEconomySettings agencyId={effectiveAgencyId} classroomId={activeGroupId || undefined} />
+        </TabsContent>
       </Tabs>
     </div>
   );
