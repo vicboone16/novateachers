@@ -7,6 +7,8 @@ import { FloatingFeedbackOverlay } from '@/components/FloatingFeedback';
 import type { FloatingFeedback } from '@/hooks/useGameEngine';
 import { cn } from '@/lib/utils';
 import type { AnimationEffect } from '@/hooks/useGameEvents';
+import { SvgAvatarEffect } from '@/components/AnimatedAvatar';
+import type { AvatarAnimState } from '@/lib/avatar-animations';
 
 interface StudentPosition {
   student_id: string;
