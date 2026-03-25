@@ -177,7 +177,7 @@ export function StaffActionSheet({
       const isPresent = newStatus === 'in_room' || newStatus === 'floating' || newStatus === 'covering' || newStatus === 'with_student';
 
       // Try RPC first
-      const { error: rpcError } = await cloudSupabase.rpc('upsert_staff_presence', {
+      const { error: rpcError } = await (cloudSupabase.rpc as any)('upsert_staff_presence', {
         p_agency_id: agencyId,
         p_user_id: userId,
         p_staff_name: staffName || null,
