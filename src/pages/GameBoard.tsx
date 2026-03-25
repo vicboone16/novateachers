@@ -462,7 +462,7 @@ const GameBoard = () => {
       </Card>
 
       {/* Standings with momentum indicators */}
-      {settings?.leaderboard_enabled !== false && students.length > 0 && (
+      {settings?.show_leaderboard !== false && students.length > 0 && (
         <Card className="border-border/40 hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-4"><Trophy className="h-4 w-4 text-amber-500" /><p className="text-sm font-bold font-heading">Standings</p><Badge variant="outline" className="text-[9px] ml-auto">{students.length} racers</Badge></div>

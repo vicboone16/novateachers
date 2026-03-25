@@ -308,9 +308,9 @@ export function StudentQuickActionModal({
                   let code = await getActiveStudentCode(studentId);
                   if (!code) code = await generateStudentLoginCode(studentId, agencyId);
                   if (code) {
-                    setStudentCode(code.login_code);
-                    navigator.clipboard.writeText(`${window.location.origin}/portal/${code.login_code}`);
-                    toast({ title: 'Portal link copied!', description: `Code: ${code.login_code}` });
+                    setStudentCode((code as any).login_code);
+                    navigator.clipboard.writeText(`${window.location.origin}/portal/${(code as any).login_code}`);
+                    toast({ title: 'Portal link copied!', description: `Code: ${(code as any).login_code}` });
                   } else {
                     toast({ title: 'Could not generate code', variant: 'destructive' });
                   }

@@ -48,9 +48,9 @@ const AvatarUnlocks = () => {
       getStudentUnlocks(studentId),
       getStudentStreaks(studentId),
     ]);
-    setProfile(p);
-    setCatalog(c);
-    setUnlocks(u);
+    setProfile(p as any);
+    setCatalog(c as any);
+    setUnlocks(u as any);
     setStreaks(s);
     setLoading(false);
   };
