@@ -51,7 +51,18 @@ export default function StudentPortalEnhanced() {
   const [avatarState, setAvatarState] = useState<AvatarAnimState>('idle');
   const { getEffect } = useGameEvents({ classroomId: groupId, agencyId: agencyId || undefined, enabled: !!studentId });
 
+  // Drive avatar state from realtime game events
   useEffect(() => {
+    if (!studentId) return;
+    const eff = getEffect(studentId);
+    if (eff) {
+      const mapped = eventTypeToAnimState(eff.eventType);
+      setAvatarState(mapped);
+      const timeout = setTimeout(() => setAvatarState('idle'), 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [studentId, getEffect]);
+
     if (token) loadPortalByToken(token);
     else { setNeedsCode(true); setLoading(false); }
   }, [token]);
