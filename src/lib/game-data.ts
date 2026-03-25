@@ -4,6 +4,7 @@
  */
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import type {
   ClassroomGameSettings,
   ClassroomTeam,
   StudentGameProgress,
