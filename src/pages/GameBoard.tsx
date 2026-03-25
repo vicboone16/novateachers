@@ -283,7 +283,7 @@ const GameBoard = () => {
     finally { setResetting(false); }
   };
 
-  const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
+  const skin = POINT_SKINS[(settings as any)?.point_display_type || 'stars'];
   const totalClassPoints = students.reduce((sum, s) => sum + getEffectiveBalance(s), 0);
   const finishedCount = students.filter(s => getEffectiveBalance(s) >= TRACK_LENGTH).length;
 
