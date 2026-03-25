@@ -66,7 +66,7 @@ const AVAILABILITY_OPTIONS = [
 
 export function StaffActionSheet({
   open, onOpenChange, userId, agencyId, currentGroupId,
-  currentPresence, onUpdated, studentMap,
+  currentPresence, onUpdated, studentMap, staffName, staffRole,
 }: StaffActionSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
