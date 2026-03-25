@@ -153,38 +153,22 @@ export function StaffActionSheet({
       const availabilityNew = isAvailable ? 'available' : 'busy';
       const isPresent = newStatus === 'in_room' || newStatus === 'floating' || newStatus === 'covering' || newStatus === 'with_student';
 
-      // Try RPC first
-      const { error: rpcError } = await (cloudSupabase.rpc as any)('upsert_staff_presence', {
-        p_agency_id: agencyId,
-        p_user_id: userId,
-        p_staff_name: staffName || null,
-        p_role: staffRole || null,
-        p_is_present: isPresent,
-        p_availability: availabilityNew,
-        p_status_note: null,
-        p_current_classroom_id: classroomGroupId,
-        p_current_room_name: null,
-        p_updated_by: user?.id || null,
-      });
-
-      if (rpcError) {
-        // Fallback to direct upsert
-        const payload = {
-          agency_id: agencyId,
-          user_id: userId,
-          classroom_group_id: classroomGroupId,
-          location_type: newStatus === 'in_room' ? 'classroom' : locationType,
-          status: newStatus,
-          availability_status: isAvailable ? 'available' : 'unavailable',
-          available_for_support: isAvailable,
-          updated_at: new Date().toISOString(),
-        };
-        const { error } = await cloudSupabase
-          .from('staff_presence')
-          .upsert(payload, { onConflict: 'agency_id,user_id' });
-        if (error) {
-          await cloudSupabase.from('staff_presence').insert(payload);
-        }
+      // Direct upsert
+      const payload = {
+        agency_id: agencyId,
+        user_id: userId,
+        classroom_group_id: classroomGroupId,
+        location_type: newStatus === 'in_room' ? 'classroom' : locationType,
+        status: newStatus,
+        availability_status: isAvailable ? 'available' : 'unavailable',
+        available_for_support: isAvailable,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await cloudSupabase
+        .from('staff_presence')
+        .upsert(payload, { onConflict: 'agency_id,user_id' });
+      if (error) {
+        console.error('[StaffAction] quickMove upsert failed:', error.message);
       }
 
       // Log history

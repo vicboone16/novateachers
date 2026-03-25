@@ -56,7 +56,7 @@ export default function ExternalParentPortal() {
       const studentId = link.student_id;
 
       // Update last_used_at (fire-and-forget)
-      cloudSupabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
+      cloudSupabase.from('parent_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
 
       // Parallel data loading
       const [nameRes, profileRes, ledgerRes, rewardsRes, feedRes] = await Promise.allSettled([
