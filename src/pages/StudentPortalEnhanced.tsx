@@ -3,7 +3,7 @@
  * Shows: avatar, points, race progress, rewards with "X points away", mission/word, streaks.
  * Checkpoint celebrations + reward availability highlights.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
