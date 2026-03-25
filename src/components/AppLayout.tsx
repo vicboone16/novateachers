@@ -16,6 +16,8 @@ import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, Gr
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 import { SmartHelpBanner } from '@/components/SmartHelpBanner';
+import { HelpMeLauncher } from '@/components/HelpMeLauncher';
+import { WalkthroughOverlay } from '@/components/WalkthroughOverlay';
 
 const navItems = [
   { to: '/classroom', label: 'Classroom', icon: LayoutGrid },
