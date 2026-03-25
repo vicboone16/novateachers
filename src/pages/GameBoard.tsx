@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
 import { useGameTrack } from '@/hooks/useGameTrack';
+import { useGameEvents } from '@/hooks/useGameEvents';
 import { CurvedTrackBoard } from '@/components/CurvedTrackBoard';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
