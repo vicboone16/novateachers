@@ -1617,6 +1617,57 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_activity_log: {
+        Row: {
+          activity_type: string | null
+          created_at: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          activity_type?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      staff_onboarding: {
+        Row: {
+          created_at: string | null
+          first_action_completed: boolean | null
+          first_login_at: string | null
+          id: string
+          last_active_at: string | null
+          user_id: string | null
+          walkthrough_completed: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_action_completed?: boolean | null
+          first_login_at?: string | null
+          id?: string
+          last_active_at?: string | null
+          user_id?: string | null
+          walkthrough_completed?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          first_action_completed?: boolean | null
+          first_login_at?: string | null
+          id?: string
+          last_active_at?: string | null
+          user_id?: string | null
+          walkthrough_completed?: boolean | null
+        }
+        Relationships: []
+      }
       staff_presence: {
         Row: {
           agency_id: string
@@ -3246,6 +3297,17 @@ export type Database = {
           suggested_action?: string | null
           suggested_payload?: Json | null
           title?: string | null
+        }
+        Relationships: []
+      }
+      v_staff_engagement: {
+        Row: {
+          first_action_completed: boolean | null
+          first_login_at: string | null
+          last_active_at: string | null
+          total_actions: number | null
+          user_id: string | null
+          walkthrough_completed: boolean | null
         }
         Relationships: []
       }
