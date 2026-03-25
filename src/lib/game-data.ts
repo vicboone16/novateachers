@@ -199,7 +199,7 @@ export async function generatePublicLink(
 // ── Unlocks ──
 
 export async function getUnlockCatalog(agencyId?: string): Promise<UnlockCatalogItem[]> {
-  let q = supabase.from('unlock_catalog' as any).select('*').eq('is_active', true);
+  let q = cloudSupabase.from('unlock_catalog').select('*').eq('is_active', true);
   if (agencyId) {
     q = q.or(`agency_id.is.null,agency_id.eq.${agencyId}`);
   }
