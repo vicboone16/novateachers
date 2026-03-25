@@ -178,18 +178,18 @@ export const WeeklyDataSummary = () => {
 
     const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_duration_entries').select('behavior_name,duration_seconds,logged_date')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_quick_notes').select('behavior_name,note,logged_at')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
         .eq('client_id', selectedClientId).eq('user_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      supabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
+      supabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
         .eq('student_id', selectedClientId).eq('staff_id', user?.id)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);
