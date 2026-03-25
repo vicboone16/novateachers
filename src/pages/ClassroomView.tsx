@@ -848,19 +848,29 @@ const ClassroomView = () => {
             const avatarEmoji = gp?.avatar_emoji || '👤';
             const level = gp?.current_level || 1;
             const xp = gp?.current_xp || 0;
+            const balance = pointBalances[client.id] || 0;
+            const isRewardReady = tp && tp.current >= tp.target;
+            const hasNegativeEvents = (todayCounts[client.id] || 0) >= 3;
 
             return (
               <Card
                 key={client.id}
                 className={cn(
-                  'rounded-2xl border-border/60 shadow-sm transition-all duration-300 overflow-hidden relative',
+                  'rounded-2xl border-border/60 shadow-sm card-press overflow-hidden relative',
+                  'transition-all duration-300',
                   flashCard === client.id && 'ring-2 ring-amber-400/60 scale-[1.01] shadow-md',
                   isAbsent && 'opacity-50',
+                  isRewardReady && 'reward-ready-glow',
+                  hasNegativeEvents && !flashCard && 'attention-needed',
                 )}
               >
                 {/* Celebration flash overlay */}
                 {flashCard === client.id && (
                   <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 via-amber-200/10 to-amber-400/5 animate-pulse pointer-events-none z-10 rounded-2xl" />
+                )}
+                {/* Reward-ready shimmer overlay */}
+                {isRewardReady && (
+                  <div className="absolute inset-0 reward-ready-shimmer pointer-events-none z-10 rounded-2xl" />
                 )}
                 <CardContent className="p-0">
                   {/* Top row: avatar + name + level + status */}
