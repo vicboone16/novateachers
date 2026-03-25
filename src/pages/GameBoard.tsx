@@ -4,6 +4,8 @@
  * When a student reaches TRACK_LENGTH, they "lap" — balance continues, lap count increments.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -60,6 +62,8 @@ const GameBoard = () => {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const studentIds = students.map(s => s.student_id);
+  const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
 
   // Load all groups for selector
   useEffect(() => {
@@ -383,9 +387,12 @@ const GameBoard = () => {
                         </div>
                       </div>
                       <span className="text-[10px] font-bold text-center truncate w-full text-foreground">{getDisplayName(s)}</span>
-                      <Badge variant="outline" className="text-[9px] tabular-nums gap-0.5 h-4 px-1.5">
-                        {skin.icon} {bal}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || s.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || s.current_xp || 0} compact />
+                        <Badge variant="outline" className="text-[9px] tabular-nums gap-0.5 h-4 px-1.5">
+                          {skin.icon} {bal}
+                        </Badge>
+                      </div>
                       <Progress value={pct} className="h-1.5 w-full" />
                     </div>
                   );
@@ -419,6 +426,7 @@ const GameBoard = () => {
                     <span className={cn("text-sm font-bold w-5 text-center tabular-nums", i === 0 && "text-amber-500", i === 1 && "text-gray-400", i === 2 && "text-orange-400")}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
                     <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
+                    <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || 0} compact />
                     {laps > 0 && <Badge className="text-[9px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><CheckCircle className="h-2 w-2" />Lap {laps}</Badge>}
                     <Badge variant="outline" className="text-[10px] tabular-nums gap-0.5 shrink-0">{skin.icon} {bal}</Badge>
                     <div className="w-16 shrink-0"><Progress value={(pos / TRACK_LENGTH) * 100} className="h-2" /></div>

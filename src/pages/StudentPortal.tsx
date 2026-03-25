@@ -4,6 +4,8 @@
  * Includes realtime balance updates via beacon_points_ledger subscription.
  */
 import { useEffect, useState, useRef } from 'react';
+import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -37,6 +39,7 @@ export default function StudentPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const studentIdRef = useRef<string | null>(null);
+  const { profiles: gameProfiles } = useStudentGameProfiles(account ? [account.student_id] : []);
 
   useEffect(() => {
     if (!token) { setError('No token provided'); setLoading(false); return; }
@@ -152,8 +155,13 @@ export default function StudentPortal() {
       <div className="mx-auto max-w-md px-4 py-8 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <span className="text-6xl">{account.avatar_emoji}</span>
+          <span className="text-6xl">{gameProfiles[account.student_id]?.avatar_emoji || account.avatar_emoji}</span>
           <h1 className="text-2xl font-bold font-heading">{account.display_name}</h1>
+          <StudentLevelBadge
+            level={gameProfiles[account.student_id]?.current_level || 1}
+            xp={gameProfiles[account.student_id]?.current_xp || 0}
+            showXpBar
+          />
           <p className="text-sm text-muted-foreground">My Rewards Portal</p>
         </div>
 

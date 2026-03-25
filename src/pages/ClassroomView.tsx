@@ -22,6 +22,9 @@ import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForRei
 import { getStudentBalances, writePointEntry, loadTeacherPointActions, executeTeacherAction, type TeacherPointAction } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { useUndoAction } from '@/hooks/useUndoAction';
+import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { StudentLevelBadge } from '@/components/StudentLevelBadge';
+import { AvatarPicker } from '@/components/AvatarPicker';
 import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
@@ -178,6 +181,10 @@ const ClassroomView = () => {
   const clients = showAll || !groupStudentIds
     ? allClients
     : allClients.filter(c => groupStudentIds.has(c.id));
+
+  // Game profiles (level, xp, avatar)
+  const { profiles: gameProfiles } = useStudentGameProfiles(clients.map(c => c.id));
+  const [avatarPickerStudent, setAvatarPickerStudent] = useState<Client | null>(null);
 
   const loadClients = async () => {
     if (!currentWorkspace) return;
@@ -810,6 +817,10 @@ const ClassroomView = () => {
             const tokenPct = tp ? Math.min(100, Math.round((tp.current / tp.target) * 100)) : 0;
             const status = studentStatuses[client.id] || 'present';
             const isAbsent = status === 'absent' || status === 'picked_up';
+            const gp = gameProfiles[client.id];
+            const avatarEmoji = gp?.avatar_emoji || '👤';
+            const level = gp?.current_level || 1;
+            const xp = gp?.current_xp || 0;
 
             return (
               <Card
@@ -825,16 +836,23 @@ const ClassroomView = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 via-amber-200/10 to-amber-400/5 animate-pulse pointer-events-none z-10 rounded-2xl" />
                 )}
                 <CardContent className="p-0">
-                  {/* Top row: name + status */}
+                  {/* Top row: avatar + name + level + status */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-2">
                     <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2.5 group text-left min-w-0">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                        {displayInitials(client)}
-                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAvatarPickerStudent(client); }}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg hover:scale-110 transition-transform active:scale-95"
+                        title="Change avatar"
+                      >
+                        {avatarEmoji}
+                      </button>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                          {displayName(client)}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                            {displayName(client)}
+                          </p>
+                          <StudentLevelBadge level={level} xp={xp} compact />
+                        </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           {client.grade && <span>Gr {client.grade}</span>}
                           {lastEvents[client.id] && (
@@ -896,16 +914,8 @@ const ClassroomView = () => {
                         </Badge>
                       )}
                     </div>
-                    {/* Race progress mini-bar */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <Progress value={Math.min(100, ((pointBalances[client.id] || 0) % 100) / 100 * 100 || ((pointBalances[client.id] || 0) > 0 && (pointBalances[client.id] || 0) % 100 === 0 ? 100 : 0))} className="h-1.5 flex-1" />
-                      <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums font-medium">
-                        {Math.floor((pointBalances[client.id] || 0) / 100) > 0
-                          ? `🏆×${Math.floor((pointBalances[client.id] || 0) / 100)}`
-                          : `${Math.floor(Math.min(pointBalances[client.id] || 0, 100) / 10)}cp`
-                        }
-                      </span>
-                    </div>
+                    {/* XP progress bar */}
+                    <StudentLevelBadge level={level} xp={xp} showXpBar compact />
                   </div>
 
                   {/* Quick award row */}
@@ -1304,6 +1314,17 @@ const ClassroomView = () => {
           groupId={activeGroupId}
           agencyId={effectiveAgencyId}
           students={clients.map(c => ({ id: c.id, name: displayName(c) }))}
+        />
+      )}
+
+      {/* Avatar Picker */}
+      {avatarPickerStudent && (
+        <AvatarPicker
+          open={!!avatarPickerStudent}
+          onOpenChange={(open) => { if (!open) setAvatarPickerStudent(null); }}
+          studentId={avatarPickerStudent.id}
+          agencyId={effectiveAgencyId}
+          currentEmoji={gameProfiles[avatarPickerStudent.id]?.avatar_emoji || '👤'}
         />
       )}
     </div>
