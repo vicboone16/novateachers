@@ -6,10 +6,10 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { ParentInsightCards } from '@/components/ParentInsightCards';
 import { ParentActionButtons } from '@/components/ParentActionButtons';
+import { ParentTeacherThread } from '@/components/ParentTeacherThread';
 import { StudentQuestCards } from '@/components/StudentQuestCards';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
