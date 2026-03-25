@@ -61,7 +61,7 @@ export function ParentInsightCards({ studentId, agencyId, maxItems = 5, classNam
         const config = INSIGHT_CONFIG[ins.insight_type] || INSIGHT_CONFIG.win;
         const Icon = config.icon;
         return (
-          <Card key={ins.id} className={cn('border-border/40 transition-all', !ins.is_read && 'ring-1 ring-primary/20')}>
+          <Card key={ins.id} className={cn('border-border/40 hover-lift transition-all', !ins.is_read && 'ring-1 ring-primary/20')}>
             <CardContent className="p-3">
               <div className="flex items-start gap-2.5">
                 <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', config.color)} />
