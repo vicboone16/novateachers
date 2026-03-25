@@ -68,11 +68,11 @@ export default function ExternalParentPortal() {
       let studentName = 'Your Child';
       let avatarEmoji = '👤';
       try {
-        const { data: client } = await supabase.from('clients' as any).select('first_name, last_name').eq('id', studentId).maybeSingle();
+        const { data: client } = await cloudSupabase.from('clients' as any).select('first_name, last_name').eq('id', studentId).maybeSingle();
         if (client) studentName = `${(client as any).first_name || ''} ${((client as any).last_name || '')[0] || ''}`.trim();
       } catch {}
       try {
-        const { data: profile } = await supabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle();
+        const { data: profile } = await cloudSupabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle();
         if (profile) avatarEmoji = (profile as any).avatar_emoji || '👤';
       } catch {}
 
