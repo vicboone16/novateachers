@@ -3,8 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWalkthrough } from '@/contexts/WalkthroughContext';
+import { WALKTHROUGH_FLOWS } from '@/lib/walkthrough-flows';
 import { Button } from '@/components/ui/button';
-import { X, Lightbulb, Users, Star, MessageCircle, LayoutDashboard } from 'lucide-react';
+import { X, Lightbulb, Users, Star, MessageCircle, LayoutDashboard, Gift, Gamepad2, AlertTriangle, Play } from 'lucide-react';
 
 interface HelpSuggestion {
   id: string;
@@ -14,11 +16,13 @@ interface HelpSuggestion {
   action: string;
   route?: string;
   faqTab?: string;
+  walkthroughId?: string;
 }
 
 export const SmartHelpBanner = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const { startFlow, isActive: walkthroughActive } = useWalkthrough();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
@@ -39,28 +43,25 @@ export const SmartHelpBanner = () => {
   const detectSuggestion = async () => {
     if (!agencyId || !user) return;
 
-    // Only show on specific pages
     if (pathname === '/classroom') {
-      // Check if user has any classrooms
       const { data: groups } = await supabase
         .from('classroom_group_teachers')
         .select('group_id')
         .eq('user_id', user.id)
         .limit(1);
-      
+
       if (!groups || groups.length === 0) {
         setSuggestion({
           id: 'no-classroom',
           icon: LayoutDashboard,
           title: 'Set up your first classroom',
           description: 'Create a classroom to get started with attendance, points, and data collection.',
-          action: 'Create Classroom',
-          route: '/classrooms',
+          action: 'Start Walkthrough',
+          walkthroughId: 'create-classroom',
         });
         return;
       }
 
-      // Check if classroom has students
       if (groups.length > 0) {
         const { data: students } = await supabase
           .from('classroom_group_students')
@@ -79,11 +80,30 @@ export const SmartHelpBanner = () => {
           });
           return;
         }
+
+        // Check point usage
+        const { count } = await supabase
+          .from('beacon_points_ledger')
+          .select('id', { count: 'exact', head: true })
+          .eq('agency_id', agencyId)
+          .eq('staff_id', user.id)
+          .limit(1);
+
+        if (count === 0) {
+          setSuggestion({
+            id: 'no-points-classroom',
+            icon: Star,
+            title: 'Try awarding your first points',
+            description: 'Tap + on any student card to reinforce positive behavior instantly.',
+            action: 'Show Me How',
+            walkthroughId: 'add-points',
+          });
+          return;
+        }
       }
     }
 
     if (pathname === '/rewards') {
-      // Check if any points have been used
       const { count } = await supabase
         .from('beacon_points_ledger')
         .select('id', { count: 'exact', head: true })
@@ -97,19 +117,45 @@ export const SmartHelpBanner = () => {
           icon: Star,
           title: 'Start using Beacon Points',
           description: 'Award your first points to motivate students. Tap + on any student card in the Classroom View.',
-          action: 'Learn How',
-          route: '/faq',
-          faqTab: 'tutorials',
+          action: 'Show Me How',
+          walkthroughId: 'add-points',
         });
         return;
       }
     }
 
     if (pathname === '/threads') {
-      setSuggestion(null);
+      const { count } = await supabase
+        .from('thread_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (count === 0) {
+        setSuggestion({
+          id: 'no-threads',
+          icon: MessageCircle,
+          title: 'Start your first conversation',
+          description: 'Threads let you coordinate with your team in real time. Create or join a thread to get started.',
+          action: 'Show Me How',
+          walkthroughId: 'send-message',
+        });
+        return;
+      }
     }
 
-    // Default: no suggestion
+    if (pathname === '/game-board') {
+      setSuggestion({
+        id: 'game-board-tip',
+        icon: Gamepad2,
+        title: 'Project this on your smartboard',
+        description: 'Copy the board URL and open it on your classroom display for a live race view.',
+        action: 'Learn More',
+        route: '/faq',
+      });
+      return;
+    }
+
     setSuggestion(null);
   };
 
@@ -120,6 +166,19 @@ export const SmartHelpBanner = () => {
     setSuggestion(null);
   };
 
+  const handleAction = () => {
+    if (!suggestion) return;
+    if (suggestion.walkthroughId) {
+      const flow = WALKTHROUGH_FLOWS.find((f) => f.id === suggestion.walkthroughId);
+      if (flow) {
+        startFlow(flow);
+        return;
+      }
+    }
+    if (suggestion.route) navigate(suggestion.route);
+  };
+
+  if (walkthroughActive) return null;
   if (!suggestion || dismissed.has(suggestion.id)) return null;
 
   const SIcon = suggestion.icon;
@@ -139,8 +198,9 @@ export const SmartHelpBanner = () => {
           size="sm"
           variant="outline"
           className="mt-2 h-7 text-xs gap-1"
-          onClick={() => suggestion.route && navigate(suggestion.route)}
+          onClick={handleAction}
         >
+          {suggestion.walkthroughId && <Play className="h-3 w-3" />}
           {suggestion.action}
         </Button>
       </div>

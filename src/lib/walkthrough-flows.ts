@@ -5,6 +5,7 @@ import type { WalkthroughFlow } from '@/contexts/WalkthroughContext';
 /* ═══════════════════════════════════════════════════════════ */
 
 export const WALKTHROUGH_FLOWS: WalkthroughFlow[] = [
+  /* ── Mayday ── */
   {
     id: 'send-mayday',
     title: 'Send a Mayday',
@@ -35,6 +36,8 @@ export const WALKTHROUGH_FLOWS: WalkthroughFlow[] = [
       },
     ],
   },
+
+  /* ── Points ── */
   {
     id: 'add-points',
     title: 'Add Points to a Student',
@@ -64,6 +67,8 @@ export const WALKTHROUGH_FLOWS: WalkthroughFlow[] = [
       },
     ],
   },
+
+  /* ── Classroom creation ── */
   {
     id: 'create-classroom',
     title: 'Create a Classroom',
@@ -95,6 +100,8 @@ export const WALKTHROUGH_FLOWS: WalkthroughFlow[] = [
       },
     ],
   },
+
+  /* ── Staff messaging ── */
   {
     id: 'send-message',
     title: 'Send a Staff Message',
@@ -126,6 +133,8 @@ export const WALKTHROUGH_FLOWS: WalkthroughFlow[] = [
       },
     ],
   },
+
+  /* ── Parent snapshot ── */
   {
     id: 'message-parent',
     title: 'Share a Parent Snapshot',
@@ -151,6 +160,161 @@ export const WALKTHROUGH_FLOWS: WalkthroughFlow[] = [
         selector: '[data-walkthrough="snapshot-share"]',
         title: 'Share the Link',
         description: 'Copy the link and send it to the parent via text or email. No login required!',
+        placement: 'top',
+      },
+    ],
+  },
+
+  /* ── Reward Store ── */
+  {
+    id: 'use-rewards',
+    title: 'Use the Reward Store',
+    description: 'Set up rewards students can earn and redeem.',
+    icon: 'Gift',
+    steps: [
+      {
+        selector: '[data-walkthrough="nav-rewards"]',
+        title: 'Open the Rewards Tab',
+        description: 'Tap "Rewards" in the navigation bar.',
+        placement: 'bottom',
+        waitForClick: true,
+        route: '/classroom',
+      },
+      {
+        selector: '[data-walkthrough="rewards-list"]',
+        title: 'Browse Available Rewards',
+        description: 'This is the Reward Store. Students browse here to pick what they want to earn.',
+        placement: 'top',
+        route: '/rewards',
+      },
+      {
+        selector: '[data-walkthrough="add-reward"]',
+        title: 'Add a Reward',
+        description: 'Tap "+ Add Reward" to create a new item. Set a name, point cost, and category.',
+        placement: 'left',
+        waitForClick: true,
+      },
+    ],
+  },
+
+  /* ── Game Board ── */
+  {
+    id: 'use-game-board',
+    title: 'Use the Game Board',
+    description: 'Project a live race to motivate your class.',
+    icon: 'Gamepad2',
+    steps: [
+      {
+        selector: '[data-walkthrough="nav-game"]',
+        title: 'Open the Game Board',
+        description: 'Tap "Game" in the navigation bar to open the live race view.',
+        placement: 'bottom',
+        waitForClick: true,
+        route: '/classroom',
+      },
+      {
+        selector: '[data-walkthrough="game-race"]',
+        title: 'Watch the Race',
+        description: 'Each student\'s avatar moves forward as they earn points. Great for smartboard projection!',
+        placement: 'top',
+        route: '/game-board',
+      },
+      {
+        selector: '[data-walkthrough="game-standings"]',
+        title: 'Check Standings',
+        description: 'The standings panel shows who\'s leading and who might need encouragement.',
+        placement: 'left',
+      },
+    ],
+  },
+
+  /* ── Who's Here ── */
+  {
+    id: 'whos-here',
+    title: "Use Who's Here",
+    description: 'See which staff are available to help right now.',
+    icon: 'Users',
+    steps: [
+      {
+        selector: '[data-walkthrough="nav-threads"]',
+        title: 'Open Threads',
+        description: "Who's Here lives at the top of the Threads page. Tap Threads to get there.",
+        placement: 'bottom',
+        waitForClick: true,
+        route: '/classroom',
+      },
+      {
+        selector: '[data-walkthrough="whos-here-panel"]',
+        title: 'See Staff Availability',
+        description: 'Green = available, Yellow = nearby, Blue = assigned, Red = busy, Gray = offline.',
+        placement: 'bottom',
+        route: '/threads',
+      },
+      {
+        selector: '[data-walkthrough="staff-chip"]',
+        title: 'Tap a Staff Chip',
+        description: 'Tap any staff member to message them or request help.',
+        placement: 'top',
+        waitForClick: true,
+      },
+    ],
+  },
+
+  /* ── Classroom setup (orientation) ── */
+  {
+    id: 'classroom-orientation',
+    title: 'Classroom Page Tour',
+    description: 'Learn where everything is on your main screen.',
+    icon: 'LayoutDashboard',
+    steps: [
+      {
+        selector: '[data-walkthrough="classroom-header"]',
+        title: 'Classroom Header',
+        description: 'Shows your classroom name, mission text, and word of the week.',
+        placement: 'bottom',
+        route: '/classroom',
+      },
+      {
+        selector: '[data-walkthrough="student-grid"]',
+        title: 'Student Cards',
+        description: 'Each card shows attendance, presence, points, and quick action buttons.',
+        placement: 'top',
+      },
+      {
+        selector: '[data-walkthrough="mayday-button"]',
+        title: 'Mayday Button',
+        description: 'Your emergency help button. Always accessible from this screen.',
+        placement: 'top',
+      },
+    ],
+  },
+
+  /* ── Data collection ── */
+  {
+    id: 'collect-data',
+    title: 'Collect Behavior Data',
+    description: 'Log frequency, duration, and ABC data.',
+    icon: 'BarChart3',
+    steps: [
+      {
+        selector: '[data-walkthrough="student-card"]',
+        title: 'Select a Student',
+        description: 'Tap a student card to open quick actions and data tools.',
+        placement: 'bottom',
+        waitForClick: true,
+        route: '/classroom',
+      },
+      {
+        selector: '[data-walkthrough="quick-add"]',
+        title: 'Use Quick Add',
+        description: 'Tap a behavior button to log one occurrence instantly. Each tap = one data point.',
+        placement: 'left',
+        waitForClick: true,
+      },
+      {
+        selector: '[data-walkthrough="data-summary"]',
+        title: 'Review Your Data',
+        description: 'Check the data summary to see trends and ensure nothing was missed.',
         placement: 'top',
       },
     ],

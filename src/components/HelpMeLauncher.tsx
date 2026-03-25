@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useWalkthrough } from '@/contexts/WalkthroughContext';
 import { WALKTHROUGH_FLOWS } from '@/lib/walkthrough-flows';
-import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
@@ -17,6 +16,10 @@ import {
   MessageCircle,
   Heart,
   Play,
+  Gift,
+  Gamepad2,
+  Users,
+  BarChart3,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -25,19 +28,22 @@ const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard,
   MessageCircle,
   Heart,
+  Gift,
+  Gamepad2,
+  Users,
+  BarChart3,
 };
 
 export const HelpMeLauncher = () => {
   const { startFlow, isActive } = useWalkthrough();
   const [open, setOpen] = useState(false);
 
-  if (isActive) return null; // hide while walkthrough is running
+  if (isActive) return null;
 
   const handleStart = (flowId: string) => {
     const flow = WALKTHROUGH_FLOWS.find((f) => f.id === flowId);
     if (flow) {
       setOpen(false);
-      // Small delay so sheet closes first
       setTimeout(() => startFlow(flow), 200);
     }
   };
@@ -62,7 +68,7 @@ export const HelpMeLauncher = () => {
         <p className="text-sm text-muted-foreground mb-4">
           Select an action and we'll walk you through it step by step.
         </p>
-        <div className="space-y-2 pb-4">
+        <div className="space-y-2 pb-4 max-h-[50vh] overflow-y-auto">
           {WALKTHROUGH_FLOWS.map((flow) => {
             const FlowIcon = iconMap[flow.icon] || HelpCircle;
             return (

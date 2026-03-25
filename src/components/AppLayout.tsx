@@ -168,6 +168,7 @@ export const AppLayout = () => {
             <NavLink
               key={to}
               to={to}
+              data-walkthrough={`nav-${label.toLowerCase()}`}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-1.5 sm:gap-2 border-b-2 px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
@@ -257,6 +258,7 @@ function MoreNavDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          data-walkthrough="more-menu"
           className={cn(
             'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
             isActive
@@ -269,7 +271,7 @@ function MoreNavDropdown() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={() => navigate('/classrooms')} className="gap-2">
+        <DropdownMenuItem data-walkthrough="nav-classrooms" onClick={() => navigate('/classrooms')} className="gap-2">
           <School className="h-3.5 w-3.5" /> Classrooms
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2">
