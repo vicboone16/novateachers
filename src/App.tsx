@@ -52,6 +52,8 @@ import AvatarUnlocks from "@/pages/AvatarUnlocks";
 import PointRulesManager from "@/pages/PointRulesManager";
 import FeatureTour from "@/pages/FeatureTour";
 import FAQTutorial from "@/pages/FAQTutorial";
+import LaunchReadiness from "@/pages/LaunchReadiness";
+import ParentView from "@/pages/ParentView";
 
 const queryClient = new QueryClient();
 
