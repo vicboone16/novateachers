@@ -33,7 +33,7 @@ export async function upsertClassroomGameSettings(
 
   const { error } = await cloudSupabase
     .from('classroom_game_settings')
-    .upsert(payload, { onConflict: 'group_id' });
+    .upsert(payload as any, { onConflict: 'group_id' });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
