@@ -1316,6 +1316,17 @@ const ClassroomView = () => {
           students={clients.map(c => ({ id: c.id, name: displayName(c) }))}
         />
       )}
+
+      {/* Avatar Picker */}
+      {avatarPickerStudent && (
+        <AvatarPicker
+          open={!!avatarPickerStudent}
+          onOpenChange={(open) => { if (!open) setAvatarPickerStudent(null); }}
+          studentId={avatarPickerStudent.id}
+          agencyId={effectiveAgencyId}
+          currentEmoji={gameProfiles[avatarPickerStudent.id]?.avatar_emoji || '👤'}
+        />
+      )}
     </div>
   );
 };
