@@ -10,6 +10,7 @@ import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { supabase } from '@/lib/supabase';
 import { ParentInsightCards } from '@/components/ParentInsightCards';
 import { ParentActionButtons } from '@/components/ParentActionButtons';
+import { StudentNarrativeCard } from '@/components/StudentNarrativeCard';
 import { StudentQuestCards } from '@/components/StudentQuestCards';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
