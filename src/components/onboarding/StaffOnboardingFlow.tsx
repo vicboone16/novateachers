@@ -36,6 +36,11 @@ export const StaffOnboardingFlow = () => {
     dismissWelcome();
   }, [dismissWelcome]);
 
+  const handleDontShowAgain = useCallback(() => {
+    dismissWelcome();
+    completeWalkthrough(); // marks onboarding fully done so it never reappears
+  }, [dismissWelcome, completeWalkthrough]);
+
   const handleWalkthroughComplete = useCallback(() => {
     setShowWalkthrough(false);
     completeWalkthrough();
@@ -50,6 +55,7 @@ export const StaffOnboardingFlow = () => {
         open={isFirstLogin && !welcomeDismissed}
         onShowWalkthrough={handleShowWalkthrough}
         onSkip={handleSkip}
+        onDontShowAgain={handleDontShowAgain}
       />
 
       {/* Walkthrough carousel */}
