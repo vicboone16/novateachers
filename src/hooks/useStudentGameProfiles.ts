@@ -27,7 +27,7 @@ export function useStudentGameProfiles(studentIds: string[]) {
     try {
       const { data } = await cloudSupabase
         .from('student_game_profiles')
-        .select('student_id, avatar_emoji, current_level, current_xp')
+        .select('student_id, avatar_emoji, current_level, current_xp, identity_title, identity_emoji, momentum_state, comeback_active, daily_narrative')
         .in('student_id', studentIds);
       const map: Record<string, GameProfile> = {};
       for (const row of (data || []) as any[]) {
