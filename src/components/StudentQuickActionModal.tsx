@@ -342,6 +342,20 @@ export function StudentQuickActionModal({
             </div>
           </Section>
 
+          {/* §6b AI RECOMMENDATIONS */}
+          <Section label="AI Insights">
+            <ReinforcementAICards
+              studentId={studentId}
+              studentName={studentName}
+              agencyId={agencyId}
+              compact
+              onOpenEditor={() => {
+                onOpenChange(false);
+                setReinforcementEditorOpen(true);
+              }}
+            />
+          </Section>
+
           {/* §7 PROMPT SNOOZE */}
           <Section label="Prompt">
             <div className="flex gap-1.5">
