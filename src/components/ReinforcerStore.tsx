@@ -1,12 +1,6 @@
 /**
- * ReinforcerStore — Reward catalog with full CRUD + redemption.
- * States: Locked (can't afford), Available (can afford), Redeemed (history).
- * Reads rewards from Core (beacon_rewards), writes redemptions to Core (beacon_reward_redemptions),
- * and deducts points from Cloud (beacon_points_ledger).
- *
- * Core schema:
- *   beacon_rewards: id, scope_type, scope_id, name, description, cost, image_url, active, time_sensitive_until, stock_count, created_at
- *   beacon_reward_redemptions: id, student_id, reward_id, staff_id, points_spent, status, redeemed_at, agency_id
+ * ReinforcerStore — Dynamic reward economy with demand pricing, inventory, and premium UI.
+ * Reads rewards from Cloud (beacon_rewards), writes redemptions via redeem_reward_dynamic RPC.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
@@ -18,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -25,7 +20,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Gift, Star, Plus, ShoppingBag, Check, AlertCircle, Package, Trophy, Loader2, Pencil, Power, Lock, CheckCircle, History,
+  Gift, Star, Plus, ShoppingBag, Check, AlertCircle, Package, Trophy, Loader2,
+  Pencil, Power, Lock, CheckCircle, History, Flame, TrendingDown, Zap, Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,11 +30,20 @@ interface Reward {
   name: string;
   description: string | null;
   cost: number;
+  base_cost: number | null;
   category: string;
   emoji: string;
   stock_count: number | null;
   active: boolean;
-  // mapped from Core schema
+  reward_type: string;
+  dynamic_pricing_enabled: boolean;
+  min_cost: number | null;
+  max_cost: number | null;
+  current_dynamic_price: number | null;
+  inventory_enabled: boolean;
+  sort_order: number;
+  metadata_json: Record<string, any> | null;
+  redemption_count_24h: number;
   scope_type?: string;
   scope_id?: string;
 }
@@ -64,6 +69,11 @@ const CATEGORIES = [
   { value: 'social', label: 'Social', emoji: '🤝' },
 ];
 
+const REWARD_TYPES = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'class', label: 'Class-wide' },
+];
+
 interface Props {
   agencyId: string;
   classroomId?: string;
@@ -82,10 +92,12 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [redeemOpen, setRedeemOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [redeeming, setRedeeming] = useState(false);
+  const [redeemResult, setRedeemResult] = useState<any>(null);
 
   // Create/Edit form
   const [formName, setFormName] = useState('');
@@ -93,8 +105,13 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const [formCategory, setFormCategory] = useState('privilege');
   const [formEmoji, setFormEmoji] = useState('🎁');
   const [formDescription, setFormDescription] = useState('');
+  const [formRewardType, setFormRewardType] = useState('individual');
+  const [formDynamic, setFormDynamic] = useState(false);
+  const [formMinCost, setFormMinCost] = useState('');
+  const [formMaxCost, setFormMaxCost] = useState('');
+  const [formInventory, setFormInventory] = useState(false);
+  const [formStock, setFormStock] = useState('');
 
-  // Determine scope: classroom-specific if classroomId provided, else agency-wide
   const scopeType = classroomId ? 'classroom' : 'agency';
   const scopeId = classroomId || agencyId;
 
@@ -106,7 +123,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
         .select('*')
         .eq('scope_type', scopeType)
         .eq('scope_id', scopeId)
-        .order('cost', { ascending: true });
+        .order('sort_order', { ascending: true });
       if (!showInactive) q = q.eq('active', true);
       const { data } = await q;
       setRewards((data || []) as any as Reward[]);
@@ -125,24 +142,50 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
 
   useEffect(() => { loadRewards(); }, [loadRewards]);
 
+  const getEffectivePrice = (r: Reward): number => {
+    if (r.dynamic_pricing_enabled && r.current_dynamic_price != null) return r.current_dynamic_price;
+    return r.cost;
+  };
+
+  const getPriceModifier = (r: Reward): 'hot' | 'sale' | 'scarce' | null => {
+    if (!r.dynamic_pricing_enabled) return null;
+    const base = r.base_cost || r.cost;
+    const current = getEffectivePrice(r);
+    if (current > base * 1.1) return 'hot';
+    if (current < base * 0.9) return 'sale';
+    if (r.inventory_enabled && r.stock_count != null && r.stock_count > 0 && r.stock_count <= 3) return 'scarce';
+    return null;
+  };
+
   const resetForm = () => {
-    setFormName(''); setFormCost('10'); setFormCategory('privilege'); setFormEmoji('🎁'); setFormDescription('');
+    setFormName(''); setFormCost('10'); setFormCategory('privilege'); setFormEmoji('🎁');
+    setFormDescription(''); setFormRewardType('individual'); setFormDynamic(false);
+    setFormMinCost(''); setFormMaxCost(''); setFormInventory(false); setFormStock('');
   };
 
   const createReward = async () => {
     if (!formName.trim() || !user) return;
     try {
+      const baseCost = parseInt(formCost) || 10;
       const { error } = await cloudSupabase.from('beacon_rewards').insert({
         scope_type: scopeType,
         scope_id: scopeId,
         agency_id: agencyId,
         name: formName.trim(),
         description: formDescription.trim() || null,
-        cost: parseInt(formCost) || 10,
+        cost: baseCost,
+        base_cost: baseCost,
         category: formCategory,
         emoji: formEmoji,
         created_by: user.id,
-      });
+        reward_type: formRewardType,
+        dynamic_pricing_enabled: formDynamic,
+        min_cost: formMinCost ? parseInt(formMinCost) : null,
+        max_cost: formMaxCost ? parseInt(formMaxCost) : null,
+        inventory_enabled: formInventory,
+        stock_count: formInventory && formStock ? parseInt(formStock) : null,
+        metadata_json: formInventory && formStock ? { initial_stock: parseInt(formStock) } : {},
+      } as any);
       if (error) throw error;
       setCreateOpen(false); resetForm(); loadRewards();
       toast({ title: 'Reward added to store' });
@@ -151,22 +194,37 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
 
   const openEdit = (reward: Reward) => {
     setSelectedReward(reward);
-    setFormName(reward.name); setFormCost(String(reward.cost));
+    setFormName(reward.name); setFormCost(String(reward.base_cost || reward.cost));
     setFormCategory(reward.category || 'privilege'); setFormEmoji(reward.emoji || '🎁');
-    setFormDescription(reward.description || ''); setEditOpen(true);
+    setFormDescription(reward.description || '');
+    setFormRewardType(reward.reward_type || 'individual');
+    setFormDynamic(reward.dynamic_pricing_enabled);
+    setFormMinCost(reward.min_cost != null ? String(reward.min_cost) : '');
+    setFormMaxCost(reward.max_cost != null ? String(reward.max_cost) : '');
+    setFormInventory(reward.inventory_enabled);
+    setFormStock(reward.stock_count != null ? String(reward.stock_count) : '');
+    setEditOpen(true);
   };
 
   const saveEdit = async () => {
     if (!selectedReward || !formName.trim()) return;
     try {
+      const baseCost = parseInt(formCost) || 10;
       const { error } = await cloudSupabase.from('beacon_rewards').update({
         name: formName.trim(),
         description: formDescription.trim() || null,
-        cost: parseInt(formCost) || 10,
+        cost: baseCost,
+        base_cost: baseCost,
         category: formCategory,
         emoji: formEmoji,
+        reward_type: formRewardType,
+        dynamic_pricing_enabled: formDynamic,
+        min_cost: formMinCost ? parseInt(formMinCost) : null,
+        max_cost: formMaxCost ? parseInt(formMaxCost) : null,
+        inventory_enabled: formInventory,
+        stock_count: formInventory && formStock ? parseInt(formStock) : null,
         updated_at: new Date().toISOString(),
-      }).eq('id', selectedReward.id);
+      } as any).eq('id', selectedReward.id);
       if (error) throw error;
       setEditOpen(false); resetForm(); loadRewards();
       toast({ title: 'Reward updated' });
@@ -176,7 +234,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const toggleActive = async (reward: Reward) => {
     try {
       const { error } = await cloudSupabase.from('beacon_rewards')
-        .update({ active: !reward.active, updated_at: new Date().toISOString() })
+        .update({ active: !reward.active, updated_at: new Date().toISOString() } as any)
         .eq('id', reward.id);
       if (error) throw error;
       loadRewards();
@@ -185,21 +243,28 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   };
 
   const startRedeem = (reward: Reward) => {
-    setSelectedReward(reward); setSelectedStudentId(''); setRedeemSuccess(false); setRedeemOpen(true);
+    setSelectedReward(reward); setSelectedStudentId(''); setRedeemSuccess(false);
+    setRedeemResult(null); setRedeemOpen(true);
+  };
+
+  const openDetail = (reward: Reward) => {
+    setSelectedReward(reward); setDetailOpen(true);
   };
 
   const handleRedeem = async () => {
     if (!selectedReward || !selectedStudentId || !user) return;
     const student = students.find(s => s.id === selectedStudentId);
     if (!student) return;
-    if (student.balance < selectedReward.cost) {
-      toast({ title: 'Insufficient points', description: `${student.name} needs ${selectedReward.cost - student.balance} more points.`, variant: 'destructive' });
+
+    const effectivePrice = getEffectivePrice(selectedReward);
+    if (student.balance < effectivePrice) {
+      toast({ title: 'Insufficient points', description: `${student.name} needs ${effectivePrice - student.balance} more points.`, variant: 'destructive' });
       return;
     }
+
     setRedeeming(true);
     try {
-      // Use atomic RPC for redemption + point deduction
-      const { data, error } = await (cloudSupabase.rpc as any)('redeem_reward', {
+      const { data, error } = await (cloudSupabase.rpc as any)('redeem_reward_dynamic', {
         p_student_id: selectedStudentId,
         p_reward_id: selectedReward.id,
         p_staff_id: user.id,
@@ -207,8 +272,9 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
       });
       if (error) throw error;
       if (data && !data.ok) throw new Error(data.error || 'Redemption failed');
+      setRedeemResult(data);
       setRedeemSuccess(true);
-      toast({ title: '🎉 Reward redeemed!', description: `${student.name} exchanged ${selectedReward.cost} pts for ${selectedReward.name}` });
+      toast({ title: '🎉 Reward redeemed!', description: `${student.name} spent ${data?.final_price || effectivePrice} pts for ${selectedReward.name}` });
       loadRewards();
       onRedemption?.();
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
@@ -216,15 +282,8 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   };
 
   const selectedStudent = students.find(s => s.id === selectedStudentId);
-  const canAfford = selectedStudent && selectedReward ? selectedStudent.balance >= selectedReward.cost : false;
-
-  const getBestStudent = (reward: Reward) => {
-    if (students.length === 0) return null;
-    return students.reduce((best, s) => (Math.abs(reward.cost - s.balance) < Math.abs(reward.cost - best.balance) ? s : best));
-  };
-
-  // Derive emoji from name or use default
-  const getRewardEmoji = (r: Reward) => r.emoji || '🎁';
+  const selectedEffectivePrice = selectedReward ? getEffectivePrice(selectedReward) : 0;
+  const canAfford = selectedStudent ? selectedStudent.balance >= selectedEffectivePrice : false;
 
   return (
     <div className="space-y-4">
@@ -249,28 +308,36 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {rewards.map(reward => {
-            const catConfig = CATEGORIES.find(c => c.value === (reward.category || 'tangible'));
-            const outOfStock = reward.stock_count !== null && reward.stock_count <= 0;
-            const best = getBestStudent(reward);
-            const pointsAway = best ? Math.max(0, reward.cost - best.balance) : reward.cost;
-            const anyCanAfford = students.some(s => s.balance >= reward.cost);
+            const effectivePrice = getEffectivePrice(reward);
+            const basePrice = reward.base_cost || reward.cost;
+            const modifier = getPriceModifier(reward);
+            const outOfStock = reward.inventory_enabled && reward.stock_count !== null && reward.stock_count <= 0;
+            const anyCanAfford = students.some(s => s.balance >= effectivePrice);
             const redeemCount = redemptions.filter(r => r.reward_id === reward.id).length;
-
-            const isLocked = !anyCanAfford && reward.active && !outOfStock;
             const isAvailable = anyCanAfford && reward.active && !outOfStock;
+            const isLocked = !anyCanAfford && reward.active && !outOfStock;
+
+            // Find closest student
+            const closestStudent = students.length > 0
+              ? students.reduce((best, s) => (Math.abs(effectivePrice - s.balance) < Math.abs(effectivePrice - best.balance) ? s : best))
+              : null;
+            const pointsAway = closestStudent ? Math.max(0, effectivePrice - closestStudent.balance) : effectivePrice;
 
             return (
               <Card key={reward.id} className={cn(
-                'transition-all border-border/40 overflow-hidden',
+                'transition-all border-border/40 overflow-hidden cursor-pointer hover:shadow-md',
                 !reward.active && 'opacity-40 border-dashed',
                 outOfStock && 'opacity-50',
                 isAvailable && 'border-accent/40 shadow-sm shadow-accent/10',
-                isLocked && 'border-border/30',
-              )}>
+              )} onClick={() => openDetail(reward)}>
+                {/* Top accent bar */}
                 <div className={cn(
                   'h-1',
-                  isAvailable && 'bg-accent',
-                  isLocked && 'bg-muted-foreground/20',
+                  modifier === 'hot' && 'bg-destructive',
+                  modifier === 'sale' && 'bg-accent',
+                  modifier === 'scarce' && 'bg-amber-500',
+                  !modifier && isAvailable && 'bg-accent',
+                  !modifier && isLocked && 'bg-muted-foreground/20',
                   !reward.active && 'bg-muted-foreground/10',
                   outOfStock && 'bg-destructive/30',
                 )} />
@@ -279,34 +346,45 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                     <div className={cn(
                       "text-3xl rounded-xl w-12 h-12 flex items-center justify-center shrink-0",
                       isAvailable ? "bg-accent/10" : "bg-muted/50"
-                    )}>{getRewardEmoji(reward)}</div>
+                    )}>{reward.emoji || '🎁'}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
                         <p className="font-semibold text-sm truncate">{reward.name}</p>
-                        {isAvailable && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 shrink-0 gap-0.5"><CheckCircle className="h-2 w-2" />Ready</Badge>}
-                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {modifier === 'hot' && <Badge className="text-[8px] bg-destructive/20 text-destructive border-destructive/30 gap-0.5"><Flame className="h-2 w-2" />Hot</Badge>}
+                          {modifier === 'sale' && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><TrendingDown className="h-2 w-2" />Sale</Badge>}
+                          {modifier === 'scarce' && <Badge className="text-[8px] bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-0.5"><Package className="h-2 w-2" />Low</Badge>}
+                          {isAvailable && !modifier && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 shrink-0 gap-0.5"><CheckCircle className="h-2 w-2" />Ready</Badge>}
+                          {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                        </div>
                       </div>
                       {reward.description && <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{reward.description}</p>}
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {/* Price display */}
                         <Badge className="gap-0.5 text-[10px] bg-primary/10 text-primary border-primary/20">
-                          <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> {reward.cost}
+                          <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> {effectivePrice}
                         </Badge>
-                        {catConfig && <Badge variant="outline" className="text-[9px]">{catConfig.emoji} {catConfig.label}</Badge>}
-                        {reward.stock_count !== null && (
+                        {modifier && effectivePrice !== basePrice && (
+                          <span className="text-[9px] text-muted-foreground line-through">{basePrice}</span>
+                        )}
+                        {reward.reward_type === 'class' && (
+                          <Badge variant="outline" className="text-[9px] gap-0.5"><Zap className="h-2 w-2" />Class</Badge>
+                        )}
+                        {reward.inventory_enabled && reward.stock_count !== null && (
                           <Badge variant="outline" className={cn("text-[9px]", outOfStock && "text-destructive border-destructive/30")}>
                             <Package className="h-2 w-2 mr-0.5" /> {outOfStock ? 'Out' : `${reward.stock_count} left`}
                           </Badge>
                         )}
                         {redeemCount > 0 && (
-                          <Badge variant="outline" className="text-[9px] gap-0.5"><History className="h-2 w-2" />{redeemCount} redeemed</Badge>
+                          <Badge variant="outline" className="text-[9px] gap-0.5"><History className="h-2 w-2" />{redeemCount}</Badge>
                         )}
                       </div>
-                      {best && pointsAway > 0 && pointsAway <= reward.cost && (
-                        <p className="text-[10px] text-primary font-medium mt-1.5">{best.name}: <strong>{pointsAway} pts away</strong></p>
+                      {closestStudent && pointsAway > 0 && pointsAway <= effectivePrice && (
+                        <p className="text-[10px] text-primary font-medium mt-1.5">{closestStudent.name}: <strong>{pointsAway} pts away</strong></p>
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-1 mt-2.5">
+                  <div className="flex gap-1 mt-2.5" onClick={e => e.stopPropagation()}>
                     <Button size="sm" variant={isAvailable ? "default" : "outline"} className={cn("flex-1 h-7 text-xs gap-1", isAvailable && "bg-accent hover:bg-accent/90 text-accent-foreground")} onClick={() => !outOfStock && reward.active && startRedeem(reward)} disabled={outOfStock || !reward.active}>
                       <Gift className="h-3 w-3" /> Redeem
                     </Button>
@@ -320,24 +398,135 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
         </div>
       )}
 
+      {/* Detail Panel Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <Tag className="h-5 w-5 text-primary" /> Reward Details
+            </DialogTitle>
+          </DialogHeader>
+          {selectedReward && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-4">
+                <span className="text-4xl">{selectedReward.emoji || '🎁'}</span>
+                <div>
+                  <p className="font-bold text-lg">{selectedReward.name}</p>
+                  {selectedReward.description && <p className="text-xs text-muted-foreground">{selectedReward.description}</p>}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Base Price</span>
+                  <span className="font-semibold">{selectedReward.base_cost || selectedReward.cost} ⭐</span>
+                </div>
+                {selectedReward.dynamic_pricing_enabled && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Current Price</span>
+                      <span className={cn("font-bold", getPriceModifier(selectedReward) === 'sale' ? 'text-accent' : getPriceModifier(selectedReward) === 'hot' ? 'text-destructive' : '')}>
+                        {getEffectivePrice(selectedReward)} ⭐
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Price Status</span>
+                      <Badge variant="outline" className="text-[9px]">
+                        {getPriceModifier(selectedReward) === 'hot' && '🔥 High demand'}
+                        {getPriceModifier(selectedReward) === 'sale' && '💚 Discounted'}
+                        {getPriceModifier(selectedReward) === 'scarce' && '⚠️ Low stock premium'}
+                        {!getPriceModifier(selectedReward) && '📊 Normal'}
+                      </Badge>
+                    </div>
+                    {selectedReward.min_cost != null && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Min Price</span>
+                        <span>{selectedReward.min_cost} ⭐</span>
+                      </div>
+                    )}
+                    {selectedReward.max_cost != null && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Max Price</span>
+                        <span>{selectedReward.max_cost} ⭐</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedReward.inventory_enabled && selectedReward.stock_count != null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Inventory</span>
+                    <span className={cn("font-semibold", selectedReward.stock_count <= 3 ? "text-amber-600" : "")}>
+                      {selectedReward.stock_count} remaining
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="capitalize">{selectedReward.reward_type || 'individual'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Recent Redemptions (24h)</span>
+                  <span>{selectedReward.redemption_count_24h || 0}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button className="flex-1 gap-1" onClick={() => { setDetailOpen(false); startRedeem(selectedReward); }} disabled={!selectedReward.active || (selectedReward.inventory_enabled && selectedReward.stock_count != null && selectedReward.stock_count <= 0)}>
+                  <Gift className="h-4 w-4" /> Redeem
+                </Button>
+                <Button variant="outline" className="gap-1" onClick={() => { setDetailOpen(false); openEdit(selectedReward); }}>
+                  <Pencil className="h-4 w-4" /> Edit
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Create Reward Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><Gift className="h-5 w-5 text-primary" /> Add Reward</DialogTitle></DialogHeader>
-          <RewardForm name={formName} onNameChange={setFormName} cost={formCost} onCostChange={setFormCost} category={formCategory} onCategoryChange={setFormCategory} emoji={formEmoji} onEmojiChange={setFormEmoji} description={formDescription} onDescriptionChange={setFormDescription} onSubmit={createReward} submitLabel="Add to Store" disabled={!formName.trim()} />
+          <RewardForm
+            name={formName} onNameChange={setFormName}
+            cost={formCost} onCostChange={setFormCost}
+            category={formCategory} onCategoryChange={setFormCategory}
+            emoji={formEmoji} onEmojiChange={setFormEmoji}
+            description={formDescription} onDescriptionChange={setFormDescription}
+            rewardType={formRewardType} onRewardTypeChange={setFormRewardType}
+            dynamicPricing={formDynamic} onDynamicPricingChange={setFormDynamic}
+            minCost={formMinCost} onMinCostChange={setFormMinCost}
+            maxCost={formMaxCost} onMaxCostChange={setFormMaxCost}
+            inventoryEnabled={formInventory} onInventoryChange={setFormInventory}
+            stock={formStock} onStockChange={setFormStock}
+            onSubmit={createReward} submitLabel="Add to Store" disabled={!formName.trim()}
+          />
         </DialogContent>
       </Dialog>
 
       {/* Edit Reward Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Reward</DialogTitle></DialogHeader>
-          <RewardForm name={formName} onNameChange={setFormName} cost={formCost} onCostChange={setFormCost} category={formCategory} onCategoryChange={setFormCategory} emoji={formEmoji} onEmojiChange={setFormEmoji} description={formDescription} onDescriptionChange={setFormDescription} onSubmit={saveEdit} submitLabel="Save Changes" disabled={!formName.trim()} />
+          <RewardForm
+            name={formName} onNameChange={setFormName}
+            cost={formCost} onCostChange={setFormCost}
+            category={formCategory} onCategoryChange={setFormCategory}
+            emoji={formEmoji} onEmojiChange={setFormEmoji}
+            description={formDescription} onDescriptionChange={setFormDescription}
+            rewardType={formRewardType} onRewardTypeChange={setFormRewardType}
+            dynamicPricing={formDynamic} onDynamicPricingChange={setFormDynamic}
+            minCost={formMinCost} onMinCostChange={setFormMinCost}
+            maxCost={formMaxCost} onMaxCostChange={setFormMaxCost}
+            inventoryEnabled={formInventory} onInventoryChange={setFormInventory}
+            stock={formStock} onStockChange={setFormStock}
+            onSubmit={saveEdit} submitLabel="Save Changes" disabled={!formName.trim()}
+          />
         </DialogContent>
       </Dialog>
 
       {/* Redeem Dialog */}
-      <Dialog open={redeemOpen} onOpenChange={(o) => { setRedeemOpen(o); if (!o) setRedeemSuccess(false); }}>
+      <Dialog open={redeemOpen} onOpenChange={(o) => { setRedeemOpen(o); if (!o) { setRedeemSuccess(false); setRedeemResult(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center gap-2">
@@ -348,11 +537,17 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
           {selectedReward && !redeemSuccess && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
-                <span className="text-3xl">{getRewardEmoji(selectedReward)}</span>
+                <span className="text-3xl">{selectedReward.emoji || '🎁'}</span>
                 <div>
                   <p className="font-semibold">{selectedReward.name}</p>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> {selectedReward.cost} points
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    <span className="font-bold text-foreground">{selectedEffectivePrice}</span> points
+                    {selectedEffectivePrice !== (selectedReward.base_cost || selectedReward.cost) && (
+                      <span className="line-through text-[10px]">{selectedReward.base_cost || selectedReward.cost}</span>
+                    )}
+                    {getPriceModifier(selectedReward) === 'sale' && <Badge className="text-[8px] bg-accent/20 text-accent-foreground">Sale</Badge>}
+                    {getPriceModifier(selectedReward) === 'hot' && <Badge className="text-[8px] bg-destructive/20 text-destructive">Hot</Badge>}
                   </div>
                 </div>
               </div>
@@ -362,14 +557,14 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                   <SelectTrigger><SelectValue placeholder="Choose a student…" /></SelectTrigger>
                   <SelectContent>
                     {students.map(s => {
-                      const away = Math.max(0, selectedReward.cost - s.balance);
+                      const away = Math.max(0, selectedEffectivePrice - s.balance);
                       return (
                         <SelectItem key={s.id} value={s.id}>
                           <div className="flex items-center gap-2">
                             <span>{s.name}</span>
                             <Badge variant="outline" className="text-[9px] gap-0.5"><Star className="h-2 w-2 fill-amber-500 text-amber-500" />{s.balance}</Badge>
                             {away > 0 && <span className="text-[9px] text-muted-foreground">{away} away</span>}
-                            {s.balance < selectedReward.cost && <AlertCircle className="h-3 w-3 text-destructive" />}
+                            {s.balance < selectedEffectivePrice && <AlertCircle className="h-3 w-3 text-destructive" />}
                           </div>
                         </SelectItem>
                       );
@@ -385,13 +580,13 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Cost</span>
-                    <span className="font-semibold text-destructive">−{selectedReward.cost} pts</span>
+                    <span className="font-semibold text-destructive">−{selectedEffectivePrice} pts</span>
                   </div>
-                  <Progress value={canAfford ? 100 : (selectedStudent.balance / selectedReward.cost) * 100} className="h-1.5" />
+                  <Progress value={canAfford ? 100 : (selectedStudent.balance / selectedEffectivePrice) * 100} className="h-1.5" />
                   <div className="flex justify-between text-sm border-t pt-2">
                     <span className="text-muted-foreground">After</span>
                     <span className={cn("font-bold", canAfford ? "text-accent" : "text-destructive")}>
-                      {canAfford ? selectedStudent.balance - selectedReward.cost : selectedStudent.balance - selectedReward.cost} pts
+                      {selectedStudent.balance - selectedEffectivePrice} pts
                     </span>
                   </div>
                 </div>
@@ -401,17 +596,23 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
               </Button>
               {selectedStudent && !canAfford && (
                 <p className="text-xs text-destructive text-center flex items-center justify-center gap-1">
-                  <AlertCircle className="h-3 w-3" /> Not enough points ({selectedReward.cost - selectedStudent.balance} more needed)
+                  <AlertCircle className="h-3 w-3" /> Not enough points ({selectedEffectivePrice - selectedStudent.balance} more needed)
                 </p>
               )}
             </div>
           )}
           {redeemSuccess && selectedReward && (
             <div className="text-center py-4 space-y-3">
-              <div className="text-5xl animate-bounce">{getRewardEmoji(selectedReward)}</div>
+              <div className="text-5xl animate-bounce">{selectedReward.emoji || '🎁'}</div>
               <p className="font-semibold text-lg">{selectedReward.name}</p>
               <p className="text-sm text-muted-foreground">Successfully redeemed!</p>
-              <Button variant="outline" onClick={() => { setRedeemOpen(false); setRedeemSuccess(false); }}>Done</Button>
+              {redeemResult && (
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>Paid: {redeemResult.final_price} pts {redeemResult.modifier !== 'static' && redeemResult.modifier !== 'none' && `(${redeemResult.modifier} pricing)`}</p>
+                  <p>Balance after: {redeemResult.balance_after} pts</p>
+                </div>
+              )}
+              <Button variant="outline" onClick={() => { setRedeemOpen(false); setRedeemSuccess(false); setRedeemResult(null); }}>Done</Button>
             </div>
           )}
         </DialogContent>
@@ -420,13 +621,19 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   );
 }
 
-/* ── Reward Form ── */
-function RewardForm({ name, onNameChange, cost, onCostChange, category, onCategoryChange, emoji, onEmojiChange, description, onDescriptionChange, onSubmit, submitLabel, disabled }: {
+/* ── Reward Form with Economy Controls ── */
+function RewardForm({ name, onNameChange, cost, onCostChange, category, onCategoryChange, emoji, onEmojiChange, description, onDescriptionChange, rewardType, onRewardTypeChange, dynamicPricing, onDynamicPricingChange, minCost, onMinCostChange, maxCost, onMaxCostChange, inventoryEnabled, onInventoryChange, stock, onStockChange, onSubmit, submitLabel, disabled }: {
   name: string; onNameChange: (v: string) => void;
   cost: string; onCostChange: (v: string) => void;
   category: string; onCategoryChange: (v: string) => void;
   emoji: string; onEmojiChange: (v: string) => void;
   description: string; onDescriptionChange: (v: string) => void;
+  rewardType: string; onRewardTypeChange: (v: string) => void;
+  dynamicPricing: boolean; onDynamicPricingChange: (v: boolean) => void;
+  minCost: string; onMinCostChange: (v: string) => void;
+  maxCost: string; onMaxCostChange: (v: string) => void;
+  inventoryEnabled: boolean; onInventoryChange: (v: boolean) => void;
+  stock: string; onStockChange: (v: string) => void;
   onSubmit: () => void; submitLabel: string; disabled?: boolean;
 }) {
   return (
@@ -436,7 +643,7 @@ function RewardForm({ name, onNameChange, cost, onCostChange, category, onCatego
         <div className="space-y-1"><Label className="text-xs">Emoji</Label><Input value={emoji} onChange={e => onEmojiChange(e.target.value)} className="text-center text-lg" maxLength={4} /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1"><Label className="text-xs">Point Cost</Label><Input type="number" value={cost} onChange={e => onCostChange(e.target.value)} min={1} /></div>
+        <div className="space-y-1"><Label className="text-xs">Base Cost (pts)</Label><Input type="number" value={cost} onChange={e => onCostChange(e.target.value)} min={1} /></div>
         <div className="space-y-1">
           <Label className="text-xs">Category</Label>
           <Select value={category} onValueChange={onCategoryChange}>
@@ -445,7 +652,41 @@ function RewardForm({ name, onNameChange, cost, onCostChange, category, onCatego
           </Select>
         </div>
       </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Type</Label>
+        <Select value={rewardType} onValueChange={onRewardTypeChange}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>{REWARD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
       <div className="space-y-1"><Label className="text-xs">Description (optional)</Label><Input value={description} onChange={e => onDescriptionChange(e.target.value)} placeholder="Short description…" /></div>
+
+      {/* Economy section */}
+      <div className="border-t pt-3 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Economy</p>
+
+        <div className="flex items-center justify-between">
+          <Label className="text-xs flex items-center gap-1.5"><Zap className="h-3 w-3 text-amber-500" /> Dynamic Pricing</Label>
+          <Switch checked={dynamicPricing} onCheckedChange={onDynamicPricingChange} />
+        </div>
+
+        {dynamicPricing && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label className="text-xs">Min Price</Label><Input type="number" value={minCost} onChange={e => onMinCostChange(e.target.value)} placeholder="No min" min={1} /></div>
+            <div className="space-y-1"><Label className="text-xs">Max Price</Label><Input type="number" value={maxCost} onChange={e => onMaxCostChange(e.target.value)} placeholder="No max" min={1} /></div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <Label className="text-xs flex items-center gap-1.5"><Package className="h-3 w-3 text-primary" /> Limited Inventory</Label>
+          <Switch checked={inventoryEnabled} onCheckedChange={onInventoryChange} />
+        </div>
+
+        {inventoryEnabled && (
+          <div className="space-y-1"><Label className="text-xs">Quantity Available</Label><Input type="number" value={stock} onChange={e => onStockChange(e.target.value)} placeholder="e.g. 5" min={0} /></div>
+        )}
+      </div>
+
       <Button onClick={onSubmit} disabled={disabled} className="w-full">{submitLabel}</Button>
     </div>
   );

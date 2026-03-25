@@ -355,17 +355,28 @@ export type Database = {
         Row: {
           active: boolean
           agency_id: string | null
+          base_cost: number | null
           category: string
           cost: number
           created_at: string
           created_by: string | null
+          current_dynamic_price: number | null
           description: string | null
+          dynamic_pricing_enabled: boolean
           emoji: string
           id: string
           image_url: string | null
+          inventory_enabled: boolean
+          last_price_update: string | null
+          max_cost: number | null
+          metadata_json: Json | null
+          min_cost: number | null
           name: string
+          redemption_count_24h: number
+          reward_type: string
           scope_id: string
           scope_type: string
+          sort_order: number
           stock_count: number | null
           time_sensitive_until: string | null
           updated_at: string
@@ -373,17 +384,28 @@ export type Database = {
         Insert: {
           active?: boolean
           agency_id?: string | null
+          base_cost?: number | null
           category?: string
           cost?: number
           created_at?: string
           created_by?: string | null
+          current_dynamic_price?: number | null
           description?: string | null
+          dynamic_pricing_enabled?: boolean
           emoji?: string
           id?: string
           image_url?: string | null
+          inventory_enabled?: boolean
+          last_price_update?: string | null
+          max_cost?: number | null
+          metadata_json?: Json | null
+          min_cost?: number | null
           name: string
+          redemption_count_24h?: number
+          reward_type?: string
           scope_id: string
           scope_type?: string
+          sort_order?: number
           stock_count?: number | null
           time_sensitive_until?: string | null
           updated_at?: string
@@ -391,17 +413,28 @@ export type Database = {
         Update: {
           active?: boolean
           agency_id?: string | null
+          base_cost?: number | null
           category?: string
           cost?: number
           created_at?: string
           created_by?: string | null
+          current_dynamic_price?: number | null
           description?: string | null
+          dynamic_pricing_enabled?: boolean
           emoji?: string
           id?: string
           image_url?: string | null
+          inventory_enabled?: boolean
+          last_price_update?: string | null
+          max_cost?: number | null
+          metadata_json?: Json | null
+          min_cost?: number | null
           name?: string
+          redemption_count_24h?: number
+          reward_type?: string
           scope_id?: string
           scope_type?: string
+          sort_order?: number
           stock_count?: number | null
           time_sensitive_until?: string | null
           updated_at?: string
@@ -1759,6 +1792,107 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reward_economy_settings: {
+        Row: {
+          agency_id: string
+          classroom_id: string | null
+          created_at: string
+          demand_weight: number
+          dynamic_pricing_enabled: boolean
+          id: string
+          max_price_decrease_pct: number
+          max_price_increase_pct: number
+          price_update_interval_hours: number
+          scarcity_weight: number
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          classroom_id?: string | null
+          created_at?: string
+          demand_weight?: number
+          dynamic_pricing_enabled?: boolean
+          id?: string
+          max_price_decrease_pct?: number
+          max_price_increase_pct?: number
+          price_update_interval_hours?: number
+          scarcity_weight?: number
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          classroom_id?: string | null
+          created_at?: string
+          demand_weight?: number
+          dynamic_pricing_enabled?: boolean
+          id?: string
+          max_price_decrease_pct?: number
+          max_price_increase_pct?: number
+          price_update_interval_hours?: number
+          scarcity_weight?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reward_transactions: {
+        Row: {
+          agency_id: string
+          base_price: number
+          created_at: string
+          final_price: number
+          id: string
+          ledger_entry_id: string | null
+          metadata_json: Json | null
+          points_after: number
+          points_before: number
+          price_modifier: string | null
+          reward_id: string
+          staff_id: string
+          student_id: string
+          transaction_type: string
+        }
+        Insert: {
+          agency_id: string
+          base_price: number
+          created_at?: string
+          final_price: number
+          id?: string
+          ledger_entry_id?: string | null
+          metadata_json?: Json | null
+          points_after?: number
+          points_before?: number
+          price_modifier?: string | null
+          reward_id: string
+          staff_id: string
+          student_id: string
+          transaction_type?: string
+        }
+        Update: {
+          agency_id?: string
+          base_price?: number
+          created_at?: string
+          final_price?: number
+          id?: string
+          ledger_entry_id?: string | null
+          metadata_json?: Json | null
+          points_after?: number
+          points_before?: number
+          price_modifier?: string | null
+          reward_id?: string
+          staff_id?: string
+          student_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reward_transactions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_rewards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_activity_log: {
         Row: {
@@ -3707,6 +3841,10 @@ export type Database = {
         }
         Returns: Json
       }
+      compute_dynamic_reward_price: {
+        Args: { p_reward_id: string }
+        Returns: Json
+      }
       create_invite_code:
         | {
             Args: {
@@ -3927,6 +4065,15 @@ export type Database = {
         }[]
       }
       redeem_reward: {
+        Args: {
+          p_agency_id: string
+          p_reward_id: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
+      redeem_reward_dynamic: {
         Args: {
           p_agency_id: string
           p_reward_id: string
