@@ -30,7 +30,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame, Scroll } from 'lucide-react';
+import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame, Scroll, Gamepad2 } from 'lucide-react';
+import { GameModeSelector } from '@/components/GameModeSelector';
 import { cn } from '@/lib/utils';
 
 const CHECKPOINT_INTERVAL = 10;
