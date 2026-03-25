@@ -729,7 +729,19 @@ const ClassroomView = () => {
   return (
     <div className="space-y-5 pb-6">
       {/* ─── ONBOARDING BANNER ─── */}
-      <OnboardingHomeBanner onboardingDay={onboardingDay} />
+      <OnboardingHomeBanner
+        onboardingDay={onboardingDay}
+        onLogBehavior={() => {
+          // Open the first student's quick action modal, or scroll to student cards
+          const firstStudent = clients[0];
+          if (firstStudent) setQuickActionStudent(firstStudent);
+        }}
+        onSendUpdate={() => navigate('/threads')}
+        onWhosHere={() => {
+          // Scroll down to reveal the student cards section
+          window.scrollTo({ top: 400, behavior: 'smooth' });
+        }}
+      />
       {/* ─── HEADER BAND ─── */}
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
         <div className="flex items-center justify-between gap-3 mb-3">

@@ -8,7 +8,9 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface OnboardingHomeBannerProps {
   onboardingDay: number;
-  onActionTap?: (action: string) => void;
+  onLogBehavior?: () => void;
+  onSendUpdate?: () => void;
+  onWhosHere?: () => void;
 }
 
 const ACTION_CARDS = [
@@ -18,7 +20,6 @@ const ACTION_CARDS = [
     title: 'Tap a Behavior',
     subtitle: 'Takes 2 seconds',
     color: 'bg-accent/10 text-accent',
-    route: '/classroom',
   },
   {
     key: 'send_update',
@@ -26,7 +27,6 @@ const ACTION_CARDS = [
     title: 'Send Update',
     subtitle: 'Keep everyone in the loop',
     color: 'bg-primary/10 text-primary',
-    route: '/threads',
   },
   {
     key: 'whos_here',
@@ -34,12 +34,26 @@ const ACTION_CARDS = [
     title: "Who's Here",
     subtitle: 'See your classroom at a glance',
     color: 'bg-warning/10 text-warning',
-    route: '/classroom',
   },
 ] as const;
 
-export const OnboardingHomeBanner = ({ onboardingDay, onActionTap }: OnboardingHomeBannerProps) => {
+export const OnboardingHomeBanner = ({ onboardingDay, onLogBehavior, onSendUpdate, onWhosHere }: OnboardingHomeBannerProps) => {
   const navigate = useNavigate();
+
+  const handleCardClick = (key: string) => {
+    switch (key) {
+      case 'log_behavior':
+        onLogBehavior?.();
+        break;
+      case 'send_update':
+        if (onSendUpdate) onSendUpdate();
+        else navigate('/threads');
+        break;
+      case 'whos_here':
+        onWhosHere?.();
+        break;
+    }
+  };
 
   // Only show for first ~5 days
   if (onboardingDay > 7) return null;
@@ -67,10 +81,7 @@ export const OnboardingHomeBanner = ({ onboardingDay, onActionTap }: OnboardingH
             <Card
               key={card.key}
               className="cursor-pointer hover:shadow-md transition-all active:scale-[0.98] border-border/50"
-              onClick={() => {
-                onActionTap?.(card.key);
-                navigate(card.route);
-              }}
+              onClick={() => handleCardClick(card.key)}
             >
               <CardContent className="flex items-center gap-4 p-4">
                 <div className={`w-12 h-12 rounded-xl ${card.color} flex items-center justify-center shrink-0`}>
