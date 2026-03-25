@@ -12,9 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
+import { SmartHelpBanner } from '@/components/SmartHelpBanner';
 
 const navItems = [
   { to: '/classroom', label: 'Classroom', icon: LayoutGrid },
