@@ -381,6 +381,20 @@ const ClassroomView = () => {
         });
       }
       setStudentTargets(map);
+
+      // Also build per-student behavior map from reinforcement rules
+      const behaviorMap: StudentBehaviorMap = {};
+      for (const r of (rules || []) as any[]) {
+        if (!r.student_id || !r.behavior_name || !r.is_active) continue;
+        if (r.linked_target_id) continue; // skip target-linked rules, those are skill goals
+        if (!behaviorMap[r.student_id]) behaviorMap[r.student_id] = [];
+        behaviorMap[r.student_id].push({
+          behavior_name: r.behavior_name,
+          points: r.points,
+          rule_type: r.rule_type,
+        });
+      }
+      setStudentBehaviors(behaviorMap);
     } catch { /* silent */ }
   };
 
