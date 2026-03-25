@@ -1259,6 +1259,15 @@ const ClassroomView = () => {
         </div>
       )}
 
+      {/* ─── TEACHER WINS FEED ─── */}
+      {clients.length > 0 && (
+        <TeacherWinsFeed
+          agencyId={effectiveAgencyId}
+          studentIds={clients.map(c => c.id)}
+          studentNames={studentNameMap}
+        />
+      )}
+
       {/* ─── BOTTOM BAND: Reward Preview + Celebration Feed ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Reward preview strip */}
@@ -1285,6 +1294,20 @@ const ClassroomView = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── END SESSION BUTTON ─── */}
+      {sessionMinutes >= 10 && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs rounded-xl"
+            onClick={() => setSessionSummaryOpen(true)}
+          >
+            <BarChart3 className="h-3.5 w-3.5" /> End Session · View Summary
+          </Button>
+        </div>
+      )}
 
       {/* Quick Action Modal */}
       {quickActionStudent && (
