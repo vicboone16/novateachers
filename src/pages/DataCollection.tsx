@@ -110,7 +110,7 @@ const DataCollection = () => {
       const result = await writeWithRetry('teacher_frequency_entries', {
         agency_id: effectiveAgencyId,
         client_id: selectedClientId,
-        user_id: user.id,
+        staff_id: user.id,
         behavior_name: behaviorName,
         count: 1,
         logged_date: new Date().toISOString().slice(0, 10),
