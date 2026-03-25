@@ -210,6 +210,14 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, className }: Pro
         {/* Student avatars */}
         {studentPositions.map((sp) => {
           const nearFinish = sp.progress > 0.85;
+          const eff = sp.activeEffect;
+          const isBounce = eff === 'bounce';
+          const isShake = eff === 'shake';
+          const isRingPulse = eff === 'ring-pulse';
+          const isBurst = eff === 'burst';
+          const isSparkle = eff === 'sparkle';
+          const isCardFlash = eff === 'card-flash';
+          const isDimmed = isShake;
           return (
             <g
               key={sp.student_id}
@@ -219,14 +227,7 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, className }: Pro
               }}
             >
               {/* Shadow */}
-              <ellipse
-                cx={0}
-                cy={4}
-                rx={14}
-                ry={5}
-                fill="black"
-                opacity="0.12"
-              />
+              <ellipse cx={0} cy={4} rx={14} ry={5} fill="black" opacity="0.12" />
 
               {/* Near-finish glow */}
               {nearFinish && (
@@ -236,11 +237,78 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, className }: Pro
                 </circle>
               )}
 
-              {/* Flash bounce animation */}
-              {sp.isFlashing && (
-                <circle cx={0} cy={0} r={20} fill="hsl(38, 92%, 50%)" opacity="0.3">
-                  <animate attributeName="r" values="16;24;16" dur="0.6s" repeatCount="3" />
-                  <animate attributeName="opacity" values="0.3;0.5;0" dur="0.6s" repeatCount="3" />
+              {/* EFFECT: bounce — expanding glow ring */}
+              {(sp.isFlashing || isBounce) && (
+                <circle cx={0} cy={0} r={20} fill="hsl(142, 71%, 45%)" opacity="0.35">
+                  <animate attributeName="r" values="14;28;14" dur="0.5s" repeatCount="2" />
+                  <animate attributeName="opacity" values="0.35;0.6;0" dur="0.5s" repeatCount="2" />
+                </circle>
+              )}
+
+              {/* EFFECT: shake — red flash ring */}
+              {isShake && (
+                <circle cx={0} cy={0} r={20} fill="hsl(0, 72%, 51%)" opacity="0.25">
+                  <animate attributeName="r" values="18;22;18" dur="0.15s" repeatCount="5" />
+                  <animate attributeName="opacity" values="0.25;0.4;0.25" dur="0.15s" repeatCount="5" />
+                </circle>
+              )}
+
+              {/* EFFECT: ring-pulse — expanding checkpoint ring */}
+              {isRingPulse && (
+                <>
+                  <circle cx={0} cy={0} r={22} fill="none" stroke="hsl(220, 70%, 50%)" strokeWidth="3" opacity="0.6">
+                    <animate attributeName="r" values="18;36" dur="0.75s" repeatCount="2" />
+                    <animate attributeName="opacity" values="0.6;0" dur="0.75s" repeatCount="2" />
+                  </circle>
+                  <circle cx={0} cy={0} r={22} fill="none" stroke="hsl(220, 70%, 50%)" strokeWidth="2" opacity="0.3">
+                    <animate attributeName="r" values="18;42" dur="0.75s" begin="0.2s" repeatCount="2" />
+                    <animate attributeName="opacity" values="0.3;0" dur="0.75s" begin="0.2s" repeatCount="2" />
+                  </circle>
+                </>
+              )}
+
+              {/* EFFECT: burst — confetti-like rays */}
+              {isBurst && (
+                <>
+                  <circle cx={0} cy={0} r={30} fill="url(#burst-glow)">
+                    <animate attributeName="r" values="20;40;20" dur="0.6s" repeatCount="3" />
+                    <animate attributeName="opacity" values="0.6;0.9;0" dur="0.6s" repeatCount="3" />
+                  </circle>
+                  {[0, 60, 120, 180, 240, 300].map(angle => {
+                    const rad = (angle * Math.PI) / 180;
+                    const x2 = Math.cos(rad) * 26;
+                    const y2 = Math.sin(rad) * 26;
+                    return (
+                      <line key={angle} x1={0} y1={0} x2={x2} y2={y2}
+                        stroke="hsl(48, 96%, 53%)" strokeWidth="2" strokeLinecap="round" opacity="0.7">
+                        <animate attributeName="opacity" values="0.7;0" dur="0.8s" fill="freeze" />
+                      </line>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* EFFECT: sparkle — twinkling dots */}
+              {isSparkle && (
+                <>
+                  {[
+                    { cx: -10, cy: -14, delay: '0s' },
+                    { cx: 12, cy: -10, delay: '0.2s' },
+                    { cx: -8, cy: 12, delay: '0.1s' },
+                    { cx: 14, cy: 8, delay: '0.3s' },
+                  ].map((dot, i) => (
+                    <circle key={i} cx={dot.cx} cy={dot.cy} r={2} fill="hsl(48, 96%, 53%)">
+                      <animate attributeName="r" values="1;3;1" dur="0.5s" begin={dot.delay} repeatCount="3" />
+                      <animate attributeName="opacity" values="0.3;1;0.3" dur="0.5s" begin={dot.delay} repeatCount="3" />
+                    </circle>
+                  ))}
+                </>
+              )}
+
+              {/* EFFECT: card-flash — white flash overlay */}
+              {isCardFlash && (
+                <circle cx={0} cy={0} r={18} fill="white" opacity="0.5">
+                  <animate attributeName="opacity" values="0;0.7;0" dur="0.4s" repeatCount="2" />
                 </circle>
               )}
 
@@ -255,10 +323,16 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, className }: Pro
                 cy={0}
                 r={16}
                 fill="hsl(0, 0%, 100%)"
-                stroke={sp.isFlashing ? 'hsl(38, 92%, 50%)' : 'hsl(220, 13%, 91%)'}
-                strokeWidth={sp.isFlashing ? 3 : 1.5}
+                stroke={
+                  isBounce ? 'hsl(142, 71%, 45%)'
+                    : isShake ? 'hsl(0, 72%, 51%)'
+                    : sp.isFlashing ? 'hsl(38, 92%, 50%)'
+                    : 'hsl(220, 13%, 91%)'
+                }
+                strokeWidth={sp.isFlashing || !!eff ? 3 : 1.5}
                 className="dark:fill-[hsl(222,25%,16%)]"
                 filter="url(#avatar-shadow)"
+                opacity={isDimmed ? 0.55 : 1}
               />
 
               {/* Avatar emoji */}
@@ -269,6 +343,7 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, className }: Pro
                 dominantBaseline="central"
                 fontSize="18"
                 style={{ pointerEvents: 'none' }}
+                opacity={isDimmed ? 0.5 : 1}
               >
                 {sp.avatar_emoji || '👤'}
               </text>
