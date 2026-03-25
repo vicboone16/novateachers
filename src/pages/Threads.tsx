@@ -414,13 +414,13 @@ const Threads = () => {
           <div className="py-1">
             {/* Staff Feed section */}
             {staffFeedThreads.length > 0 && (
-              <ThreadGroup label="Staff Feed" threads={staffFeedThreads} onSelect={openThread} activeId={activeThread?.id} />
+              <ThreadGroup label="Staff Feed" threads={staffFeedThreads} onSelect={openThread} activeId={activeThread?.id} unreadCounts={unreadCounts} />
             )}
             {/* Groups / Channels */}
-            <ThreadGroup label="Channels" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} showAddButton onAdd={() => setCreateOpen(true)} />
-            <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} />
+            <ThreadGroup label="Channels" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} showAddButton onAdd={() => setCreateOpen(true)} unreadCounts={unreadCounts} />
+            <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} unreadCounts={unreadCounts} />
             {parentThreads.length > 0 && (
-              <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} />
+              <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} unreadCounts={unreadCounts} />
             )}
           </div>
         )}

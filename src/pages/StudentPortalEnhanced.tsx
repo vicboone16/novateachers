@@ -79,19 +79,47 @@ export default function StudentPortalEnhanced() {
 
   const loadStudentData = async (sid: string) => {
     try {
-      const [profileData] = await Promise.all([getStudentGameProfile(sid)]);
-      if (profileData) setAvatarEmoji(profileData.avatar_emoji || '👤');
+      const [profileData, studentUnlocks, studentStreaks] = await Promise.all([
+        getStudentGameProfile(sid),
+        getStudentUnlocks(sid),
+        getStudentStreaks(sid),
+      ]);
+      if (profileData) {
+        setAvatarEmoji(profileData.avatar_emoji || '👤');
+        setCurrentLevel(profileData.current_level || 1);
+        setCurrentXp(profileData.current_xp || 0);
+      }
 
-      const { data: ledger } = await cloudSupabase.from('beacon_points_ledger').select('points').eq('student_id', sid);
-      const total = (ledger || []).reduce((sum: number, r: any) => sum + (r.points || 0), 0);
-      setBalance(total);
+      // Balance from view
+      const { data: balanceData } = await cloudSupabase
+        .from('v_student_points_balance')
+        .select('balance')
+        .eq('student_id', sid)
+        .maybeSingle();
+      setBalance(Number(balanceData?.balance) || 0);
 
-      const { data: rewardData } = await supabase.from('beacon_rewards' as any).select('id, name, image_url, cost').eq('active', true).order('cost');
-      setRewards((rewardData || []).map((r: any) => ({ ...r, emoji: r.image_url || '🎁', point_cost: r.cost })) as any[]);
+      // Rewards from Cloud table
+      const { data: rewardData } = await cloudSupabase
+        .from('beacon_rewards')
+        .select('id, name, emoji, cost')
+        .eq('active', true)
+        .order('cost');
+      setRewards((rewardData || []).map((r: any) => ({ ...r, point_cost: r.cost })) as any[]);
 
-      const { data: streakData } = await supabase.from('student_streaks' as any).select('current_count').eq('student_id', sid).order('current_count', { ascending: false }).limit(1);
-      if (streakData?.length) setStreakCount((streakData[0] as any).current_count || 0);
+      // Streaks
+      if (studentStreaks.length > 0) setStreakCount(studentStreaks[0].current_count || 0);
 
+      // Unlocks — resolve names from catalog
+      if (studentUnlocks.length > 0) {
+        const unlockIds = studentUnlocks.map(u => u.unlock_id);
+        const { data: catalogItems } = await cloudSupabase
+          .from('unlock_catalog')
+          .select('id, name, icon_emoji')
+          .in('id', unlockIds);
+        setUnlocks((catalogItems || []).map((c: any) => ({ name: c.name, emoji: c.icon_emoji })));
+      }
+
+      // Game settings
       const { data: gameSettings } = await supabase.from('classroom_game_settings' as any).select('mission_of_the_day, word_of_the_week').limit(1).maybeSingle();
       if (gameSettings) { setMissionOfDay((gameSettings as any).mission_of_the_day || ''); setWordOfWeek((gameSettings as any).word_of_the_week || ''); }
 
