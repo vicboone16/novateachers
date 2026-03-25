@@ -17,6 +17,7 @@ interface GuestSession {
   guest_name: string | null;
   permissions: { can_collect_data: boolean; can_view_notes: boolean };
   student_ids: string[];
+  student_names?: Record<string, string>;
 }
 
 const GuestDataCollection = () => {
@@ -25,6 +26,7 @@ const GuestDataCollection = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [session, setSession] = useState<GuestSession | null>(null);
+  const [studentNames, setStudentNames] = useState<Record<string, string>>({});
 
   // Collection state
   const [selectedStudent, setSelectedStudent] = useState('');
