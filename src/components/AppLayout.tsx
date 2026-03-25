@@ -168,6 +168,7 @@ export const AppLayout = () => {
             <NavLink
               key={to}
               to={to}
+              data-walkthrough={`nav-${label.toLowerCase()}`}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-1.5 sm:gap-2 border-b-2 px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
