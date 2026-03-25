@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { useAppAccess } from '@/contexts/AppAccessContext';
 import { useActiveClassroom } from '@/contexts/ActiveClassroomContext';
 import { getUnlockCatalog, getStudentUnlocks, getStudentStreaks } from '@/lib/game-data';
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Lock, Unlock, Flame, Trophy, Sparkles, Star, ChevronRight, Users } from 'lucide-react';
+import { ArrowLeft, Lock, Unlock, Flame, Trophy, ChevronRight, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StudentRow {
@@ -34,7 +34,6 @@ interface GameProfile {
 const AvatarUnlocks = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
   const { agencyId } = useAppAccess();
   const { groupId } = useActiveClassroom();
 
@@ -50,40 +49,102 @@ const AvatarUnlocks = () => {
   // Load students in the active classroom
   useEffect(() => {
     if (!groupId) return;
+
     const load = async () => {
       setLoading(true);
+
       const { data: groupStudents } = await cloudSupabase
         .from('classroom_group_students')
         .select('client_id, first_name, last_name')
         .eq('group_id', groupId);
-      const studs = (groupStudents || []) as StudentRow[];
-      setStudents(studs);
 
-      // Load game profiles for all students
-      if (studs.length > 0) {
-        const sids = studs.map(s => s.client_id);
+      const studs = ((groupStudents || []) as StudentRow[]).map((student) => ({
+        client_id: student.client_id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+      }));
+
+      const studentIds = studs.map((student) => student.client_id);
+      const missingNameIds = studs.filter((student) => !student.first_name && !student.last_name).map((student) => student.client_id);
+
+      if (agencyId && missingNameIds.length > 0) {
+        try {
+          const { data: coreClients } = await supabase
+            .from('clients' as any)
+            .select('client_id, first_name, last_name')
+            .eq('agency_id', agencyId)
+            .in('client_id', missingNameIds);
+
+          const resolvedById = new Map(
+            ((coreClients || []) as any[]).map((client) => [
+              client.client_id,
+              {
+                first_name: client.first_name || null,
+                last_name: client.last_name || null,
+              },
+            ])
+          );
+
+          const mergedStudents = studs.map((student) => {
+            const resolved = resolvedById.get(student.client_id);
+            return resolved && (resolved.first_name || resolved.last_name)
+              ? { ...student, ...resolved }
+              : student;
+          });
+
+          setStudents(mergedStudents);
+
+          const updates = mergedStudents
+            .filter((student) => (student.first_name || student.last_name) && missingNameIds.includes(student.client_id))
+            .map((student) =>
+              cloudSupabase
+                .from('classroom_group_students')
+                .update({ first_name: student.first_name, last_name: student.last_name } as any)
+                .eq('group_id', groupId)
+                .eq('client_id', student.client_id)
+            );
+
+          if (updates.length > 0) {
+            await Promise.all(updates);
+          }
+        } catch {
+          setStudents(studs);
+        }
+      } else {
+        setStudents(studs);
+      }
+
+      if (studentIds.length > 0) {
         const { data: gp } = await cloudSupabase
           .from('student_game_profiles')
           .select('student_id, avatar_emoji, current_level, current_xp')
-          .in('student_id', sids);
+          .in('student_id', studentIds);
+
         const map: Record<string, GameProfile> = {};
         for (const row of (gp || []) as any[]) {
           map[row.student_id] = row;
         }
         setProfiles(map);
+      } else {
+        setProfiles({});
       }
 
-      // Load catalog
       const c = await getUnlockCatalog(agencyId || undefined);
       setCatalog(c as any);
       setLoading(false);
     };
+
     load();
   }, [groupId, agencyId]);
 
   // Load student-specific data when selected
   useEffect(() => {
-    if (!selectedStudent) { setUnlocks([]); setStreaks([]); return; }
+    if (!selectedStudent) {
+      setUnlocks([]);
+      setStreaks([]);
+      return;
+    }
+
     const load = async () => {
       const [u, s] = await Promise.all([
         getStudentUnlocks(selectedStudent),
@@ -92,14 +153,13 @@ const AvatarUnlocks = () => {
       setUnlocks(u as any);
       setStreaks(s);
     };
+
     load();
   }, [selectedStudent]);
 
   const getName = (s: StudentRow) => {
-    const full = ((s.first_name || '') + ' ' + (s.last_name || '')).trim();
-    if (full) return full;
-    const idx = students.indexOf(s);
-    return `Student ${idx + 1}`;
+    const full = `${s.first_name || ''} ${s.last_name || ''}`.trim();
+    return full || 'Student';
   };
 
   const unlockedIds = new Set(unlocks.map(u => u.unlock_id));
