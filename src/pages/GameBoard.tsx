@@ -94,7 +94,7 @@ const GameBoard = () => {
   const { feedbacks, studentStatuses, recordCheckpoint } = useGameEngine({
     classroomId: activeGroupId,
     agencyId: effectiveAgencyId,
-    modeSlug: settings?.game_mode || 'race',
+    modeSlug: (settings as any)?.game_mode || 'race',
     students: engineStudents,
     zones: track?.zones || [],
     enabled: !!activeGroupId,
