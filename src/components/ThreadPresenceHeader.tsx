@@ -4,7 +4,7 @@
  * Includes actions: Ping available, Start support thread, Notify room.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
