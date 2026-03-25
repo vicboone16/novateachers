@@ -214,7 +214,12 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
               <p className="text-xs text-muted-foreground text-center py-2 mt-2">No staff presence data yet. Tap "Set Status" to start.</p>
             ) : (
               <div className="space-y-3 mt-3">
-                {/* My Status card */}
+                {/* Coverage summary */}
+                <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-1.5">
+                  <span className="text-[10px] font-semibold text-muted-foreground">Coverage:</span>
+                  <span className="text-[10px] font-bold text-green-600 dark:text-green-400">{inRoom.length + availableSupport.length} available</span>
+                  <span className="text-[10px] text-muted-foreground">/ {presenceRows.length} total</span>
+                </div>
                 {user && (
                   <MyStatusCard
                     presence={myPresence || null}
