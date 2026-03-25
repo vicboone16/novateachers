@@ -43,6 +43,8 @@ interface StaffActionSheetProps {
   } | null;
   onUpdated: () => void;
   studentMap?: Record<string, string>;
+  staffName?: string;
+  staffRole?: string;
 }
 
 const LOCATION_PRESETS = [
@@ -66,7 +68,7 @@ const AVAILABILITY_OPTIONS = [
 
 export function StaffActionSheet({
   open, onOpenChange, userId, agencyId, currentGroupId,
-  currentPresence, onUpdated, studentMap,
+  currentPresence, onUpdated, studentMap, staffName, staffRole,
 }: StaffActionSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -86,31 +88,52 @@ export function StaffActionSheet({
     setSaving(true);
     try {
       const isAvailable = availability === 'available' || availability === 'limited';
-      const payload = {
-        agency_id: agencyId,
-        user_id: userId,
-        classroom_group_id: status === 'in_room' ? (currentGroupId || currentPresence?.classroom_group_id || null) : (currentPresence?.classroom_group_id || null),
-        location_type: locationType,
-        location_label: locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null,
-        status,
-        availability_status: availability,
-        available_for_support: isAvailable,
-        assigned_student_id: assignedStudentId || null,
-        note: note || null,
-        updated_at: new Date().toISOString(),
-      };
+      const resolvedLocationLabel = locationLabel || LOCATION_PRESETS.find(l => l.value === locationType)?.label || null;
+      const classroomGroupId = status === 'in_room' ? (currentGroupId || currentPresence?.classroom_group_id || null) : (currentPresence?.classroom_group_id || null);
 
-      // Upsert into Lovable Cloud staff_presence table
-      const { error } = await cloudSupabase
-        .from('staff_presence')
-        .upsert(payload, { onConflict: 'agency_id,user_id' });
+      // Map to new availability column values
+      const availabilityNew = isAvailable ? 'available' : 'busy';
 
-      if (error) {
-        // Fallback: try insert if upsert fails (no existing row with unique constraint)
-        const { error: insertErr } = await cloudSupabase.from('staff_presence').insert(payload);
-        if (insertErr) {
-          console.warn('[StaffAction] save failed:', insertErr.message);
-          toast({ title: 'Error saving status', description: insertErr.message, variant: 'destructive' });
+      // Use upsert_staff_presence RPC to populate both legacy + new columns
+      const { error: rpcError } = await (cloudSupabase.rpc as any)('upsert_staff_presence', {
+        p_agency_id: agencyId,
+        p_user_id: userId,
+        p_staff_name: staffName || null,
+        p_role: staffRole || null,
+        p_is_present: status === 'in_room' || status === 'floating' || status === 'covering' || status === 'with_student',
+        p_availability: availabilityNew,
+        p_status_note: note || null,
+        p_current_classroom_id: classroomGroupId,
+        p_current_room_name: resolvedLocationLabel,
+        p_updated_by: user?.id || null,
+      });
+
+      if (rpcError) {
+        console.warn('[StaffAction] RPC failed, falling back to direct upsert:', rpcError.message);
+        // Fallback: direct upsert with legacy columns
+        const payload = {
+          agency_id: agencyId,
+          user_id: userId,
+          classroom_group_id: classroomGroupId,
+          location_type: locationType,
+          location_label: resolvedLocationLabel,
+          status,
+          availability_status: availability,
+          available_for_support: isAvailable,
+          assigned_student_id: assignedStudentId || null,
+          note: note || null,
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await cloudSupabase
+          .from('staff_presence')
+          .upsert(payload, { onConflict: 'agency_id,user_id' });
+        if (error) {
+          const { error: insertErr } = await cloudSupabase.from('staff_presence').insert(payload);
+          if (insertErr) {
+            toast({ title: 'Error saving status', description: insertErr.message, variant: 'destructive' });
+          } else {
+            toast({ title: '✓ Status updated' });
+          }
         } else {
           toast({ title: '✓ Status updated' });
         }
@@ -122,9 +145,9 @@ export function StaffActionSheet({
       await cloudSupabase.from('staff_presence_history').insert({
         agency_id: agencyId,
         user_id: userId,
-        classroom_group_id: payload.classroom_group_id,
+        classroom_group_id: classroomGroupId,
         location_type: locationType,
-        location_label: payload.location_label,
+        location_label: resolvedLocationLabel,
         status,
         availability_status: availability,
         available_for_support: isAvailable,
@@ -149,33 +172,52 @@ export function StaffActionSheet({
     setSaving(true);
     try {
       const isAvailable = newStatus === 'in_room' || newStatus === 'floating';
-      const payload = {
-        agency_id: agencyId,
-        user_id: userId,
-        classroom_group_id: newStatus === 'in_room' ? (currentGroupId || null) : null,
-        location_type: newStatus === 'in_room' ? 'classroom' : locationType,
-        status: newStatus,
-        availability_status: isAvailable ? 'available' : 'unavailable',
-        available_for_support: isAvailable,
-        updated_at: new Date().toISOString(),
-      };
+      const classroomGroupId = newStatus === 'in_room' ? (currentGroupId || null) : null;
+      const availabilityNew = isAvailable ? 'available' : 'busy';
+      const isPresent = newStatus === 'in_room' || newStatus === 'floating' || newStatus === 'covering' || newStatus === 'with_student';
 
-      const { error } = await cloudSupabase
-        .from('staff_presence')
-        .upsert(payload, { onConflict: 'agency_id,user_id' });
+      // Try RPC first
+      const { error: rpcError } = await (cloudSupabase.rpc as any)('upsert_staff_presence', {
+        p_agency_id: agencyId,
+        p_user_id: userId,
+        p_staff_name: staffName || null,
+        p_role: staffRole || null,
+        p_is_present: isPresent,
+        p_availability: availabilityNew,
+        p_status_note: null,
+        p_current_classroom_id: classroomGroupId,
+        p_current_room_name: null,
+        p_updated_by: user?.id || null,
+      });
 
-      if (error) {
-        await cloudSupabase.from('staff_presence').insert(payload);
+      if (rpcError) {
+        // Fallback to direct upsert
+        const payload = {
+          agency_id: agencyId,
+          user_id: userId,
+          classroom_group_id: classroomGroupId,
+          location_type: newStatus === 'in_room' ? 'classroom' : locationType,
+          status: newStatus,
+          availability_status: isAvailable ? 'available' : 'unavailable',
+          available_for_support: isAvailable,
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await cloudSupabase
+          .from('staff_presence')
+          .upsert(payload, { onConflict: 'agency_id,user_id' });
+        if (error) {
+          await cloudSupabase.from('staff_presence').insert(payload);
+        }
       }
 
       // Log history
       await cloudSupabase.from('staff_presence_history').insert({
         agency_id: agencyId,
         user_id: userId,
-        classroom_group_id: payload.classroom_group_id,
-        location_type: payload.location_type,
+        classroom_group_id: classroomGroupId,
+        location_type: newStatus === 'in_room' ? 'classroom' : locationType,
         status: newStatus,
-        availability_status: payload.availability_status,
+        availability_status: isAvailable ? 'available' : 'unavailable',
         available_for_support: isAvailable,
         changed_by: user?.id || null,
       });

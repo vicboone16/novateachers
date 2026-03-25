@@ -4,7 +4,7 @@
  * Includes actions: Ping available, Start support thread, Notify room.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { resolveDisplayNames } from '@/lib/resolve-names';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ interface PresenceEntry {
   user_id: string;
   status: string;
   available_for_support: boolean;
+  availability?: string;
   assigned_student_id: string | null;
   location_label: string | null;
   classroom_group_id: string | null;
@@ -40,11 +41,14 @@ export function ThreadPresenceHeader({
   const load = useCallback(async () => {
     if (!agencyId) return;
     try {
-      const { data } = await supabase
-        .from('v_classroom_staff_presence' as any)
-        .select('user_id, status, available_for_support, assigned_student_id, location_label, classroom_group_id')
+      const { data } = await cloudSupabase
+        .from('staff_presence')
+        .select('user_id, status, available_for_support, availability_status, assigned_student_id, location_label, classroom_group_id')
         .eq('agency_id', agencyId);
-      const rows = (data || []) as any as PresenceEntry[];
+      const rows = (data || []).map((r: any) => ({
+        ...r,
+        availability: r.availability_status,
+      })) as PresenceEntry[];
       setPresence(rows);
 
       const ids = rows.map(r => r.user_id);
@@ -59,11 +63,11 @@ export function ThreadPresenceHeader({
 
   useEffect(() => {
     load();
-    const channel = supabase
+    const channel = cloudSupabase
       .channel('thread_presence')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_presence', filter: `agency_id=eq.${agencyId}` }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { cloudSupabase.removeChannel(channel); };
   }, [agencyId, load]);
 
   const inRoom = classroomId
@@ -84,12 +88,16 @@ export function ThreadPresenceHeader({
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap py-1.5">
-      {inRoom.slice(0, 3).map(p => (
-        <Badge key={p.user_id} variant="secondary" className="text-[9px] h-5 px-1.5 gap-1">
-          <UserCheck className="h-2.5 w-2.5 text-green-500" />
-          {getName(p.user_id)}
-        </Badge>
-      ))}
+      {inRoom.slice(0, 3).map(p => {
+        const avail = p.availability || (p.available_for_support ? 'available' : 'busy');
+        const dotColor = avail === 'available' ? 'text-green-500' : avail === 'nearby' ? 'text-amber-500' : 'text-muted-foreground';
+        return (
+          <Badge key={p.user_id} variant="secondary" className="text-[9px] h-5 px-1.5 gap-1">
+            <UserCheck className={cn("h-2.5 w-2.5", dotColor)} />
+            {getName(p.user_id)}
+          </Badge>
+        );
+      })}
       {inRoom.length > 3 && (
         <Badge variant="outline" className="text-[9px] h-5 px-1.5">+{inRoom.length - 3}</Badge>
       )}
