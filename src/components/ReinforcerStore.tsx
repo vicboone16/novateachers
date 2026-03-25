@@ -132,15 +132,18 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const createReward = async () => {
     if (!formName.trim() || !user) return;
     try {
-      const result = await invokeCloudFunction('core-bridge', {
-        action: 'create_reward',
+      const { error } = await cloudSupabase.from('beacon_rewards').insert({
         scope_type: scopeType,
         scope_id: scopeId,
+        agency_id: agencyId,
         name: formName.trim(),
         description: formDescription.trim() || null,
         cost: parseInt(formCost) || 10,
+        category: formCategory,
+        emoji: formEmoji,
+        created_by: user.id,
       });
-      if (result.error) throw result.error;
+      if (error) throw error;
       setCreateOpen(false); resetForm(); loadRewards();
       toast({ title: 'Reward added to store' });
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
