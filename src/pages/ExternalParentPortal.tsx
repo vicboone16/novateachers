@@ -140,10 +140,13 @@ export default function ExternalParentPortal() {
 
   if (error) return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-50/60 to-white dark:from-slate-900/80 dark:to-slate-950 px-4">
-      <div className="text-center space-y-3 max-w-xs">
-        <AlertTriangle className="h-10 w-10 text-destructive/60 mx-auto" />
-        <p className="text-sm font-medium text-destructive">{error}</p>
-        <Button variant="outline" size="sm" onClick={() => token && loadPortal(token)}>Retry</Button>
+      <div className="text-center space-y-4 max-w-xs">
+        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-destructive/10 mx-auto">
+          <AlertTriangle className="h-7 w-7 text-destructive/60" />
+        </div>
+        <p className="text-sm font-medium text-foreground">{error}</p>
+        <p className="text-xs text-muted-foreground">If this keeps happening, ask your child's teacher for a new link.</p>
+        <Button variant="outline" size="sm" onClick={() => token && loadPortal(token)}>Try Again</Button>
       </div>
     </div>
   );
