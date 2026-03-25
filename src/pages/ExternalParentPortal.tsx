@@ -228,7 +228,7 @@ export default function ExternalParentPortal() {
         {/* Recent Redemptions */}
         {data.redemptions.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <p className="section-header">
               <Heart className="h-3 w-3" /> Recent Rewards
             </p>
             {data.redemptions.map((r, i) => (
