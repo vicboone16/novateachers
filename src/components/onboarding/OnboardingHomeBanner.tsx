@@ -37,8 +37,23 @@ const ACTION_CARDS = [
   },
 ] as const;
 
-export const OnboardingHomeBanner = ({ onboardingDay, onActionTap }: OnboardingHomeBannerProps) => {
+export const OnboardingHomeBanner = ({ onboardingDay, onLogBehavior, onSendUpdate, onWhosHere }: OnboardingHomeBannerProps) => {
   const navigate = useNavigate();
+
+  const handleCardClick = (key: string) => {
+    switch (key) {
+      case 'log_behavior':
+        onLogBehavior?.();
+        break;
+      case 'send_update':
+        if (onSendUpdate) onSendUpdate();
+        else navigate('/threads');
+        break;
+      case 'whos_here':
+        onWhosHere?.();
+        break;
+    }
+  };
 
   // Only show for first ~5 days
   if (onboardingDay > 7) return null;
@@ -66,10 +81,7 @@ export const OnboardingHomeBanner = ({ onboardingDay, onActionTap }: OnboardingH
             <Card
               key={card.key}
               className="cursor-pointer hover:shadow-md transition-all active:scale-[0.98] border-border/50"
-              onClick={() => {
-                onActionTap?.(card.key);
-                navigate(card.route);
-              }}
+              onClick={() => handleCardClick(card.key)}
             >
               <CardContent className="flex items-center gap-4 p-4">
                 <div className={`w-12 h-12 rounded-xl ${card.color} flex items-center justify-center shrink-0`}>
