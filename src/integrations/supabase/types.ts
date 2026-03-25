@@ -2773,18 +2773,21 @@ export type Database = {
       }
       staff_activity_log: {
         Row: {
+          activity_source: string | null
           activity_type: string | null
           created_at: string | null
           id: string
           user_id: string | null
         }
         Insert: {
+          activity_source?: string | null
           activity_type?: string | null
           created_at?: string | null
           id?: string
           user_id?: string | null
         }
         Update: {
+          activity_source?: string | null
           activity_type?: string | null
           created_at?: string | null
           id?: string
@@ -4932,13 +4935,11 @@ export type Database = {
       }
       v_staff_engagement: {
         Row: {
-          actions_this_week: number | null
-          agency_id: string | null
+          actions_last_7_days: number | null
           first_action_at: string | null
           first_action_completed: boolean | null
           first_login_at: string | null
           last_active_at: string | null
-          onboarding_day: number | null
           status: string | null
           total_actions: number | null
           user_id: string | null
