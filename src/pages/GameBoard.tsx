@@ -384,26 +384,28 @@ const GameBoard = () => {
 
       {/* Class banner */}
       <Card className="overflow-hidden border-0 shadow-md">
-        <CardContent className="p-4 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <CardContent className="p-4 bg-gradient-to-r from-primary/8 via-accent/5 to-primary/8">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                {activeGroup?.name || 'Class'} · Total
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                {activeGroup?.name || 'Class'} · Race Total
               </p>
-              <p className="text-2xl font-bold tabular-nums">{skin.icon} {totalClassPoints.toLocaleString()}</p>
+              <p className="text-3xl font-bold tabular-nums font-heading">{skin.icon} {totalClassPoints.toLocaleString()}</p>
             </div>
-            {finishedCount > 0 && (
-              <Badge className="bg-accent/20 text-accent-foreground border-accent/30 gap-1"><PartyPopper className="h-3 w-3" /> {finishedCount} lapped!</Badge>
-            )}
-            {track?.zones && track.zones.length > 0 && (
-              <div className="flex gap-1">
-                {track.zones.map((z, i) => (
-                  <Badge key={i} variant="outline" className="text-[9px] py-0" style={{ borderColor: z.color, color: z.color }}>
-                    {z.type === 'boost' ? '⚡' : z.type === 'slow' ? '❄️' : z.type === 'reward' ? '🎁' : '✨'} {z.label}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {finishedCount > 0 && (
+                <Badge className="bg-accent/15 text-accent border-accent/20 gap-1 font-semibold"><PartyPopper className="h-3 w-3" /> {finishedCount} lapped!</Badge>
+              )}
+              {track?.zones && track.zones.length > 0 && (
+                <div className="flex gap-1">
+                  {track.zones.map((z, i) => (
+                    <Badge key={i} variant="outline" className="text-[9px] py-0.5 font-medium" style={{ borderColor: z.color, color: z.color }}>
+                      {z.type === 'boost' ? '⚡' : z.type === 'slow' ? '❄️' : z.type === 'reward' ? '🎁' : '✨'} {z.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
