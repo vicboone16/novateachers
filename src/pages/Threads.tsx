@@ -249,10 +249,12 @@ const Threads = () => {
           sender_id: user.id,
           body: msgText.trim(),
           message_type: 'text',
-          metadata: { app_source: 'beacon' },
+          parent_id: replyTo?.id || null,
+          metadata: { app_source: 'beacon', ...(replyTo ? { reply_preview: replyTo.body.slice(0, 80) } : {}) },
         });
       if (error) throw error;
       setMsgText('');
+      setReplyTo(null);
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
     } finally {
