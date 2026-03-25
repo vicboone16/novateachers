@@ -2306,6 +2306,8 @@ export type Database = {
           message: string | null
           parent_name: string | null
           parent_user_id: string | null
+          staff_reply: string | null
+          staff_reply_at: string | null
           staff_viewed: boolean | null
           staff_viewed_at: string | null
           student_id: string
@@ -2318,6 +2320,8 @@ export type Database = {
           message?: string | null
           parent_name?: string | null
           parent_user_id?: string | null
+          staff_reply?: string | null
+          staff_reply_at?: string | null
           staff_viewed?: boolean | null
           staff_viewed_at?: string | null
           student_id: string
@@ -2330,6 +2334,8 @@ export type Database = {
           message?: string | null
           parent_name?: string | null
           parent_user_id?: string | null
+          staff_reply?: string | null
+          staff_reply_at?: string | null
           staff_viewed?: boolean | null
           staff_viewed_at?: string | null
           student_id?: string

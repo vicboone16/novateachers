@@ -42,3 +42,6 @@ verify_jwt = false
 
 [functions.generate-parent-insight]
 verify_jwt = false
+
+[functions.classroom-ai-insights]
+verify_jwt = false
