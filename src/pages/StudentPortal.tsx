@@ -39,6 +39,7 @@ export default function StudentPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const studentIdRef = useRef<string | null>(null);
+  const { profiles: gameProfiles } = useStudentGameProfiles(account ? [account.student_id] : []);
 
   useEffect(() => {
     if (!token) { setError('No token provided'); setLoading(false); return; }
