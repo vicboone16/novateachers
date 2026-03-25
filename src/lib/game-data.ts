@@ -78,7 +78,7 @@ export async function createTeam(team: {
 }) {
   const { data } = await cloudSupabase
     .from('classroom_teams')
-    .insert(team)
+    .insert(team as any)
     .select()
     .single();
   return data;

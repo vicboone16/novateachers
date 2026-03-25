@@ -37,7 +37,7 @@ export const StudentCodeGenerator = ({ studentId, agencyId, studentName }: Props
     setCode(newCode as any);
     setLoading(false);
     if (newCode) {
-      toast({ title: 'Code generated', description: `Code: ${newCode.login_code}` });
+      toast({ title: 'Code generated', description: `Code: ${(newCode as any).login_code}` });
     }
   };
 
