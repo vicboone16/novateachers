@@ -4,6 +4,8 @@
  * When a student reaches TRACK_LENGTH, they "lap" — balance continues, lap count increments.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
