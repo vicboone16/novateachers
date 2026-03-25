@@ -34,7 +34,7 @@ import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-schedu
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
   Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
-  Bell, BellOff, Smartphone, Timer, Zap,
+  Bell, BellOff, Smartphone, Timer, Zap, ClipboardList, MapPin,
 } from 'lucide-react';
 
 // ── Types ──
