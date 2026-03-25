@@ -817,6 +817,10 @@ const ClassroomView = () => {
             const tokenPct = tp ? Math.min(100, Math.round((tp.current / tp.target) * 100)) : 0;
             const status = studentStatuses[client.id] || 'present';
             const isAbsent = status === 'absent' || status === 'picked_up';
+            const gp = gameProfiles[client.id];
+            const avatarEmoji = gp?.avatar_emoji || '👤';
+            const level = gp?.current_level || 1;
+            const xp = gp?.current_xp || 0;
 
             return (
               <Card
@@ -832,16 +836,23 @@ const ClassroomView = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 via-amber-200/10 to-amber-400/5 animate-pulse pointer-events-none z-10 rounded-2xl" />
                 )}
                 <CardContent className="p-0">
-                  {/* Top row: name + status */}
+                  {/* Top row: avatar + name + level + status */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-2">
                     <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2.5 group text-left min-w-0">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                        {displayInitials(client)}
-                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAvatarPickerStudent(client); }}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg hover:scale-110 transition-transform active:scale-95"
+                        title="Change avatar"
+                      >
+                        {avatarEmoji}
+                      </button>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                          {displayName(client)}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                            {displayName(client)}
+                          </p>
+                          <StudentLevelBadge level={level} xp={xp} compact />
+                        </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           {client.grade && <span>Gr {client.grade}</span>}
                           {lastEvents[client.id] && (
