@@ -12,9 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
+import { SmartHelpBanner } from '@/components/SmartHelpBanner';
 
 const navItems = [
   { to: '/classroom', label: 'Classroom', icon: LayoutGrid },
@@ -136,6 +137,15 @@ export const AppLayout = () => {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => navigate('/faq')}
+              title="Help Center"
+              className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => navigate('/settings')}
               title="Settings"
               className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9"
@@ -184,6 +194,7 @@ export const AppLayout = () => {
 
       {/* Main Content */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-3 sm:px-4 py-4 sm:py-6 pb-28 sm:pb-24 safe-x safe-bottom">
+        <SmartHelpBanner />
         <Outlet />
       </main>
 
