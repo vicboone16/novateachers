@@ -22,6 +22,9 @@ import { logEvent, trackBehaviorForEscalation, createSignal, trackBehaviorForRei
 import { getStudentBalances, writePointEntry, loadTeacherPointActions, executeTeacherAction, type TeacherPointAction } from '@/lib/beacon-points';
 import { BeaconPointsControls } from '@/components/BeaconPointsControls';
 import { useUndoAction } from '@/hooks/useUndoAction';
+import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { StudentLevelBadge } from '@/components/StudentLevelBadge';
+import { AvatarPicker } from '@/components/AvatarPicker';
 import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
