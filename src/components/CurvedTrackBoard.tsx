@@ -6,6 +6,7 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { interpolateOnTrack, generateSmoothPath, type TrackNode } from '@/hooks/useGameTrack';
 import { cn } from '@/lib/utils';
+import type { AnimationEffect } from '@/hooks/useGameEvents';
 
 interface StudentPosition {
   student_id: string;
