@@ -311,6 +311,7 @@ const GameBoard = () => {
         isFlashing: flash === s.student_id,
         teamColor: s.team_color,
         activeEffect: getEffect(s.student_id)?.effect ?? null,
+        avatarAnimState: getAnimState(s.student_id),
         hasComeback: status?.hasComeback || false,
         streakEmoji: status?.emoji || null,
       };
