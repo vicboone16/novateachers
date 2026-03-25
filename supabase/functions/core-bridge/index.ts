@@ -19,42 +19,61 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth validation — accept either Cloud JWT or Nova Core JWT
+    // Auth validation — accept either Cloud JWT or external Core JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return json({ error: "Unauthorized" }, 401);
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const cloudAuthClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
+    const cloudUrl = Deno.env.get("SUPABASE_URL")!;
+    const cloudAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const coreAuthUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
     const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY");
 
-    let authClaims: { claims?: { sub?: string; email?: string } } | null = null;
+    let userId: string | null = null;
 
+    const cloudAuthClient = createClient(cloudUrl, cloudAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const { data: cloudClaims } = await cloudAuthClient.auth.getClaims(token);
     if (cloudClaims?.claims?.sub) {
-      authClaims = cloudClaims;
-    } else if (coreAnonKey) {
+      userId = String(cloudClaims.claims.sub);
+    }
+
+    if (!userId && coreAnonKey) {
       const coreAuthClient = createClient(coreAuthUrl, coreAnonKey, {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: coreClaims } = await coreAuthClient.auth.getClaims(token);
       if (coreClaims?.claims?.sub) {
-        authClaims = coreClaims;
+        userId = String(coreClaims.claims.sub);
       }
     }
 
-    if (!authClaims?.claims?.sub) {
-      return json({ error: "Unauthorized" }, 401);
+    // Final fallback: ask the auth server directly to validate the token
+    if (!userId && coreAnonKey) {
+      try {
+        const authRes = await fetch(`${coreAuthUrl}/auth/v1/user`, {
+          headers: {
+            Authorization: authHeader,
+            apikey: coreAnonKey,
+          },
+        });
+        if (authRes.ok) {
+          const authUser = await authRes.json();
+          if (authUser?.id) {
+            userId = String(authUser.id);
+          }
+        }
+      } catch {
+        // fall through
+      }
     }
 
-    const userId = authClaims.claims.sub;
+    if (!userId) {
+      return json({ error: "Unauthorized" }, 401);
+    }
 
     const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
     const coreKey = Deno.env.get("CORE_SERVICE_ROLE_KEY");
