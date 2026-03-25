@@ -253,7 +253,7 @@ function IEPNavDropdown() {
 function MoreNavDropdown() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const moreRoutes = ['/classrooms', '/admin', '/point-rules', '/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config'];
+  const moreRoutes = ['/classrooms', '/admin', '/point-rules', '/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config', '/avatar-unlocks'];
   const isActive = moreRoutes.includes(pathname);
 
   return (
