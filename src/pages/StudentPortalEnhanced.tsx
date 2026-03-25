@@ -20,7 +20,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper, Award } from 'lucide-react';
+import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper, Award, Paintbrush } from 'lucide-react';
+import { CosmeticInventory } from '@/components/CosmeticInventory';
+import { StudentQuestCards } from '@/components/StudentQuestCards';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
