@@ -18,6 +18,7 @@ import { QuickAddPanel } from '@/components/QuickAddPanel';
 import { SmartHelpBanner } from '@/components/SmartHelpBanner';
 import { HelpMeLauncher } from '@/components/HelpMeLauncher';
 import { WalkthroughOverlay } from '@/components/WalkthroughOverlay';
+import { BeaconHelpAssistant } from '@/components/BeaconHelpAssistant';
 
 const navItems = [
   { to: '/classroom', label: 'Classroom', icon: LayoutGrid },
@@ -207,6 +208,7 @@ export const AppLayout = () => {
       {/* Guided Walkthrough */}
       <WalkthroughOverlay />
       <HelpMeLauncher />
+      <BeaconHelpAssistant />
     </div>
   );
 };
