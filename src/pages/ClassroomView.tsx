@@ -942,6 +942,13 @@ const ClassroomView = () => {
                           {/* Level badge hidden for hybrid v1 — uncomment when ready */}
                           {/* <StudentLevelBadge level={level} xp={xp} compact /> */}
                         </div>
+                        <StudentIdentityBadge
+                          identityTitle={gp?.identity_title}
+                          identityEmoji={gp?.identity_emoji}
+                          momentumState={(gp?.momentum_state as any) || null}
+                          comebackActive={gp?.comeback_active}
+                          compact
+                        />
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           {client.grade && <span>Gr {client.grade}</span>}
                           {lastEvents[client.id] && (
