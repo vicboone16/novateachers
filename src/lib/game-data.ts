@@ -95,17 +95,25 @@ export async function assignStudentToTeam(studentId: string, teamId: string, gro
 // ── Student game progress (view) ──
 
 export async function getClassroomGameProgress(groupId: string): Promise<StudentGameProgress[]> {
-  const { data } = await supabase
-    .from('v_classroom_student_game_progress' as any)
-    .select('*')
-    .eq('group_id', groupId)
-    .order('track_position', { ascending: false });
-  return (data || []) as any[];
+  // The view v_classroom_student_game_progress may not exist on Cloud;
+  // try Cloud first, fall back to empty (GameBoard has its own fallback loader)
+  try {
+    const { data, error } = await cloudSupabase
+      .from('v_classroom_student_game_progress' as any)
+      .select('*')
+      .eq('group_id', groupId)
+      .order('track_position', { ascending: false });
+    if (error || !data) return [];
+    return data as any[];
+  } catch {
+    return [];
+  }
 }
 
 export async function getTeamScores(groupId: string): Promise<TeamScore[]> {
-  const { data } = await supabase
-    .from('v_student_team_scores' as any)
+  // Use cloud client — the view lives in the Cloud DB
+  const { data } = await cloudSupabase
+    .from('v_classroom_team_scores')
     .select('*')
     .eq('group_id', groupId)
     .order('total_points', { ascending: false });
