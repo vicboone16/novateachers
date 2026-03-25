@@ -18,6 +18,8 @@ import { Star, Gift, Sparkles, Heart, AlertTriangle, Loader2, ArrowRight } from 
 import { Button } from '@/components/ui/button';
 
 interface PortalData {
+  studentId: string;
+  agencyId: string;
   studentName: string;
   avatarEmoji: string;
   pointsBalance: number;
