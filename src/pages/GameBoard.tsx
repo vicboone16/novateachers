@@ -194,19 +194,19 @@ const GameBoard = () => {
         }
       } catch { /* silent */ }
 
-      const avatarMap: Map<string, string> = new Map();
+      const avatarMap: Record<string, string> = {};
       try {
         const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', sids);
-        for (const p of (profiles || []) as any[]) avatarMap.set(p.student_id, p.avatar_emoji || '');
+        for (const p of (profiles || []) as any[]) avatarMap[p.student_id] = p.avatar_emoji || '';
       } catch { /* silent */ }
 
       const fallbackStudents: StudentGameProgress[] = sids.map(sid => {
-        const names = nameMap.get(sid);
+        const names = nameMap[sid];
         return {
           student_id: sid,
           first_name: names?.first_name || '',
           last_name: names?.last_name || '',
-          avatar_emoji: avatarMap.get(sid) || '👤',
+          avatar_emoji: avatarMap[sid] || '👤',
           points_balance: bals[sid] || 0,
           track_position: getPosition(bals[sid] || 0, TRACK_LENGTH),
         } as any;
