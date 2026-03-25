@@ -134,6 +134,7 @@ const WorkspaceRoutes = () => {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/point-rules" element={<PointRulesManager />} />
         <Route path="/launch-readiness" element={<LaunchReadiness />} />
+        <Route path="/classroom-insights" element={<ClassroomInsights />} />
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/notifications" element={<NotificationSettings />} />
         <Route path="/install" element={<InstallApp />} />
