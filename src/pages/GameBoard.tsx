@@ -62,6 +62,8 @@ const GameBoard = () => {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const studentIds = students.map(s => s.student_id);
+  const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
 
   // Load all groups for selector
   useEffect(() => {
