@@ -29,6 +29,7 @@ import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { AnimatedAvatar } from '@/components/AnimatedAvatar';
 import { ClassroomMomentum } from '@/components/ClassroomMomentum';
+import { StudentIdentityBadge } from '@/components/StudentIdentityBadge';
 import { TeacherWinsFeed } from '@/components/TeacherWinsFeed';
 import { SessionSummaryPopup } from '@/components/SessionSummaryPopup';
 import { QuickStartSetup } from '@/components/QuickStartSetup';
