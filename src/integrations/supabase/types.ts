@@ -59,6 +59,48 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_audit_log: {
+        Row: {
+          action_category: string
+          action_type: string
+          agency_id: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action_category?: string
+          action_type: string
+          agency_id: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action_category?: string
+          action_type?: string
+          agency_id?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       agency_invite_codes: {
         Row: {
           agency_id: string
