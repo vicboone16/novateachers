@@ -4,6 +4,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export interface GameProfile {
   student_id: string;
