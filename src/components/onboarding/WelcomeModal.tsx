@@ -15,11 +15,12 @@ interface WelcomeModalProps {
   open: boolean;
   onShowWalkthrough: () => void;
   onSkip: () => void;
+  onDontShowAgain?: () => void;
 }
 
-export const WelcomeModal = ({ open, onShowWalkthrough, onSkip }: WelcomeModalProps) => {
+export const WelcomeModal = ({ open, onShowWalkthrough, onSkip, onDontShowAgain }: WelcomeModalProps) => {
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onSkip(); }}>
       <DialogContent className="max-w-sm mx-auto rounded-2xl border-0 shadow-xl p-8 text-center">
         <DialogHeader className="space-y-4">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -43,14 +44,24 @@ export const WelcomeModal = ({ open, onShowWalkthrough, onSkip }: WelcomeModalPr
           >
             Show me (30 sec)
           </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            className="w-full text-sm h-10 text-muted-foreground"
-            onClick={onSkip}
-          >
-            Skip for now
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="lg"
+              className="flex-1 text-sm h-10 text-muted-foreground"
+              onClick={onSkip}
+            >
+              Skip for now
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="flex-1 text-sm h-10 text-muted-foreground/60"
+              onClick={onDontShowAgain ?? onSkip}
+            >
+              Don't show again
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
