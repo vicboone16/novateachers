@@ -239,6 +239,27 @@ export default function ExternalParentPortal() {
           </div>
         )}
 
+        {/* Parent Insights */}
+        <ParentInsightCards studentId={data.studentId} agencyId={data.agencyId} />
+
+        {/* Quests */}
+        <StudentQuestCards studentId={data.studentId} agencyId={data.agencyId} />
+
+        {/* Parent Actions */}
+        <ParentActionButtons studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
+
+        {/* Funnel CTA */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 text-center space-y-2">
+            <Sparkles className="h-5 w-5 text-primary mx-auto" />
+            <p className="text-sm font-semibold">Want more updates?</p>
+            <p className="text-xs text-muted-foreground">Get full access to insights, messaging, and progress.</p>
+            <Button size="sm" className="gap-1.5" onClick={() => window.location.href = '/'}>
+              Continue in Parent App <ArrowRight className="h-3 w-3" />
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground pt-4">
           Powered by Beacon · Updated live

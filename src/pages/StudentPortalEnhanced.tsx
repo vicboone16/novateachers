@@ -329,7 +329,10 @@ export default function StudentPortalEnhanced() {
           </div>
         )}
 
-        {/* Daily Quests */}
+        {/* Daily Quests (advanced) */}
+        <StudentQuestCards studentId={studentId} agencyId={agencyId || undefined} groupId={groupId || undefined} />
+
+        {/* Legacy Daily Quests */}
         {groupId && agencyId && studentId && (
           <DailyQuestPanel
             groupId={groupId}
@@ -337,6 +340,9 @@ export default function StudentPortalEnhanced() {
             studentId={studentId}
           />
         )}
+
+        {/* Cosmetic Inventory */}
+        <CosmeticInventory studentId={studentId} agencyId={agencyId || undefined} canEquip={true} />
 
         <p className="text-center text-[10px] text-muted-foreground pt-4 pb-8">
           <Sparkles className="h-3 w-3 inline mr-1" /> Powered by Beacon Points™
