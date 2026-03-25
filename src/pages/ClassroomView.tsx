@@ -914,16 +914,8 @@ const ClassroomView = () => {
                         </Badge>
                       )}
                     </div>
-                    {/* Race progress mini-bar */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <Progress value={Math.min(100, ((pointBalances[client.id] || 0) % 100) / 100 * 100 || ((pointBalances[client.id] || 0) > 0 && (pointBalances[client.id] || 0) % 100 === 0 ? 100 : 0))} className="h-1.5 flex-1" />
-                      <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums font-medium">
-                        {Math.floor((pointBalances[client.id] || 0) / 100) > 0
-                          ? `🏆×${Math.floor((pointBalances[client.id] || 0) / 100)}`
-                          : `${Math.floor(Math.min(pointBalances[client.id] || 0, 100) / 10)}cp`
-                        }
-                      </span>
-                    </div>
+                    {/* XP progress bar */}
+                    <StudentLevelBadge level={level} xp={xp} showXpBar compact />
                   </div>
 
                   {/* Quick award row */}
