@@ -188,6 +188,24 @@ const ClassroomView = () => {
       });
   }, [activeGroupId, showAll]);
 
+  // Backfill student names on Cloud for public board display
+  useEffect(() => {
+    if (!activeGroupId || !allClients.length || !groupStudentIds) return;
+    const grouped = allClients.filter(c => groupStudentIds.has(c.id));
+    if (grouped.length === 0) return;
+    // Fire-and-forget update for each student
+    for (const c of grouped) {
+      if (c.first_name || c.last_name) {
+        cloudSupabase
+          .from('classroom_group_students')
+          .update({ first_name: c.first_name || null, last_name: c.last_name || null } as any)
+          .eq('group_id', activeGroupId)
+          .eq('client_id', c.id)
+          .then(() => {});
+      }
+    }
+  }, [activeGroupId, allClients, groupStudentIds]);
+
   // Filter clients by group
   const clients = showAll || !groupStudentIds
     ? allClients

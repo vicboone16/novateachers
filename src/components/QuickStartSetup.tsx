@@ -229,7 +229,9 @@ export function QuickStartSetup({ open, onOpenChange, agencyId, onComplete }: Pr
               group_id: groupId,
               client_id: (client as any).id,
               agency_id: agencyId,
-            });
+              first_name: s.first_name,
+              last_name: s.last_name,
+            } as any);
           }
         }
       }

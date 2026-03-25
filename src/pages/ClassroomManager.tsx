@@ -397,9 +397,12 @@ const ClassroomManager = () => {
       let usedLegacy = false;
       const agencyId = currentWorkspace?.agency_id;
 
-      // Try inserting with agency_id to satisfy not-null constraint
-      const rows = ids.map(client_id => ({ group_id: bulkAssignGroupId, client_id, agency_id: agencyId }));
-      const { error: insertErr } = await cloudSupabase.from('classroom_group_students').insert(rows);
+      // Try inserting with agency_id and names
+      const rows = ids.map(client_id => {
+        const client = allClients.find(c => c.id === client_id);
+        return { group_id: bulkAssignGroupId, client_id, agency_id: agencyId, first_name: client?.first_name || null, last_name: client?.last_name || null };
+      });
+      const { error: insertErr } = await cloudSupabase.from('classroom_group_students').insert(rows as any);
       assignError = insertErr;
 
       // Legacy schema fallback (student_id column)
