@@ -155,8 +155,13 @@ export default function StudentPortal() {
       <div className="mx-auto max-w-md px-4 py-8 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <span className="text-6xl">{account.avatar_emoji}</span>
+          <span className="text-6xl">{gameProfiles[account.student_id]?.avatar_emoji || account.avatar_emoji}</span>
           <h1 className="text-2xl font-bold font-heading">{account.display_name}</h1>
+          <StudentLevelBadge
+            level={gameProfiles[account.student_id]?.current_level || 1}
+            xp={gameProfiles[account.student_id]?.current_xp || 0}
+            showXpBar
+          />
           <p className="text-sm text-muted-foreground">My Rewards Portal</p>
         </div>
 
