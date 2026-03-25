@@ -944,6 +944,11 @@ const AdminDashboard = () => {
           <TabsContent value="audit" className="space-y-4">
             <AdminAuditLog />
           </TabsContent>
+
+          {/* Staff Engagement Tab */}
+          <TabsContent value="engagement" className="space-y-4">
+            <StaffEngagementDashboard />
+          </TabsContent>
         </Tabs>
       )}
     </div>

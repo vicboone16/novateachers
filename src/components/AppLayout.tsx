@@ -210,6 +210,7 @@ export const AppLayout = () => {
       <WalkthroughOverlay />
       <HelpMeLauncher />
       <BeaconHelpAssistant />
+      <StaffOnboardingFlow />
     </div>
   );
 };
