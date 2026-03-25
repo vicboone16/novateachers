@@ -210,7 +210,7 @@ export default function ExternalParentPortal() {
         {/* Feed */}
         {data.feedPosts.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <p className="section-header">
               <Sparkles className="h-3 w-3" /> Class Updates
             </p>
             {data.feedPosts.map(p => (
