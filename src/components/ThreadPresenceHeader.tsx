@@ -41,11 +41,14 @@ export function ThreadPresenceHeader({
   const load = useCallback(async () => {
     if (!agencyId) return;
     try {
-      const { data } = await supabase
-        .from('v_classroom_staff_presence' as any)
-        .select('user_id, status, available_for_support, assigned_student_id, location_label, classroom_group_id')
+      const { data } = await cloudSupabase
+        .from('staff_presence')
+        .select('user_id, status, available_for_support, availability_status, assigned_student_id, location_label, classroom_group_id')
         .eq('agency_id', agencyId);
-      const rows = (data || []) as any as PresenceEntry[];
+      const rows = (data || []).map((r: any) => ({
+        ...r,
+        availability: r.availability_status,
+      })) as PresenceEntry[];
       setPresence(rows);
 
       const ids = rows.map(r => r.user_id);
@@ -60,11 +63,11 @@ export function ThreadPresenceHeader({
 
   useEffect(() => {
     load();
-    const channel = supabase
+    const channel = cloudSupabase
       .channel('thread_presence')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_presence', filter: `agency_id=eq.${agencyId}` }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { cloudSupabase.removeChannel(channel); };
   }, [agencyId, load]);
 
   const inRoom = classroomId
