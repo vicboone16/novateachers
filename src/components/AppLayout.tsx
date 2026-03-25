@@ -293,6 +293,9 @@ function MoreNavDropdown() {
           <BookOpen className="h-3.5 w-3.5" /> Guide
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/avatar-unlocks')} className="gap-2">
+          <Sparkles className="h-3.5 w-3.5" /> Avatar & Unlocks
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/parent-reports')} className="gap-2">
           <UserCheck className="h-3.5 w-3.5" /> Parent Reports
         </DropdownMenuItem>

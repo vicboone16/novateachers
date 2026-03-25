@@ -85,12 +85,21 @@ const ClassroomInsights = () => {
       const today = new Date().toISOString().split('T')[0];
       const dayStart = `${today}T00:00:00Z`;
 
-      // Load students in group
+      // Load students in group WITH names
       const { data: groupStudents } = await cloudSupabase
         .from('classroom_group_students')
-        .select('client_id')
+        .select('client_id, first_name, last_name')
         .eq('group_id', activeGroupId);
-      const sids = (groupStudents || []).map((s: any) => s.client_id);
+      const students = groupStudents || [];
+      const sids = students.map((s: any) => s.client_id);
+
+      // Build name lookup
+      const nameMap: Record<string, string> = {};
+      for (const s of students as any[]) {
+        const first = s.first_name || '';
+        const last = s.last_name || '';
+        nameMap[s.client_id] = (first + ' ' + last).trim() || s.client_id.slice(0, 8);
+      }
 
       if (sids.length === 0) {
         setInsights(null);
@@ -144,7 +153,7 @@ const ClassroomInsights = () => {
       const sorted = Object.entries(studentStats).sort((a, b) => b[1].earned - a[1].earned);
       const topPerformers = sorted.slice(0, 5).filter(([_, v]) => v.earned > 0).map(([sid, v]) => ({
         student_id: sid,
-        name: sid.slice(0, 8),
+        name: nameMap[sid] || sid.slice(0, 8),
         points: v.earned,
         streak: 0,
       }));
@@ -155,7 +164,7 @@ const ClassroomInsights = () => {
         return v.deducted > v.earned * 0.5 || (v.earned === 0 && v.deducted > 0);
       }).map(([sid, v]) => ({
         student_id: sid,
-        name: sid.slice(0, 8),
+        name: nameMap[sid] || sid.slice(0, 8),
         reason: v.earned === 0 ? 'No positive points today' : 'High deduction ratio',
         severity: (v.deducted > v.earned ? 'high' : 'medium') as 'low' | 'medium' | 'high',
       }));
@@ -166,7 +175,7 @@ const ClassroomInsights = () => {
         .filter(([_, v]) => v.last_at)
         .map(([sid, v]) => ({
           student_id: sid,
-          name: sid.slice(0, 8),
+          name: nameMap[sid] || sid.slice(0, 8),
           gap_minutes: Math.round((now - new Date(v.last_at!).getTime()) / 60000),
         }))
         .filter(g => g.gap_minutes > 30)
