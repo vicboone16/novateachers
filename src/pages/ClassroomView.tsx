@@ -768,6 +768,7 @@ const ClassroomView = () => {
       <ScrollArea className="w-full">
         <div className="flex gap-2.5 pb-2">
           {summaryChipOrder.map(chipKey => {
+            if (chipKey === 'momentum') return activeGroupId ? <ClassroomMomentum key={chipKey} agencyId={effectiveAgencyId} classroomId={activeGroupId} studentIds={clients.map(c => c.id)} /> : null;
             if (chipKey === 'points') return <SummaryChip key={chipKey} icon={Star} label="Points Today" value={String(totalPoints)} color="text-amber-600 dark:text-amber-400" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'engagement') return <SummaryChip key={chipKey} icon={Target} label="Engagement" value={engagement.total > 0 ? `${engagementPct}%` : '—'} color="text-accent" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
             if (chipKey === 'events') return <SummaryChip key={chipKey} icon={BarChart3} label="Events" value={String(totalToday)} color="text-primary" draggable onDragStart={() => setDragChip(chipKey)} onDragOver={(e: React.DragEvent) => e.preventDefault()} onDrop={() => handleChipDrop(chipKey)} />;
