@@ -663,6 +663,12 @@ const ClassroomView = () => {
   const behaviorActions = teacherActions.filter(a => a.action_group === 'behavior');
   const manualActions = teacherActions.filter(a => a.action_group === 'manual');
 
+  // Student name map for wins/summary
+  const studentNameMap = Object.fromEntries(clients.map(c => [c.id, displayName(c)]));
+
+  // Session duration check (30+ minutes → allow end session)
+  const sessionMinutes = Math.floor((Date.now() - sessionStartTime) / 60000);
+
   if (loading || classroomLoading) {
     return (
       <div className="flex items-center justify-center py-16 flex-col gap-3">
