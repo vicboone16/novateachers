@@ -30,10 +30,13 @@ export default function StudentPortalEnhanced() {
   const [displayName, setDisplayName] = useState('');
   const [avatarEmoji, setAvatarEmoji] = useState('👤');
   const [balance, setBalance] = useState(0);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [currentXp, setCurrentXp] = useState(0);
   const [rewards, setRewards] = useState<RewardItem[]>([]);
   const [missionOfDay, setMissionOfDay] = useState('');
   const [wordOfWeek, setWordOfWeek] = useState('');
   const [streakCount, setStreakCount] = useState(0);
+  const [unlocks, setUnlocks] = useState<Array<{ name: string; emoji: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [codeInput, setCodeInput] = useState('');
