@@ -246,9 +246,10 @@ const GameBoard = () => {
         laps: getLaps(bal, TRACK_LENGTH),
         isFlashing: flash === s.student_id,
         teamColor: s.team_color,
+        activeEffect: getEffect(s.student_id)?.effect ?? null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
