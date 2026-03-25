@@ -137,6 +137,7 @@ const ClassroomView = () => {
     return ok;
   };
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
+  const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
   const today = new Date().toISOString().slice(0, 10);
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
