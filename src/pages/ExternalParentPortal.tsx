@@ -44,7 +44,7 @@ export default function ExternalParentPortal() {
     setError(null);
     try {
       // Resolve token to student
-      const { data: linkData, error: linkErr } = await supabase
+      const { data: linkData, error: linkErr } = await cloudSupabase
         .from('external_access_links' as any)
         .select('*')
         .eq('token', t)
