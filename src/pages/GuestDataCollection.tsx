@@ -153,7 +153,7 @@ const GuestDataCollection = () => {
                   <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                   <SelectContent>
                     {session.student_ids.map(id => (
-                      <SelectItem key={id} value={id}>{id.slice(0, 8)}…</SelectItem>
+                      <SelectItem key={id} value={id}>{studentNames[id] || `Student ${id.slice(0, 4)}`}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
