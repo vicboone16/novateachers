@@ -17,6 +17,7 @@ interface GuestSession {
   guest_name: string | null;
   permissions: { can_collect_data: boolean; can_view_notes: boolean };
   student_ids: string[];
+  student_names?: Record<string, string>;
 }
 
 const GuestDataCollection = () => {
@@ -25,6 +26,7 @@ const GuestDataCollection = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [session, setSession] = useState<GuestSession | null>(null);
+  const [studentNames, setStudentNames] = useState<Record<string, string>>({});
 
   // Collection state
   const [selectedStudent, setSelectedStudent] = useState('');
@@ -50,6 +52,19 @@ const GuestDataCollection = () => {
         return;
       }
       setSession(data);
+      // Resolve student names from classroom_group_students
+      if (data.student_ids?.length > 0) {
+        const { data: students } = await supabase
+          .from('classroom_group_students')
+          .select('client_id, first_name, last_name')
+          .in('client_id', data.student_ids);
+        const names: Record<string, string> = {};
+        for (const s of (students || []) as any[]) {
+          const name = ((s.first_name || '') + ' ' + (s.last_name || '')).trim();
+          if (name) names[s.client_id] = name;
+        }
+        setStudentNames(names);
+      }
       if (data.student_ids?.length === 1) setSelectedStudent(data.student_ids[0]);
     } catch {
       setError('Failed to validate code');
@@ -138,7 +153,7 @@ const GuestDataCollection = () => {
                   <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                   <SelectContent>
                     {session.student_ids.map(id => (
-                      <SelectItem key={id} value={id}>{id.slice(0, 8)}…</SelectItem>
+                      <SelectItem key={id} value={id}>{studentNames[id] || `Student ${id.slice(0, 4)}`}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

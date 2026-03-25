@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,51 +13,57 @@ import { WalkthroughProvider } from "@/contexts/WalkthroughContext";
 import { AppAccessGuard } from "@/components/AppAccessGuard";
 import { AppLayout } from "@/components/AppLayout";
 import Login from "@/pages/Login";
-import WorkspaceSelector from "@/pages/WorkspaceSelector";
-import Students from "@/pages/Students";
-import StudentDetail from "@/pages/StudentDetail";
-import TriggerTracker from "@/pages/TriggerTracker";
-import IEPWriter from "@/pages/IEPWriter";
-import IEPReader from "@/pages/IEPReader";
-import Settings from "@/pages/Settings";
-import ClassroomManager from "@/pages/ClassroomManager";
-import JoinInvite from "@/pages/JoinInvite";
-import GenerateInvite from "@/pages/GenerateInvite";
-import Inbox from "@/pages/Inbox";
-import { WeeklyDataSummary } from "@/components/WeeklyDataSummary";
 import NotFound from "@/pages/NotFound";
-import InstallApp from "@/pages/InstallApp";
-import ResetPassword from "@/pages/ResetPassword";
-import GuestDataCollection from "@/pages/GuestDataCollection";
-import AdminDashboard from "@/pages/AdminDashboard";
-import DataCollection from "@/pages/DataCollection";
-import TeacherGuide from "@/pages/TeacherGuide";
-import ClassroomView from "@/pages/ClassroomView";
-import ClassroomBoard from "@/pages/ClassroomBoard";
-import Threads from "@/pages/Threads";
-import CoreDiagnostics from "@/pages/CoreDiagnostics";
-import NotificationSettings from "@/pages/NotificationSettings";
-import StudentPortal from "@/pages/StudentPortal";
-import StudentPortalEnhanced from "@/pages/StudentPortalEnhanced";
-import ParentSnapshot from "@/pages/ParentSnapshot";
-import ExternalParentPortal from "@/pages/ExternalParentPortal";
-import ExternalStudentPortal from "@/pages/ExternalStudentPortal";
-import RewardsPage from "@/pages/RewardsPage";
-import ClassroomFeed from "@/pages/ClassroomFeed";
-import BoardConfig from "@/pages/BoardConfig";
-import ParentReports from "@/pages/ParentReports";
-import GameBoardPage from "@/pages/GameBoard";
-import GameSettings from "@/pages/GameSettings";
-import ClassroomLive from "@/pages/ClassroomLive";
-import AvatarUnlocks from "@/pages/AvatarUnlocks";
-import PointRulesManager from "@/pages/PointRulesManager";
-import FeatureTour from "@/pages/FeatureTour";
-import FAQTutorial from "@/pages/FAQTutorial";
-import LaunchReadiness from "@/pages/LaunchReadiness";
-import ParentView from "@/pages/ParentView";
-import ClassroomInsights from "@/pages/ClassroomInsights";
+
+// Lazy-loaded pages for code splitting
+const WorkspaceSelector = lazy(() => import("@/pages/WorkspaceSelector"));
+const Students = lazy(() => import("@/pages/Students"));
+const StudentDetail = lazy(() => import("@/pages/StudentDetail"));
+const TriggerTracker = lazy(() => import("@/pages/TriggerTracker"));
+const IEPWriter = lazy(() => import("@/pages/IEPWriter"));
+const IEPReader = lazy(() => import("@/pages/IEPReader"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const ClassroomManager = lazy(() => import("@/pages/ClassroomManager"));
+const JoinInvite = lazy(() => import("@/pages/JoinInvite"));
+const GenerateInvite = lazy(() => import("@/pages/GenerateInvite"));
+const Inbox = lazy(() => import("@/pages/Inbox"));
+const WeeklyDataSummary = lazy(() => import("@/components/WeeklyDataSummary").then(m => ({ default: m.WeeklyDataSummary })));
+const InstallApp = lazy(() => import("@/pages/InstallApp"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const GuestDataCollection = lazy(() => import("@/pages/GuestDataCollection"));
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const DataCollection = lazy(() => import("@/pages/DataCollection"));
+const TeacherGuide = lazy(() => import("@/pages/TeacherGuide"));
+const ClassroomView = lazy(() => import("@/pages/ClassroomView"));
+const ClassroomBoard = lazy(() => import("@/pages/ClassroomBoard"));
+const Threads = lazy(() => import("@/pages/Threads"));
+const CoreDiagnostics = lazy(() => import("@/pages/CoreDiagnostics"));
+const NotificationSettings = lazy(() => import("@/pages/NotificationSettings"));
+const StudentPortalEnhanced = lazy(() => import("@/pages/StudentPortalEnhanced"));
+const ParentSnapshot = lazy(() => import("@/pages/ParentSnapshot"));
+const ExternalParentPortal = lazy(() => import("@/pages/ExternalParentPortal"));
+const RewardsPage = lazy(() => import("@/pages/RewardsPage"));
+const ClassroomFeed = lazy(() => import("@/pages/ClassroomFeed"));
+const BoardConfig = lazy(() => import("@/pages/BoardConfig"));
+const ParentReports = lazy(() => import("@/pages/ParentReports"));
+const GameBoardPage = lazy(() => import("@/pages/GameBoard"));
+const GameSettings = lazy(() => import("@/pages/GameSettings"));
+const ClassroomLive = lazy(() => import("@/pages/ClassroomLive"));
+const AvatarUnlocks = lazy(() => import("@/pages/AvatarUnlocks"));
+const PointRulesManager = lazy(() => import("@/pages/PointRulesManager"));
+const FeatureTour = lazy(() => import("@/pages/FeatureTour"));
+const FAQTutorial = lazy(() => import("@/pages/FAQTutorial"));
+const LaunchReadiness = lazy(() => import("@/pages/LaunchReadiness"));
+const ParentView = lazy(() => import("@/pages/ParentView"));
+const ClassroomInsights = lazy(() => import("@/pages/ClassroomInsights"));
 
 const queryClient = new QueryClient();
+
+const PageLoader = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  </div>
+);
 
 const ProtectedRoutes = () => {
   const { user, loading: authLoading } = useAuth();
@@ -98,51 +105,50 @@ const WorkspaceRoutes = () => {
   }
 
   return (
-    <Routes>
-      {/* Workspace selector — shown when multiple workspaces or navigated to */}
-      <Route path="/workspace" element={<WorkspaceSelector />} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/workspace" element={<WorkspaceSelector />} />
 
-      {/* If no workspace selected yet and multiple exist, redirect to selector */}
-      {!currentWorkspace && workspaces.length > 1 && (
-        <Route path="*" element={<Navigate to="/workspace" replace />} />
-      )}
+        {!currentWorkspace && workspaces.length > 1 && (
+          <Route path="*" element={<Navigate to="/workspace" replace />} />
+        )}
 
-      {/* Main app routes */}
-      <Route element={<AppLayout />}>
-        <Route path="/classroom" element={<ClassroomView />} />
-        <Route path="/game-board" element={<GameBoardPage />} />
-        <Route path="/game-settings" element={<GameSettings />} />
-        <Route path="/avatar-unlocks" element={<AvatarUnlocks />} />
-        <Route path="/students" element={<Students />} />
-        <Route path="/students/:id" element={<StudentDetail />} />
-        <Route path="/tracker" element={<TriggerTracker />} />
-        <Route path="/collect" element={<DataCollection />} />
-        <Route path="/data-summary" element={<WeeklyDataSummary />} />
-        <Route path="/guide" element={<TeacherGuide />} />
-        <Route path="/iep" element={<IEPWriter />} />
-        <Route path="/iep-reader" element={<IEPReader />} />
-        <Route path="/classrooms" element={<ClassroomManager />} />
-        <Route path="/join" element={<JoinInvite />} />
-        <Route path="/invites" element={<GenerateInvite />} />
-        <Route path="/inbox" element={<Inbox />} />
-        <Route path="/rewards" element={<RewardsPage />} />
-        <Route path="/feed" element={<ClassroomFeed />} />
-        <Route path="/board-config" element={<BoardConfig />} />
-        <Route path="/parent-reports" element={<ParentReports />} />
-        <Route path="/threads" element={<Threads />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/point-rules" element={<PointRulesManager />} />
-        <Route path="/launch-readiness" element={<LaunchReadiness />} />
-        <Route path="/classroom-insights" element={<ClassroomInsights />} />
-        <Route path="/diagnostics" element={<CoreDiagnostics />} />
-        <Route path="/notifications" element={<NotificationSettings />} />
-        <Route path="/install" element={<InstallApp />} />
-        
-        <Route path="/" element={<Navigate to="/classroom" replace />} />
-      </Route>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/classroom" element={<ClassroomView />} />
+          <Route path="/game-board" element={<GameBoardPage />} />
+          <Route path="/game-settings" element={<GameSettings />} />
+          <Route path="/avatar-unlocks" element={<AvatarUnlocks />} />
+          <Route path="/students" element={<Students />} />
+          <Route path="/students/:id" element={<StudentDetail />} />
+          <Route path="/tracker" element={<TriggerTracker />} />
+          <Route path="/collect" element={<DataCollection />} />
+          <Route path="/data-summary" element={<WeeklyDataSummary />} />
+          <Route path="/guide" element={<TeacherGuide />} />
+          <Route path="/iep" element={<IEPWriter />} />
+          <Route path="/iep-reader" element={<IEPReader />} />
+          <Route path="/classrooms" element={<ClassroomManager />} />
+          <Route path="/join" element={<JoinInvite />} />
+          <Route path="/invites" element={<GenerateInvite />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/rewards" element={<RewardsPage />} />
+          <Route path="/feed" element={<ClassroomFeed />} />
+          <Route path="/board-config" element={<BoardConfig />} />
+          <Route path="/parent-reports" element={<ParentReports />} />
+          <Route path="/threads" element={<Threads />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/point-rules" element={<PointRulesManager />} />
+          <Route path="/launch-readiness" element={<LaunchReadiness />} />
+          <Route path="/classroom-insights" element={<ClassroomInsights />} />
+          <Route path="/diagnostics" element={<CoreDiagnostics />} />
+          <Route path="/notifications" element={<NotificationSettings />} />
+          <Route path="/install" element={<InstallApp />} />
+          
+          <Route path="/" element={<Navigate to="/classroom" replace />} />
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 };
 
@@ -153,21 +159,23 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/guest/:code" element={<GuestDataCollection />} />
-            <Route path="/board/:slug" element={<ClassroomBoard />} />
-            <Route path="/board" element={<ClassroomBoard />} />
-            <Route path="/portal/:token" element={<StudentPortalEnhanced />} />
-            <Route path="/portal" element={<StudentPortalEnhanced />} />
-            <Route path="/class/:slug/live" element={<ClassroomLive />} />
-            <Route path="/snapshot/:token" element={<ParentSnapshot />} />
-            <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
-            <Route path="/tour" element={<FeatureTour />} />
-            <Route path="/faq" element={<FAQTutorial />} />
-            <Route path="/parent-view" element={<ParentView />} />
-            <Route path="/*" element={<ProtectedRoutes />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/guest/:code" element={<GuestDataCollection />} />
+              <Route path="/board/:slug" element={<ClassroomBoard />} />
+              <Route path="/board" element={<ClassroomBoard />} />
+              <Route path="/portal/:token" element={<StudentPortalEnhanced />} />
+              <Route path="/portal" element={<StudentPortalEnhanced />} />
+              <Route path="/class/:slug/live" element={<ClassroomLive />} />
+              <Route path="/snapshot/:token" element={<ParentSnapshot />} />
+              <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
+              <Route path="/tour" element={<FeatureTour />} />
+              <Route path="/faq" element={<FAQTutorial />} />
+              <Route path="/parent-view" element={<ParentView />} />
+              <Route path="/*" element={<ProtectedRoutes />} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
