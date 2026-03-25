@@ -233,7 +233,7 @@ export const WeeklyDataSummary = () => {
   // Engagement stats from unified events
   const engagementStats = useMemo(() => {
     const samples = unifiedEvents.filter(e => e.event_type === 'engagement_sample');
-    const engaged = samples.filter(e => e.event_subtype === 'engaged').length;
+    const engaged = samples.filter(e => e.event_subtype === 'engaged' || e.event_value?.subtype === 'engaged' || e.event_value?.engaged === true).length;
     const total = samples.length;
     return { total, engaged, percentage: total > 0 ? Math.round((engaged / total) * 100) : null };
   }, [unifiedEvents]);
