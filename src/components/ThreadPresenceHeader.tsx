@@ -18,6 +18,7 @@ interface PresenceEntry {
   user_id: string;
   status: string;
   available_for_support: boolean;
+  availability?: string;
   assigned_student_id: string | null;
   location_label: string | null;
   classroom_group_id: string | null;
