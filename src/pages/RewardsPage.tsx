@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Star, Gift, History, Trophy, Sparkles, ShoppingBag, Plus, Minus, Pencil, RotateCcw } from 'lucide-react';
+import { Star, Gift, History, Trophy, Sparkles, ShoppingBag, Plus, Minus, Pencil, RotateCcw, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import type { Client } from '@/lib/types';
