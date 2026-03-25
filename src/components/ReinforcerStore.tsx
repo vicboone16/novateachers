@@ -101,34 +101,24 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
-      // Use core-bridge to read rewards (bypasses Core RLS)
-      const result = await invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
-        action: 'list_rewards',
-        scope_type: scopeType,
-        scope_id: scopeId,
-        include_inactive: !!showInactive,
-      });
-      setRewards((result?.data?.rewards || []) as any as Reward[]);
+      let q = cloudSupabase
+        .from('beacon_rewards')
+        .select('*')
+        .eq('scope_type', scopeType)
+        .eq('scope_id', scopeId)
+        .order('cost', { ascending: true });
+      if (!showInactive) q = q.eq('active', true);
+      const { data } = await q;
+      setRewards((data || []) as any as Reward[]);
 
-      // Load redemptions via core-bridge
-      const redeemResult = await invokeCloudFunction<{ redemptions: any[] }>('core-bridge', {
-        action: 'list_redemptions',
-        agency_id: agencyId,
-        scope_id: scopeId,
-      });
-      setRedemptions((redeemResult?.data?.redemptions || []) as any as Redemption[]);
+      const { data: redeemData } = await cloudSupabase
+        .from('beacon_reward_redemptions')
+        .select('*')
+        .eq('agency_id', agencyId);
+      setRedemptions((redeemData || []) as any as Redemption[]);
     } catch (err: any) {
-      console.warn('[ReinforcerStore] loadRewards exception:', err.message);
-      // Fallback: try direct read
-      try {
-        const { data } = await supabase
-          .from('beacon_rewards' as any)
-          .select('*')
-          .eq('scope_type', scopeType)
-          .eq('scope_id', scopeId)
-          .order('cost', { ascending: true });
-        setRewards((data || []) as any as Reward[]);
-      } catch { setRewards([]); }
+      console.warn('[ReinforcerStore] loadRewards error:', err.message);
+      setRewards([]);
     }
     setLoading(false);
   }, [agencyId, classroomId, showInactive]);
