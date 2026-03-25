@@ -107,11 +107,11 @@ export default function ClassroomLive() {
             <p className="text-3xl font-bold tabular-nums">{skin.icon} {totalPoints.toLocaleString()}</p>
             <p className="text-sm text-muted-foreground mt-1">Class Total {skin.plural}</p>
             <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
-              {settings?.mission_of_the_day && (
-                <Badge variant="outline">🎯 {settings.mission_of_the_day}</Badge>
+              {(settings as any)?.mission_of_the_day && (
+                <Badge variant="outline">🎯 {(settings as any).mission_of_the_day}</Badge>
               )}
-              {settings?.word_of_the_week && (
-                <Badge variant="outline">📖 {settings.word_of_the_week}</Badge>
+              {(settings as any)?.word_of_the_week && (
+                <Badge variant="outline">📖 {(settings as any).word_of_the_week}</Badge>
               )}
             </div>
           </CardContent>
