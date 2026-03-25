@@ -166,12 +166,10 @@ export default function StudentPortalEnhanced() {
       <div className="mx-auto max-w-md px-4 py-6 space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className={cn(
-            "mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shadow-lg transition-all",
+          <AnimatedAvatar emoji={avatarEmoji} state={avatarState} size="lg" className={cn(
+            "mx-auto bg-gradient-to-br from-primary/20 to-accent/20 shadow-lg transition-all",
             isFinished && "ring-4 ring-accent/40 shadow-accent/20"
-          )}>
-            <span className="text-6xl">{avatarEmoji}</span>
-          </div>
+          )} />
           <h1 className="text-2xl font-bold font-heading">{displayName}</h1>
           <div className="flex items-center justify-center gap-2">
             {streakCount > 0 && (
