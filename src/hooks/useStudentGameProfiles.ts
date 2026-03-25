@@ -21,7 +21,8 @@ export interface GameProfile {
 export function useStudentGameProfiles(studentIds: string[]) {
   const [profiles, setProfiles] = useState<Record<string, GameProfile>>({});
   const [loading, setLoading] = useState(false);
-  const { effectiveAgencyId } = useWorkspace();
+  const { currentWorkspace } = useWorkspace();
+  const agencyId = currentWorkspace?.agency_id;
 
   const fetchProfiles = useCallback(async () => {
     if (studentIds.length === 0) return;
