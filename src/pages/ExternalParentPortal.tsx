@@ -177,7 +177,7 @@ export default function ExternalParentPortal() {
         {/* Rewards Progress */}
         {data.rewardsProgress.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <p className="section-header">
               <Gift className="h-3 w-3" /> Rewards Progress
             </p>
             <div className="space-y-2">
