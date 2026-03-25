@@ -241,7 +241,7 @@ export const WeeklyDataSummary = () => {
   // Skill probe stats from unified events
   const skillProbeStats = useMemo(() => {
     const summaries = unifiedEvents.filter(
-      e => e.event_type === 'skill_probe' && e.event_subtype === 'session_summary'
+      e => e.event_type === 'skill_probe' && (e.event_subtype === 'session_summary' || e.event_value?.subtype === 'session_summary')
     );
     const bySkill: Record<string, { trials: number; correct: number; sessions: number }> = {};
     for (const s of summaries) {

@@ -348,7 +348,7 @@ const ClassroomView = () => {
       const clientIds = clients.map(c => c.id);
       const { data } = await supabase
         .from('teacher_data_events' as any)
-        .select('event_subtype')
+        .select('event_type, event_value')
         .eq('staff_id', user.id)
         .eq('event_type', 'engagement_sample')
         .gte('recorded_at', today + 'T00:00:00')
@@ -356,7 +356,10 @@ const ClassroomView = () => {
       const samples = (data || []) as any[];
       setEngagement({
         total: samples.length,
-        engaged: samples.filter(s => s.event_subtype === 'engaged').length,
+        engaged: samples.filter(s => {
+          const val = s.event_value;
+          return val?.subtype === 'engaged' || val?.engaged === true;
+        }).length,
       });
     } catch { /* silent */ }
   };
