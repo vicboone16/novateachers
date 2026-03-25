@@ -716,8 +716,10 @@ export type Database = {
           game_mode: string
           group_id: string
           id: string
+          mode_id: string | null
           show_avatars: boolean
           show_leaderboard: boolean
+          theme_id: string | null
           total_steps: number
           track_id: string | null
           updated_at: string
@@ -729,8 +731,10 @@ export type Database = {
           game_mode?: string
           group_id: string
           id?: string
+          mode_id?: string | null
           show_avatars?: boolean
           show_leaderboard?: boolean
+          theme_id?: string | null
           total_steps?: number
           track_id?: string | null
           updated_at?: string
@@ -742,13 +746,29 @@ export type Database = {
           game_mode?: string
           group_id?: string
           id?: string
+          mode_id?: string | null
           show_avatars?: boolean
           show_leaderboard?: boolean
+          theme_id?: string | null
           total_steps?: number
           track_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classroom_game_settings_mode_id_fkey"
+            columns: ["mode_id"]
+            isOneToOne: false
+            referencedRelation: "game_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_game_settings_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "game_themes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classroom_game_settings_track_id_fkey"
             columns: ["track_id"]
@@ -996,8 +1016,13 @@ export type Database = {
           created_at: string
           event_type: string
           id: string
+          is_checkpoint: boolean | null
+          multiplier_applied: number | null
           payload: Json
+          processed: boolean | null
+          streak_count: number | null
           student_id: string | null
+          zone_type: string | null
         }
         Insert: {
           agency_id: string
@@ -1005,8 +1030,13 @@ export type Database = {
           created_at?: string
           event_type: string
           id?: string
+          is_checkpoint?: boolean | null
+          multiplier_applied?: number | null
           payload?: Json
+          processed?: boolean | null
+          streak_count?: number | null
           student_id?: string | null
+          zone_type?: string | null
         }
         Update: {
           agency_id?: string
@@ -1014,50 +1044,151 @@ export type Database = {
           created_at?: string
           event_type?: string
           id?: string
+          is_checkpoint?: boolean | null
+          multiplier_applied?: number | null
           payload?: Json
+          processed?: boolean | null
+          streak_count?: number | null
           student_id?: string | null
+          zone_type?: string | null
+        }
+        Relationships: []
+      }
+      game_modes: {
+        Row: {
+          agency_id: string | null
+          checkpoint_rewards_enabled: boolean
+          comeback_config_json: Json
+          created_at: string
+          description: string | null
+          difficulty_scaling: string | null
+          game_speed: number | null
+          id: string
+          is_preset: boolean
+          max_daily_points: number | null
+          momentum_config_json: Json
+          name: string
+          slug: string
+        }
+        Insert: {
+          agency_id?: string | null
+          checkpoint_rewards_enabled?: boolean
+          comeback_config_json?: Json
+          created_at?: string
+          description?: string | null
+          difficulty_scaling?: string | null
+          game_speed?: number | null
+          id?: string
+          is_preset?: boolean
+          max_daily_points?: number | null
+          momentum_config_json?: Json
+          name: string
+          slug: string
+        }
+        Update: {
+          agency_id?: string | null
+          checkpoint_rewards_enabled?: boolean
+          comeback_config_json?: Json
+          created_at?: string
+          description?: string | null
+          difficulty_scaling?: string | null
+          game_speed?: number | null
+          id?: string
+          is_preset?: boolean
+          max_daily_points?: number | null
+          momentum_config_json?: Json
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      game_themes: {
+        Row: {
+          agency_id: string | null
+          assets_json: Json
+          avatar_style: string | null
+          colors_json: Json
+          created_at: string
+          id: string
+          is_preset: boolean
+          name: string
+          slug: string
+        }
+        Insert: {
+          agency_id?: string | null
+          assets_json?: Json
+          avatar_style?: string | null
+          colors_json?: Json
+          created_at?: string
+          id?: string
+          is_preset?: boolean
+          name: string
+          slug: string
+        }
+        Update: {
+          agency_id?: string | null
+          assets_json?: Json
+          avatar_style?: string | null
+          colors_json?: Json
+          created_at?: string
+          id?: string
+          is_preset?: boolean
+          name?: string
+          slug?: string
         }
         Relationships: []
       }
       game_tracks: {
         Row: {
           agency_id: string | null
+          checkpoints_json: Json
           created_at: string
           created_by: string | null
           description: string | null
           id: string
+          is_active: boolean
           is_preset: boolean
           name: string
           nodes_json: Json
+          theme_id: string | null
           theme_slug: string | null
           total_steps: number
           updated_at: string
+          zones_json: Json
         }
         Insert: {
           agency_id?: string | null
+          checkpoints_json?: Json
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
+          is_active?: boolean
           is_preset?: boolean
           name: string
           nodes_json?: Json
+          theme_id?: string | null
           theme_slug?: string | null
           total_steps?: number
           updated_at?: string
+          zones_json?: Json
         }
         Update: {
           agency_id?: string | null
+          checkpoints_json?: Json
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
+          is_active?: boolean
           is_preset?: boolean
           name?: string
           nodes_json?: Json
+          theme_id?: string | null
           theme_slug?: string | null
           total_steps?: number
           updated_at?: string
+          zones_json?: Json
         }
         Relationships: []
       }
