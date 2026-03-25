@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const cloudUrl = Deno.env.get("SUPABASE_URL")!;
     const cloudAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const coreAuthUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
-    const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY");
+    const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs";
 
     let userId: string | null = null;
 
