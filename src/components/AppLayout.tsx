@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck, HelpCircle, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 import { SmartHelpBanner } from '@/components/SmartHelpBanner';
@@ -253,7 +253,7 @@ function IEPNavDropdown() {
 function MoreNavDropdown() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const moreRoutes = ['/classrooms', '/admin', '/point-rules', '/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config'];
+  const moreRoutes = ['/classrooms', '/admin', '/point-rules', '/tracker', '/data-summary', '/guide', '/parent-reports', '/board-config', '/avatar-unlocks'];
   const isActive = moreRoutes.includes(pathname);
 
   return (
@@ -293,6 +293,9 @@ function MoreNavDropdown() {
           <BookOpen className="h-3.5 w-3.5" /> Guide
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/avatar-unlocks')} className="gap-2">
+          <Sparkles className="h-3.5 w-3.5" /> Avatar & Unlocks
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/parent-reports')} className="gap-2">
           <UserCheck className="h-3.5 w-3.5" /> Parent Reports
         </DropdownMenuItem>
