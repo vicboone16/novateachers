@@ -1,9 +1,9 @@
 /**
- * Game layer data access — reads from Core-owned Phase 5 tables.
- * All queries go through the Core supabase client.
+ * Game layer data access — reads from Cloud tables where available,
+ * falls back to Core supabase for game settings/teams/progress views.
  */
 import { supabase } from '@/lib/supabase';
-import type {
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
   ClassroomGameSettings,
   ClassroomTeam,
   StudentGameProgress,
