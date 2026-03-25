@@ -121,6 +121,11 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, className }: Pro
             <stop offset="0%" stopColor="hsl(38, 92%, 50%)" stopOpacity="0.4" />
             <stop offset="100%" stopColor="hsl(38, 92%, 50%)" stopOpacity="0" />
           </radialGradient>
+          {/* Burst effect gradient */}
+          <radialGradient id="burst-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="hsl(48, 96%, 53%)" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="hsl(48, 96%, 53%)" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
         {/* Background gradient */}
