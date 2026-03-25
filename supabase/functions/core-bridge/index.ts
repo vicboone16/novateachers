@@ -19,20 +19,42 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth validation
+    // Auth validation — accept either Cloud JWT or Nova Core JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return json({ error: "Unauthorized" }, 401);
     }
-    const _authClient = createClient(
+
+    const token = authHeader.replace("Bearer ", "");
+    const cloudAuthClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
-    const { data: _claims, error: _authError } = await _authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (_authError || !_claims?.claims) {
+
+    const coreAuthUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
+    const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY");
+
+    let authClaims: { claims?: { sub?: string; email?: string } } | null = null;
+
+    const { data: cloudClaims } = await cloudAuthClient.auth.getClaims(token);
+    if (cloudClaims?.claims?.sub) {
+      authClaims = cloudClaims;
+    } else if (coreAnonKey) {
+      const coreAuthClient = createClient(coreAuthUrl, coreAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: coreClaims } = await coreAuthClient.auth.getClaims(token);
+      if (coreClaims?.claims?.sub) {
+        authClaims = coreClaims;
+      }
+    }
+
+    if (!authClaims?.claims?.sub) {
       return json({ error: "Unauthorized" }, 401);
     }
+
+    const userId = authClaims.claims.sub;
 
     const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
     const coreKey = Deno.env.get("CORE_SERVICE_ROLE_KEY");
