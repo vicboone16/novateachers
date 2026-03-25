@@ -7,6 +7,8 @@ import { FloatingFeedbackOverlay } from '@/components/FloatingFeedback';
 import type { FloatingFeedback } from '@/hooks/useGameEngine';
 import { cn } from '@/lib/utils';
 import type { AnimationEffect } from '@/hooks/useGameEvents';
+import { SvgAvatarEffect } from '@/components/AnimatedAvatar';
+import type { AvatarAnimState } from '@/lib/avatar-animations';
 
 interface StudentPosition {
   student_id: string;
@@ -18,6 +20,7 @@ interface StudentPosition {
   isFlashing: boolean;
   teamColor?: string | null;
   activeEffect?: AnimationEffect | null;
+  avatarAnimState?: AvatarAnimState;
   hasComeback?: boolean;
   streakEmoji?: string | null;
 }
@@ -268,6 +271,10 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
                 transform: `translate(${sp.cx}px, ${sp.cy}px)`,
               }}
             >
+              {/* Avatar animation state effect */}
+              {sp.avatarAnimState && sp.avatarAnimState !== 'idle' && (
+                <SvgAvatarEffect state={sp.avatarAnimState} />
+              )}
               <ellipse cx={0} cy={4} rx={14} ry={5} fill="black" opacity="0.12" />
 
               {nearFinish && (

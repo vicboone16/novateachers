@@ -922,6 +922,178 @@ export type Database = {
           },
         ]
       }
+      classroom_team_members: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          student_id: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          student_id: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          student_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_classroom_team_scores"
+            referencedColumns: ["team_id"]
+          },
+        ]
+      }
+      classroom_teams: {
+        Row: {
+          agency_id: string
+          created_at: string
+          group_id: string
+          id: string
+          sort_order: number
+          team_color: string
+          team_icon: string
+          team_name: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          sort_order?: number
+          team_color?: string
+          team_icon?: string
+          team_name: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          sort_order?: number
+          team_color?: string
+          team_icon?: string
+          team_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_teams_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
+      daily_quest_progress: {
+        Row: {
+          bonus_awarded: boolean
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          current_value: number
+          id: string
+          quest_id: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          bonus_awarded?: boolean
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          id?: string
+          quest_id: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          bonus_awarded?: boolean
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number
+          id?: string
+          quest_id?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_quest_progress_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "daily_quests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_quests: {
+        Row: {
+          active_date: string
+          agency_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          group_id: string
+          id: string
+          is_active: boolean
+          quest_type: string
+          reward_bonus: number
+          target_value: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active_date?: string
+          agency_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_id: string
+          id?: string
+          is_active?: boolean
+          quest_type?: string
+          reward_bonus?: number
+          target_value?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active_date?: string
+          agency_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_id?: string
+          id?: string
+          is_active?: boolean
+          quest_type?: string
+          reward_bonus?: number
+          target_value?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       default_reminder_schedules: {
         Row: {
           allow_user_override: boolean
@@ -4108,6 +4280,26 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      v_classroom_team_scores: {
+        Row: {
+          group_id: string | null
+          member_count: number | null
+          team_color: string | null
+          team_icon: string | null
+          team_id: string | null
+          team_name: string | null
+          total_points: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_teams_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
       }
       v_help_progress: {
         Row: {

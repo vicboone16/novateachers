@@ -9,6 +9,9 @@ import { useGameEvents } from '@/hooks/useGameEvents';
 import { useGameEngine } from '@/hooks/useGameEngine';
 import { CurvedTrackBoard } from '@/components/CurvedTrackBoard';
 import { TrackSelector } from '@/components/TrackSelector';
+import { TeamManager } from '@/components/TeamManager';
+import { DailyQuestPanel } from '@/components/DailyQuestPanel';
+import { useAvatarAnimations } from '@/hooks/useAvatarAnimations';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame } from 'lucide-react';
+import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame, Scroll } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CHECKPOINT_INTERVAL = 10;
@@ -61,11 +64,14 @@ const GameBoard = () => {
   const [resetting, setResetting] = useState(false);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const [trackSelectorOpen, setTrackSelectorOpen] = useState(false);
+  const [teamManagerOpen, setTeamManagerOpen] = useState(false);
+  const [gameMode, setGameMode] = useState<string>('race');
 
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
   const { track, allTracks, refetch: refetchTrack } = useGameTrack(activeGroupId);
   const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
+  const { triggerFromEvent, getAnimState } = useAvatarAnimations();
 
   const TRACK_LENGTH = track?.total_steps || 100;
 
@@ -249,6 +255,9 @@ const GameBoard = () => {
           }
           return bals;
         });
+        // Trigger avatar animation on point change
+        const pts = payload.new?.points || 0;
+        triggerFromEvent(sid, pts > 0 ? 'points_awarded' : 'points_deducted');
         setFlash(sid);
         setTimeout(() => setFlash(null), 1500);
       }
@@ -302,11 +311,12 @@ const GameBoard = () => {
         isFlashing: flash === s.student_id,
         teamColor: s.team_color,
         activeEffect: getEffect(s.student_id)?.effect ?? null,
+        avatarAnimState: getAnimState(s.student_id),
         hasComeback: status?.hasComeback || false,
         streakEmoji: status?.emoji || null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, studentStatuses]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, getAnimState, studentStatuses]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
@@ -348,6 +358,7 @@ const GameBoard = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate('/classroom')} className="gap-1"><ArrowLeft className="h-4 w-4" /> Classroom</Button>
         <h1 className="text-lg font-bold font-heading flex items-center gap-2"><Flag className="h-5 w-5 text-accent" /> Race Board</h1>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTeamManagerOpen(true)} title="Teams"><Users className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTrackSelectorOpen(true)} title="Change Track"><Map className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/game-settings')} title="Game Settings"><Settings className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setResetOpen(true)} title="Reset race"><RotateCcw className="h-4 w-4 text-muted-foreground" /></Button>
@@ -501,6 +512,16 @@ const GameBoard = () => {
         </Card>
       )}
 
+      {/* Daily Quests */}
+      {activeGroupId && (
+        <DailyQuestPanel
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          showCreateButton
+          compact
+        />
+      )}
+
       {/* Track Selector */}
       <TrackSelector
         tracks={allTracks}
@@ -509,6 +530,22 @@ const GameBoard = () => {
         open={trackSelectorOpen}
         onOpenChange={setTrackSelectorOpen}
       />
+
+      {/* Team Manager */}
+      {activeGroupId && (
+        <TeamManager
+          open={teamManagerOpen}
+          onOpenChange={setTeamManagerOpen}
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          students={students.map(s => ({
+            student_id: s.student_id,
+            name: getDisplayName(s),
+            avatar_emoji: s.avatar_emoji || '👤',
+          }))}
+          onTeamsChanged={loadBoard}
+        />
+      )}
 
       {/* Reset Dialog */}
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>

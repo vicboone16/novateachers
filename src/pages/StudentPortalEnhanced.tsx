@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { validateStudentPortalAccess, getStudentGameProfile, getStudentUnlocks, getStudentStreaks } from '@/lib/game-data';
 import type { StudentUnlock, StudentStreak } from '@/lib/game-types';
+import { AnimatedAvatar } from '@/components/AnimatedAvatar';
+import { DailyQuestPanel } from '@/components/DailyQuestPanel';
 import { LEVEL_THRESHOLDS, levelColor } from '@/lib/level-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,10 +39,13 @@ export default function StudentPortalEnhanced() {
   const [wordOfWeek, setWordOfWeek] = useState('');
   const [streakCount, setStreakCount] = useState(0);
   const [unlocks, setUnlocks] = useState<Array<{ name: string; emoji: string }>>([]);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [agencyId, setAgencyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [needsCode, setNeedsCode] = useState(false);
+  const [avatarState, setAvatarState] = useState<'idle' | 'boost'>('idle');
 
   useEffect(() => {
     if (token) loadPortalByToken(token);
@@ -161,12 +166,10 @@ export default function StudentPortalEnhanced() {
       <div className="mx-auto max-w-md px-4 py-6 space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className={cn(
-            "mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center shadow-lg transition-all",
+          <AnimatedAvatar emoji={avatarEmoji} state={avatarState} size="lg" className={cn(
+            "mx-auto bg-gradient-to-br from-primary/20 to-accent/20 shadow-lg transition-all",
             isFinished && "ring-4 ring-accent/40 shadow-accent/20"
-          )}>
-            <span className="text-6xl">{avatarEmoji}</span>
-          </div>
+          )} />
           <h1 className="text-2xl font-bold font-heading">{displayName}</h1>
           <div className="flex items-center justify-center gap-2">
             {streakCount > 0 && (
@@ -306,6 +309,15 @@ export default function StudentPortalEnhanced() {
               );
             })}
           </div>
+        )}
+
+        {/* Daily Quests */}
+        {groupId && agencyId && studentId && (
+          <DailyQuestPanel
+            groupId={groupId}
+            agencyId={agencyId}
+            studentId={studentId}
+          />
         )}
 
         <p className="text-center text-[10px] text-muted-foreground pt-4 pb-8">
