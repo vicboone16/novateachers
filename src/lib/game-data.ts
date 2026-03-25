@@ -208,8 +208,8 @@ export async function getUnlockCatalog(agencyId?: string): Promise<UnlockCatalog
 }
 
 export async function getStudentUnlocks(studentId: string): Promise<StudentUnlock[]> {
-  const { data } = await supabase
-    .from('student_unlocks' as any)
+  const { data } = await cloudSupabase
+    .from('student_unlocks')
     .select('*')
     .eq('student_id', studentId);
   return (data || []) as any[];
