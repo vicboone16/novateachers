@@ -19,7 +19,9 @@ export type GameEventType =
   | 'checkpoint_hit'
   | 'level_up'
   | 'reward_ready'
-  | 'reward_redeemed';
+  | 'reward_redeemed'
+  | 'streak_boost'
+  | 'team_boost';
 
 export type AnimationEffect =
   | 'bounce'
@@ -27,7 +29,9 @@ export type AnimationEffect =
   | 'ring-pulse'
   | 'burst'
   | 'sparkle'
-  | 'card-flash';
+  | 'card-flash'
+  | 'flame'
+  | 'team-pulse';
 
 const EVENT_TO_ANIMATION: Record<GameEventType, AnimationEffect> = {
   points_awarded: 'bounce',
@@ -36,6 +40,8 @@ const EVENT_TO_ANIMATION: Record<GameEventType, AnimationEffect> = {
   level_up: 'burst',
   reward_ready: 'sparkle',
   reward_redeemed: 'card-flash',
+  streak_boost: 'flame',
+  team_boost: 'team-pulse',
 };
 
 const EFFECT_DURATION_MS: Record<AnimationEffect, number> = {
@@ -45,6 +51,8 @@ const EFFECT_DURATION_MS: Record<AnimationEffect, number> = {
   burst: 2000,
   sparkle: 1800,
   'card-flash': 1000,
+  flame: 1600,
+  'team-pulse': 1400,
 };
 
 export interface ActiveEffect {

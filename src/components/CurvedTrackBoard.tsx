@@ -100,6 +100,8 @@ function AnimatedAvatarGroup({
   const isBurst = eff === 'burst';
   const isSparkle = eff === 'sparkle';
   const isCardFlash = eff === 'card-flash';
+  const isFlame = eff === 'flame';
+  const isTeamPulse = eff === 'team-pulse';
   const isDimmed = isShake;
 
   return (
@@ -186,6 +188,36 @@ function AnimatedAvatarGroup({
         <circle cx={0} cy={0} r={18} fill="white" opacity="0.4">
           <animate attributeName="opacity" values="0;0.6;0" dur="0.4s" repeatCount="2" />
         </circle>
+      )}
+
+      {/* Flame trail (streak boost) */}
+      {isFlame && (
+        <g>
+          <ellipse cx={0} cy={-8} rx={10} ry={16} fill="hsl(25, 95%, 53%)" opacity="0.4">
+            <animate attributeName="ry" values="14;20;14" dur="0.3s" repeatCount="5" />
+            <animate attributeName="opacity" values="0.3;0.5;0.3" dur="0.3s" repeatCount="5" />
+          </ellipse>
+          <ellipse cx={0} cy={-6} rx={6} ry={10} fill="hsl(48, 96%, 53%)" opacity="0.5">
+            <animate attributeName="ry" values="8;14;8" dur="0.25s" repeatCount="6" />
+          </ellipse>
+          <circle cx={0} cy={0} r={19} fill="none" stroke="hsl(25, 95%, 53%)" strokeWidth="2" opacity="0.4">
+            <animate attributeName="opacity" values="0.4;0.7;0.4" dur="0.4s" repeatCount="4" />
+          </circle>
+        </g>
+      )}
+
+      {/* Team pulse */}
+      {isTeamPulse && (
+        <g>
+          <circle cx={0} cy={0} r={22} fill="none" stroke={sp.teamColor || 'hsl(280, 70%, 55%)'} strokeWidth="3" opacity="0.5">
+            <animate attributeName="r" values="18;32" dur="0.6s" repeatCount="2" />
+            <animate attributeName="opacity" values="0.5;0" dur="0.6s" repeatCount="2" />
+          </circle>
+          <circle cx={0} cy={0} r={22} fill="none" stroke={sp.teamColor || 'hsl(280, 70%, 55%)'} strokeWidth="1.5" opacity="0.3">
+            <animate attributeName="r" values="18;38" dur="0.6s" begin="0.15s" repeatCount="2" />
+            <animate attributeName="opacity" values="0.3;0" dur="0.6s" begin="0.15s" repeatCount="2" />
+          </circle>
+        </g>
       )}
 
       {/* Comeback badge */}

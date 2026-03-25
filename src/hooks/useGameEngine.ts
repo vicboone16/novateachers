@@ -171,6 +171,18 @@ export function useGameEngine({
     addFeedback(studentId, `+${finalPoints} ⭐`, '⭐', 'points');
     if (streakLabel && streak === streakLabel.count) {
       addFeedback(studentId, `${streakLabel.emoji} ${streakLabel.label} ${streakLabel.multiplier}x`, streakLabel.emoji, 'streak');
+      // Also emit streak_boost game event
+      try {
+        await supabase.from('game_events').insert({
+          agency_id: agencyId,
+          classroom_id: classroomId,
+          student_id: studentId,
+          event_type: 'streak_boost',
+          streak_count: streak,
+          multiplier_applied: streakLabel.multiplier,
+          payload: { streak, multiplier: streakLabel.multiplier, label: streakLabel.label },
+        });
+      } catch { /* non-critical */ }
     }
     if (activeZone) {
       addFeedback(studentId, `${activeZone.label}!`, '🎯', 'zone');
