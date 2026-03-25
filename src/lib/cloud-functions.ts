@@ -22,7 +22,7 @@ export async function invokeCloudFunction<T = any>(
     // Auto-resolve auth token from current session if not provided
     let token = authToken;
     if (!token) {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await authSupabase.auth.getSession();
       token = sessionData?.session?.access_token || undefined;
     }
 
