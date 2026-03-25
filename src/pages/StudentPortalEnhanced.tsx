@@ -3,13 +3,16 @@
  * Shows: avatar, points, race progress, rewards with "X points away", mission/word, streaks.
  * Checkpoint celebrations + reward availability highlights.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { validateStudentPortalAccess, getStudentGameProfile, getStudentUnlocks, getStudentStreaks } from '@/lib/game-data';
 import type { StudentUnlock, StudentStreak } from '@/lib/game-types';
 import { AnimatedAvatar } from '@/components/AnimatedAvatar';
+import { useGameEvents } from '@/hooks/useGameEvents';
+import { eventTypeToAnimState } from '@/lib/avatar-animations';
+import type { AvatarAnimState } from '@/lib/avatar-animations';
 import { DailyQuestPanel } from '@/components/DailyQuestPanel';
 import { LEVEL_THRESHOLDS, levelColor } from '@/lib/level-utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,7 +48,20 @@ export default function StudentPortalEnhanced() {
   const [error, setError] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [needsCode, setNeedsCode] = useState(false);
-  const [avatarState, setAvatarState] = useState<'idle' | 'boost'>('idle');
+  const [avatarState, setAvatarState] = useState<AvatarAnimState>('idle');
+  const { getEffect } = useGameEvents({ classroomId: groupId, agencyId: agencyId || undefined, enabled: !!studentId });
+
+  // Drive avatar state from realtime game events
+  useEffect(() => {
+    if (!studentId) return;
+    const eff = getEffect(studentId);
+    if (eff) {
+      const mapped = eventTypeToAnimState(eff.eventType);
+      setAvatarState(mapped);
+      const timeout = setTimeout(() => setAvatarState('idle'), 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [studentId, getEffect]);
 
   useEffect(() => {
     if (token) loadPortalByToken(token);

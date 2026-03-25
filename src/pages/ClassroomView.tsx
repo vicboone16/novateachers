@@ -25,6 +25,9 @@ import { useUndoAction } from '@/hooks/useUndoAction';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { AvatarPicker } from '@/components/AvatarPicker';
+import { AnimatedAvatar } from '@/components/AnimatedAvatar';
+import { useGameEvents } from '@/hooks/useGameEvents';
+import { eventTypeToAnimState } from '@/lib/avatar-animations';
 import { UndoToast } from '@/components/UndoToast';
 import { StudentStatusBadge, type StudentStatus } from '@/components/StudentStatusBadge';
 import { StaffPresencePanel } from '@/components/StaffPresencePanel';
@@ -134,6 +137,7 @@ const ClassroomView = () => {
     return ok;
   };
   const effectiveAgencyId = agencyId || currentWorkspace?.agency_id || '';
+  const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
   const today = new Date().toISOString().slice(0, 10);
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
@@ -841,10 +845,18 @@ const ClassroomView = () => {
                     <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2.5 group text-left min-w-0">
                       <button
                         onClick={(e) => { e.stopPropagation(); setAvatarPickerStudent(client); }}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg hover:scale-110 transition-transform active:scale-95"
+                        className="shrink-0 hover:scale-110 transition-transform active:scale-95"
                         title="Change avatar"
                       >
-                        {avatarEmoji}
+                        <AnimatedAvatar
+                          emoji={avatarEmoji}
+                          state={(() => {
+                            const eff = getEffect(client.id);
+                            return eff ? eventTypeToAnimState(eff.eventType) : 'idle';
+                          })()}
+                          size="sm"
+                          className="bg-primary/10"
+                        />
                       </button>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
