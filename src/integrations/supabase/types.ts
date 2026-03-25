@@ -265,6 +265,107 @@ export type Database = {
         }
         Relationships: []
       }
+      beacon_reward_redemptions: {
+        Row: {
+          agency_id: string
+          created_at: string
+          id: string
+          points_spent: number
+          redeemed_at: string
+          reward_id: string
+          staff_id: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          id?: string
+          points_spent: number
+          redeemed_at?: string
+          reward_id: string
+          staff_id: string
+          status?: string
+          student_id: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          id?: string
+          points_spent?: number
+          redeemed_at?: string
+          reward_id?: string
+          staff_id?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_reward_redemptions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_rewards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beacon_rewards: {
+        Row: {
+          active: boolean
+          agency_id: string | null
+          category: string
+          cost: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          emoji: string
+          id: string
+          image_url: string | null
+          name: string
+          scope_id: string
+          scope_type: string
+          stock_count: number | null
+          time_sensitive_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          agency_id?: string | null
+          category?: string
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          emoji?: string
+          id?: string
+          image_url?: string | null
+          name: string
+          scope_id: string
+          scope_type?: string
+          stock_count?: number | null
+          time_sensitive_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          agency_id?: string | null
+          category?: string
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          emoji?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          scope_id?: string
+          scope_type?: string
+          stock_count?: number | null
+          time_sensitive_until?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       beacon_student_day_state: {
         Row: {
           classroom_id: string | null
@@ -2029,6 +2130,68 @@ export type Database = {
         }
         Relationships: []
       }
+      student_streaks: {
+        Row: {
+          best_count: number
+          created_at: string
+          current_count: number
+          id: string
+          last_activity_date: string
+          streak_type: string
+          student_id: string
+        }
+        Insert: {
+          best_count?: number
+          created_at?: string
+          current_count?: number
+          id?: string
+          last_activity_date?: string
+          streak_type?: string
+          student_id: string
+        }
+        Update: {
+          best_count?: number
+          created_at?: string
+          current_count?: number
+          id?: string
+          last_activity_date?: string
+          streak_type?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
+      student_unlocks: {
+        Row: {
+          id: string
+          is_active: boolean
+          student_id: string
+          unlock_id: string
+          unlocked_at: string
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          student_id: string
+          unlock_id: string
+          unlocked_at?: string
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          student_id?: string
+          unlock_id?: string
+          unlocked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_unlocks_unlock_id_fkey"
+            columns: ["unlock_id"]
+            isOneToOne: false
+            referencedRelation: "unlock_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teacher_data_events: {
         Row: {
           agency_id: string | null
@@ -2868,10 +3031,12 @@ export type Database = {
           created_at: string
           current_tokens: number
           id: string
+          is_active: boolean
           reward_emoji: string
           reward_name: string
           skin: string
           student_id: string
+          token_goal: number | null
           token_target: number
           updated_at: string
         }
@@ -2882,10 +3047,12 @@ export type Database = {
           created_at?: string
           current_tokens?: number
           id?: string
+          is_active?: boolean
           reward_emoji?: string
           reward_name?: string
           skin?: string
           student_id: string
+          token_goal?: number | null
           token_target?: number
           updated_at?: string
         }
@@ -2896,12 +3063,56 @@ export type Database = {
           created_at?: string
           current_tokens?: number
           id?: string
+          is_active?: boolean
           reward_emoji?: string
           reward_name?: string
           skin?: string
           student_id?: string
+          token_goal?: number | null
           token_target?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      unlock_catalog: {
+        Row: {
+          agency_id: string | null
+          created_at: string
+          description: string | null
+          icon_emoji: string
+          id: string
+          is_active: boolean
+          level_required: number
+          name: string
+          points_required: number
+          unlock_key: string
+          unlock_type: string
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string
+          description?: string | null
+          icon_emoji?: string
+          id?: string
+          is_active?: boolean
+          level_required?: number
+          name: string
+          points_required?: number
+          unlock_key: string
+          unlock_type?: string
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string
+          description?: string | null
+          icon_emoji?: string
+          id?: string
+          is_active?: boolean
+          level_required?: number
+          name?: string
+          points_required?: number
+          unlock_key?: string
+          unlock_type?: string
         }
         Relationships: []
       }
@@ -3601,6 +3812,15 @@ export type Database = {
           redeemed: boolean
           role_slug: string
         }[]
+      }
+      redeem_reward: {
+        Args: {
+          p_agency_id: string
+          p_reward_id: string
+          p_staff_id: string
+          p_student_id: string
+        }
+        Returns: Json
       }
       resolve_reinforcement_ai_recommendation: {
         Args: {
