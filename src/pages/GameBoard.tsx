@@ -64,6 +64,8 @@ const GameBoard = () => {
   const [resetting, setResetting] = useState(false);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
   const [trackSelectorOpen, setTrackSelectorOpen] = useState(false);
+  const [teamManagerOpen, setTeamManagerOpen] = useState(false);
+  const [gameMode, setGameMode] = useState<string>('race');
 
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
