@@ -129,8 +129,11 @@ const ClassroomView = () => {
   const [editingMission, setEditingMission] = useState(false);
   const [wordDraft, setWordDraft] = useState('');
   const [missionDraft, setMissionDraft] = useState('');
-  const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
+  const [summaryChipOrder, setSummaryChipOrder] = useState<string[]>(['momentum', 'points', 'engagement', 'events', 'staff', 'goal', 'mission', 'word']);
   const [dragChip, setDragChip] = useState<string | null>(null);
+  const [sessionSummaryOpen, setSessionSummaryOpen] = useState(false);
+  const [quickStartOpen, setQuickStartOpen] = useState(false);
+  const [sessionStartTime] = useState(() => Date.now());
   const { pendingAction, pushAction, undoAction, dismissAction } = useUndoAction();
   const handleUndoComplete = async () => {
     const ok = await undoAction();
