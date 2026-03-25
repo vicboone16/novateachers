@@ -69,7 +69,7 @@ export function StaffCoordinationPanel() {
     const ids = staff.map(s => s.user_id);
     if (ids.length > 0) {
       const names = await resolveDisplayNames(ids);
-      setNameMap(names);
+      setNameMap(Object.fromEntries(names));
     }
     setLoading(false);
   }, [agencyId]);

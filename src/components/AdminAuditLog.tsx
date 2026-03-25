@@ -81,7 +81,7 @@ export function AdminAuditLog() {
     const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))] as string[];
     if (userIds.length > 0) {
       const names = await resolveDisplayNames(userIds);
-      setNameMap(names);
+      setNameMap(Object.fromEntries(names));
     }
     setLoading(false);
   }, [agencyId, filter]);
