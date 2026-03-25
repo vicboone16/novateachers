@@ -153,6 +153,8 @@ export default function StudentPortalEnhanced() {
   const toNextCheckpoint = Math.max(0, nextCheckpoint - racePosition);
   const isFinished = racePosition >= TRACK_LENGTH;
   const affordableRewards = rewards.filter(r => balance >= r.point_cost);
+  const xpForNext = LEVEL_THRESHOLDS[currentLevel] || 100;
+  const xpPct = Math.min(100, Math.round((currentXp / xpForNext) * 100));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-accent/5">
