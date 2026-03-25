@@ -71,6 +71,7 @@ const GameBoard = () => {
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
   const { track, allTracks, refetch: refetchTrack } = useGameTrack(activeGroupId);
   const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
+  const { triggerFromEvent, getAnimState } = useAvatarAnimations();
 
   const TRACK_LENGTH = track?.total_steps || 100;
 
