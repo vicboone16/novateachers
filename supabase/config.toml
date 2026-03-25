@@ -39,3 +39,6 @@ verify_jwt = false
 
 [functions.send-mayday-alert]
 verify_jwt = false
+
+[functions.generate-parent-insight]
+verify_jwt = false
