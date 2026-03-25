@@ -74,6 +74,8 @@ const Threads = () => {
   const [activeThread, setActiveThread] = useState<ThreadRow | null>(null);
   const [messages, setMessages] = useState<ThreadMessageRow[]>([]);
   const [reactions, setReactions] = useState<ThreadReactionRow[]>([]);
+  const [readReceipts, setReadReceipts] = useState<Record<string, string>>({}); // threadId -> last_read_at
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({}); // threadId -> count
   const [msgText, setMsgText] = useState('');
   const [sending, setSending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -112,7 +114,7 @@ const Threads = () => {
     init();
   }, [user, agencyId, initialized]);
 
-  // ── Load threads ──
+  // ── Load threads + read receipts ──
   const loadThreads = useCallback(async () => {
     if (!user || !agencyId) return;
     setLoading(true);
@@ -124,7 +126,29 @@ const Threads = () => {
         .eq('is_archived', false)
         .order('last_message_at', { ascending: false });
       if (error) throw error;
-      setThreads((data || []) as ThreadRow[]);
+      const threadList = (data || []) as ThreadRow[];
+      setThreads(threadList);
+
+      // Load read receipts for all threads
+      const { data: receipts } = await cloudSupabase
+        .from('thread_read_receipts')
+        .select('thread_id, last_read_at')
+        .eq('user_id', user.id);
+      const receiptMap: Record<string, string> = {};
+      (receipts || []).forEach((r: any) => { receiptMap[r.thread_id] = r.last_read_at; });
+      setReadReceipts(receiptMap);
+
+      // Compute unread counts
+      const counts: Record<string, number> = {};
+      for (const t of threadList) {
+        const lastRead = receiptMap[t.id];
+        if (!lastRead && t.last_message_at) {
+          counts[t.id] = 1; // At least 1 unread
+        } else if (lastRead && t.last_message_at && new Date(t.last_message_at) > new Date(lastRead)) {
+          counts[t.id] = 1; // Simplified: show dot for any unread
+        }
+      }
+      setUnreadCounts(counts);
     } catch (err: any) {
       console.warn('[Threads] load error:', err);
       setThreads([]);
@@ -198,9 +222,18 @@ const Threads = () => {
     } catch { /* silent */ }
   };
 
-  const openThread = (thread: ThreadRow) => {
+  const openThread = async (thread: ThreadRow) => {
     setActiveThread(thread);
     loadMessages(thread.id);
+    // Mark thread as read
+    if (user) {
+      await cloudSupabase.from('thread_read_receipts').upsert(
+        { thread_id: thread.id, user_id: user.id, last_read_at: new Date().toISOString() },
+        { onConflict: 'thread_id,user_id' }
+      );
+      setUnreadCounts(prev => { const n = { ...prev }; delete n[thread.id]; return n; });
+      setReadReceipts(prev => ({ ...prev, [thread.id]: new Date().toISOString() }));
+    }
   };
 
   // ── Send message ──
@@ -381,13 +414,13 @@ const Threads = () => {
           <div className="py-1">
             {/* Staff Feed section */}
             {staffFeedThreads.length > 0 && (
-              <ThreadGroup label="Staff Feed" threads={staffFeedThreads} onSelect={openThread} activeId={activeThread?.id} />
+              <ThreadGroup label="Staff Feed" threads={staffFeedThreads} onSelect={openThread} activeId={activeThread?.id} unreadCounts={unreadCounts} />
             )}
             {/* Groups / Channels */}
-            <ThreadGroup label="Channels" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} showAddButton onAdd={() => setCreateOpen(true)} />
-            <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} />
+            <ThreadGroup label="Channels" threads={groupThreads} onSelect={openThread} activeId={activeThread?.id} showAddButton onAdd={() => setCreateOpen(true)} unreadCounts={unreadCounts} />
+            <ThreadGroup label="Direct Messages" threads={dmThreads} onSelect={openThread} activeId={activeThread?.id} unreadCounts={unreadCounts} />
             {parentThreads.length > 0 && (
-              <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} />
+              <ThreadGroup label="Parents" threads={parentThreads} onSelect={openThread} activeId={activeThread?.id} unreadCounts={unreadCounts} />
             )}
           </div>
         )}
@@ -619,13 +652,14 @@ const Threads = () => {
 export default Threads;
 
 // ── Thread Group Component ──
-function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd }: {
+function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd, unreadCounts }: {
   label: string;
   threads: ThreadRow[];
   onSelect: (t: ThreadRow) => void;
   activeId?: string;
   showAddButton?: boolean;
   onAdd?: () => void;
+  unreadCounts?: Record<string, number>;
 }) {
   if (threads.length === 0 && !showAddButton) return null;
 
@@ -641,11 +675,13 @@ function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd 
       </div>
       {threads.map(thread => {
         const isActive = thread.id === activeId;
+        const hasUnread = !!(unreadCounts && unreadCounts[thread.id]);
         return (
           <button key={thread.id} onClick={() => onSelect(thread)}
             className={cn(
               'flex items-center gap-2 w-full px-3 py-2 text-left transition-colors text-sm',
-              isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground/80 hover:bg-muted/50'
+              isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground/80 hover:bg-muted/50',
+              hasUnread && !isActive && 'font-semibold'
             )}>
             {thread.is_private ? (
               <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -653,7 +689,10 @@ function ThreadGroup({ label, threads, onSelect, activeId, showAddButton, onAdd 
               <Hash className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             )}
             <span className="flex-1 truncate text-xs">{getThreadDisplayTitle(thread)}</span>
-            {thread.last_message_preview && (
+            {hasUnread && !isActive && (
+              <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+            )}
+            {!hasUnread && thread.last_message_preview && (
               <span className="text-[9px] text-muted-foreground truncate max-w-[60px] hidden sm:inline">
                 {thread.last_message_preview}
               </span>

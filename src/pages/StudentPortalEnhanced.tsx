@@ -7,13 +7,15 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
-import { validateStudentPortalAccess, getStudentGameProfile } from '@/lib/game-data';
+import { validateStudentPortalAccess, getStudentGameProfile, getStudentUnlocks, getStudentStreaks } from '@/lib/game-data';
+import type { StudentUnlock, StudentStreak } from '@/lib/game-types';
+import { LEVEL_THRESHOLDS, levelColor } from '@/lib/level-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper } from 'lucide-react';
+import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
@@ -28,10 +30,13 @@ export default function StudentPortalEnhanced() {
   const [displayName, setDisplayName] = useState('');
   const [avatarEmoji, setAvatarEmoji] = useState('👤');
   const [balance, setBalance] = useState(0);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [currentXp, setCurrentXp] = useState(0);
   const [rewards, setRewards] = useState<RewardItem[]>([]);
   const [missionOfDay, setMissionOfDay] = useState('');
   const [wordOfWeek, setWordOfWeek] = useState('');
   const [streakCount, setStreakCount] = useState(0);
+  const [unlocks, setUnlocks] = useState<Array<{ name: string; emoji: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [codeInput, setCodeInput] = useState('');
@@ -74,19 +79,47 @@ export default function StudentPortalEnhanced() {
 
   const loadStudentData = async (sid: string) => {
     try {
-      const [profileData] = await Promise.all([getStudentGameProfile(sid)]);
-      if (profileData) setAvatarEmoji(profileData.avatar_emoji || '👤');
+      const [profileData, studentUnlocks, studentStreaks] = await Promise.all([
+        getStudentGameProfile(sid),
+        getStudentUnlocks(sid),
+        getStudentStreaks(sid),
+      ]);
+      if (profileData) {
+        setAvatarEmoji(profileData.avatar_emoji || '👤');
+        setCurrentLevel(profileData.current_level || 1);
+        setCurrentXp(profileData.current_xp || 0);
+      }
 
-      const { data: ledger } = await cloudSupabase.from('beacon_points_ledger').select('points').eq('student_id', sid);
-      const total = (ledger || []).reduce((sum: number, r: any) => sum + (r.points || 0), 0);
-      setBalance(total);
+      // Balance from view
+      const { data: balanceData } = await cloudSupabase
+        .from('v_student_points_balance')
+        .select('balance')
+        .eq('student_id', sid)
+        .maybeSingle();
+      setBalance(Number(balanceData?.balance) || 0);
 
-      const { data: rewardData } = await supabase.from('beacon_rewards' as any).select('id, name, image_url, cost').eq('active', true).order('cost');
-      setRewards((rewardData || []).map((r: any) => ({ ...r, emoji: r.image_url || '🎁', point_cost: r.cost })) as any[]);
+      // Rewards from Cloud table
+      const { data: rewardData } = await cloudSupabase
+        .from('beacon_rewards')
+        .select('id, name, emoji, cost')
+        .eq('active', true)
+        .order('cost');
+      setRewards((rewardData || []).map((r: any) => ({ ...r, point_cost: r.cost })) as any[]);
 
-      const { data: streakData } = await supabase.from('student_streaks' as any).select('current_count').eq('student_id', sid).order('current_count', { ascending: false }).limit(1);
-      if (streakData?.length) setStreakCount((streakData[0] as any).current_count || 0);
+      // Streaks
+      if (studentStreaks.length > 0) setStreakCount(studentStreaks[0].current_count || 0);
 
+      // Unlocks — resolve names from catalog
+      if (studentUnlocks.length > 0) {
+        const unlockIds = studentUnlocks.map(u => u.unlock_id);
+        const { data: catalogItems } = await cloudSupabase
+          .from('unlock_catalog')
+          .select('id, name, icon_emoji')
+          .in('id', unlockIds);
+        setUnlocks((catalogItems || []).map((c: any) => ({ name: c.name, emoji: c.icon_emoji })));
+      }
+
+      // Game settings
       const { data: gameSettings } = await supabase.from('classroom_game_settings' as any).select('mission_of_the_day, word_of_the_week').limit(1).maybeSingle();
       if (gameSettings) { setMissionOfDay((gameSettings as any).mission_of_the_day || ''); setWordOfWeek((gameSettings as any).word_of_the_week || ''); }
 
@@ -120,6 +153,8 @@ export default function StudentPortalEnhanced() {
   const toNextCheckpoint = Math.max(0, nextCheckpoint - racePosition);
   const isFinished = racePosition >= TRACK_LENGTH;
   const affordableRewards = rewards.filter(r => balance >= r.point_cost);
+  const xpForNext = LEVEL_THRESHOLDS[currentLevel] || 100;
+  const xpPct = Math.min(100, Math.round((currentXp / xpForNext) * 100));
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-accent/5">
@@ -161,7 +196,38 @@ export default function StudentPortalEnhanced() {
           </CardContent>
         </Card>
 
-        {/* Mission & Word */}
+        {/* Level & XP */}
+        <Card className="border-border/40">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold", levelColor(currentLevel))}>
+                {currentLevel}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold">Level {currentLevel}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Progress value={xpPct} className="h-2 flex-1" />
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{currentXp}/{xpForNext} XP</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Unlocked Badges */}
+        {unlocks.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-bold flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> Badges Earned</h2>
+            <div className="flex flex-wrap gap-2">
+              {unlocks.map((u, i) => (
+                <Badge key={i} variant="outline" className="text-xs gap-1 py-1.5 px-3">
+                  <span>{u.emoji}</span> {u.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {(missionOfDay || wordOfWeek) && (
           <div className="flex gap-3">
             {missionOfDay && <Card className="flex-1 border-border/40"><CardContent className="p-3 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mission</p><p className="text-xs font-semibold mt-1">🎯 {missionOfDay}</p></CardContent></Card>}

@@ -2970,6 +2970,77 @@ export type Database = {
           },
         ]
       }
+      thread_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "thread_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      thread_read_receipts: {
+        Row: {
+          id: string
+          last_read_at: string
+          last_read_message_id: string | null
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_read_at?: string
+          last_read_message_id?: string | null
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_read_at?: string
+          last_read_message_id?: string | null
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_read_receipts_last_read_message_id_fkey"
+            columns: ["last_read_message_id"]
+            isOneToOne: false
+            referencedRelation: "thread_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "thread_read_receipts_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           agency_id: string
