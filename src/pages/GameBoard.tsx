@@ -512,6 +512,16 @@ const GameBoard = () => {
         </Card>
       )}
 
+      {/* Daily Quests */}
+      {activeGroupId && (
+        <DailyQuestPanel
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          showCreateButton
+          compact
+        />
+      )}
+
       {/* Track Selector */}
       <TrackSelector
         tracks={allTracks}
@@ -520,6 +530,22 @@ const GameBoard = () => {
         open={trackSelectorOpen}
         onOpenChange={setTrackSelectorOpen}
       />
+
+      {/* Team Manager */}
+      {activeGroupId && (
+        <TeamManager
+          open={teamManagerOpen}
+          onOpenChange={setTeamManagerOpen}
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          students={students.map(s => ({
+            student_id: s.student_id,
+            name: getDisplayName(s),
+            avatar_emoji: s.avatar_emoji || '👤',
+          }))}
+          onTeamsChanged={loadBoard}
+        />
+      )}
 
       {/* Reset Dialog */}
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
