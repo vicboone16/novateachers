@@ -7,13 +7,15 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
-import { validateStudentPortalAccess, getStudentGameProfile } from '@/lib/game-data';
+import { validateStudentPortalAccess, getStudentGameProfile, getStudentUnlocks, getStudentStreaks } from '@/lib/game-data';
+import type { StudentUnlock, StudentStreak } from '@/lib/game-types';
+import { getLevelThreshold, getLevelColor } from '@/lib/level-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper } from 'lucide-react';
+import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
