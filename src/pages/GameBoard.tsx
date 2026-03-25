@@ -181,7 +181,7 @@ const GameBoard = () => {
       const bals = await getStudentBalances(user.id, sids);
       setLiveBalances(bals);
 
-      const nameMap: Map<string, { first_name: string; last_name: string }> = new Map();
+      const nameMap: Record<string, { first_name: string; last_name: string }> = {};
       try {
         const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
         const aid = (grpData as any)?.agency_id;
@@ -189,7 +189,7 @@ const GameBoard = () => {
           const { data: allClients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').eq('agency_id', aid);
           for (const c of (allClients || []) as any[]) {
             const cid = c.client_id || c.id;
-            if (sids.includes(cid)) nameMap.set(cid, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            if (sids.includes(cid)) nameMap[cid] = { first_name: c.first_name || '', last_name: c.last_name || '' };
           }
         }
       } catch { /* silent */ }
