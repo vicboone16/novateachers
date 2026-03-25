@@ -8,6 +8,7 @@ import { WelcomeModal } from './WelcomeModal';
 import { WalkthroughCarousel } from './WalkthroughCarousel';
 import { FirstActionCelebration } from './FirstActionCelebration';
 import { EndOfDayNudge } from './EndOfDayNudge';
+import { toast } from 'sonner';
 
 export const StaffOnboardingFlow = () => {
   const {
@@ -36,9 +37,12 @@ export const StaffOnboardingFlow = () => {
     dismissWelcome();
   }, [dismissWelcome]);
 
-  const handleDontShowAgain = useCallback(() => {
-    dismissWelcome();
-    completeWalkthrough(); // marks onboarding fully done so it never reappears
+  const handleDontShowAgain = useCallback(async () => {
+    await dismissWelcome();
+    await completeWalkthrough();
+    toast('Got it! You can always ask the Beacon Help Assistant if you need guidance later. 💡', {
+      duration: 5000,
+    });
   }, [dismissWelcome, completeWalkthrough]);
 
   const handleWalkthroughComplete = useCallback(() => {

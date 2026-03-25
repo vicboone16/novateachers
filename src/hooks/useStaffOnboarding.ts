@@ -82,9 +82,10 @@ export const useStaffOnboarding = () => {
         ? Math.max(1, Math.ceil((Date.now() - new Date(row.first_login_at).getTime()) / 86400000))
         : 1;
 
+      const permanentlyDone = (row.welcome_dismissed && row.walkthrough_completed) ?? false;
       setState({
         loading: false,
-        isFirstLogin: !row.welcome_dismissed,
+        isFirstLogin: !row.welcome_dismissed && !row.walkthrough_completed,
         welcomeDismissed: row.welcome_dismissed ?? false,
         walkthroughCompleted: row.walkthrough_completed ?? false,
         firstActionCompleted: row.first_action_completed ?? false,
