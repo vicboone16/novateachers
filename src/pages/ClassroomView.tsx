@@ -828,13 +828,17 @@ const ClassroomView = () => {
 
       {/* ─── STUDENT GRID ─── */}
       {clients.length === 0 ? (
-        <Card className="border-dashed border-2 border-border">
-          <CardContent className="py-12 text-center">
-            <Users className="mx-auto h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">No students in this workspace yet.</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate('/students')}>
-              Manage Students
-            </Button>
+        <Card className="border-dashed border-2 border-border/50 bg-card/50">
+          <CardContent className="py-14 text-center">
+            <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-primary/10 mb-4">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-1">No students yet</p>
+            <p className="text-xs text-muted-foreground mb-4 max-w-[240px] mx-auto">Add students to start tracking behavior, awarding points, and running the game board.</p>
+            <div className="flex gap-2 justify-center">
+              <Button size="sm" variant="outline" onClick={() => navigate('/students')}>Manage Students</Button>
+              <Button size="sm" className="gap-1.5" onClick={() => setQuickStartOpen(true)}><Zap className="h-3.5 w-3.5" /> Quick Start</Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
