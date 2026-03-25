@@ -26,7 +26,7 @@ export const StudentCodeGenerator = ({ studentId, agencyId, studentName }: Props
   const checkExisting = async () => {
     setLoading(true);
     const existing = await getActiveStudentCode(studentId);
-    setCode(existing);
+    setCode(existing as any);
     setChecked(true);
     setLoading(false);
   };
@@ -34,10 +34,10 @@ export const StudentCodeGenerator = ({ studentId, agencyId, studentName }: Props
   const generate = async () => {
     setLoading(true);
     const newCode = await generateStudentLoginCode(studentId, agencyId);
-    setCode(newCode);
+    setCode(newCode as any);
     setLoading(false);
     if (newCode) {
-      toast({ title: 'Code generated', description: `Code: ${newCode.login_code}` });
+      toast({ title: 'Code generated', description: `Code: ${(newCode as any).login_code}` });
     }
   };
 

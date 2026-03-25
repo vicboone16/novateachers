@@ -86,11 +86,11 @@ export default function ClassroomLive() {
     );
   }
 
-  const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
+  const skin = POINT_SKINS[(settings as any)?.point_display_type || 'stars'];
   const totalPoints = students.reduce((sum, s) => sum + (s.points_balance || 0), 0);
 
   const getDisplayName = (s: StudentGameProgress) => {
-    const mode = settings?.privacy_mode || 'first_names';
+    const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
     if (mode === 'initials') return `${(s.first_name || '')[0] || ''}${(s.last_name || '')[0] || ''}`;
     return s.first_name || '';
@@ -107,18 +107,18 @@ export default function ClassroomLive() {
             <p className="text-3xl font-bold tabular-nums">{skin.icon} {totalPoints.toLocaleString()}</p>
             <p className="text-sm text-muted-foreground mt-1">Class Total {skin.plural}</p>
             <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
-              {settings?.mission_of_the_day && (
-                <Badge variant="outline">🎯 {settings.mission_of_the_day}</Badge>
+              {(settings as any)?.mission_of_the_day && (
+                <Badge variant="outline">🎯 {(settings as any).mission_of_the_day}</Badge>
               )}
-              {settings?.word_of_the_week && (
-                <Badge variant="outline">📖 {settings.word_of_the_week}</Badge>
+              {(settings as any)?.word_of_the_week && (
+                <Badge variant="outline">📖 {(settings as any).word_of_the_week}</Badge>
               )}
             </div>
           </CardContent>
         </Card>
 
         {/* Teams */}
-        {settings?.teams_enabled && teams.length > 0 && (
+        {settings?.allow_team_mode && teams.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {teams.map(t => (
               <Card key={t.team_id}>
@@ -173,7 +173,7 @@ export default function ClassroomLive() {
         </Card>
 
         {/* Leaderboard */}
-        {settings?.leaderboard_enabled && (
+        {settings?.show_leaderboard && (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">

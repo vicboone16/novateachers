@@ -283,12 +283,12 @@ const GameBoard = () => {
     finally { setResetting(false); }
   };
 
-  const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
+  const skin = POINT_SKINS[(settings as any)?.point_display_type || 'stars'];
   const totalClassPoints = students.reduce((sum, s) => sum + getEffectiveBalance(s), 0);
   const finishedCount = students.filter(s => getEffectiveBalance(s) >= TRACK_LENGTH).length;
 
   const getDisplayName = (s: StudentGameProgress) => {
-    const mode = settings?.privacy_mode || 'first_names';
+    const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
     const first = s.first_name || '';
     const last = s.last_name || '';
@@ -321,7 +321,7 @@ const GameBoard = () => {
         activeZone: activeZone ? { type: activeZone.type, color: activeZone.color, label: activeZone.label, multiplier: activeZone.multiplier } : null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, getAnimState, studentStatuses, track?.zones]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, (settings as any)?.privacy_mode, getEffect, getAnimState, studentStatuses, track?.zones]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
@@ -414,7 +414,7 @@ const GameBoard = () => {
       </Card>
 
       {/* Team scores */}
-      {settings?.teams_enabled && teams.length > 0 && (
+      {settings?.allow_team_mode && teams.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {teams.map(t => (
             <Card key={t.team_id} className="shrink-0 min-w-[120px] border-border/40">
@@ -462,7 +462,7 @@ const GameBoard = () => {
       </Card>
 
       {/* Standings with momentum indicators */}
-      {settings?.leaderboard_enabled !== false && students.length > 0 && (
+      {settings?.show_leaderboard !== false && students.length > 0 && (
         <Card className="border-border/40 hover-lift">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-4"><Trophy className="h-4 w-4 text-amber-500" /><p className="text-sm font-bold font-heading">Standings</p><Badge variant="outline" className="text-[9px] ml-auto">{students.length} racers</Badge></div>

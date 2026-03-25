@@ -29,19 +29,14 @@ export interface ClassroomGameSettings {
   id: string;
   group_id: string;
   agency_id: string;
-  game_mode_id: string | null;
-  game_theme_id: string | null;
-  teams_enabled: boolean;
-  leaderboard_enabled: boolean;
-  animations_enabled: boolean;
-  student_portal_enabled: boolean;
-  public_link_enabled: boolean;
-  allow_student_mode_override: boolean;
-  shared_board_enabled: boolean;
-  privacy_mode: 'first_names' | 'initials' | 'avatars_only';
-  point_display_type: 'stars' | 'coins' | 'xp' | 'energy';
-  mission_of_the_day: string | null;
-  word_of_the_week: string | null;
+  game_mode: string;
+  mode_id: string | null;
+  theme_id: string | null;
+  track_id: string | null;
+  show_avatars: boolean;
+  show_leaderboard: boolean;
+  allow_team_mode: boolean;
+  total_steps: number;
   created_at: string;
   updated_at: string;
 }

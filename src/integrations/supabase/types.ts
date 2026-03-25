@@ -878,6 +878,33 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_public_links: {
+        Row: {
+          agency_id: string
+          created_at: string
+          group_id: string
+          id: string
+          is_active: boolean
+          slug: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          is_active?: boolean
+          slug: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_active?: boolean
+          slug?: string
+        }
+        Relationships: []
+      }
       classroom_quest_templates: {
         Row: {
           agency_id: string

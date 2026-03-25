@@ -1,102 +1,96 @@
 /**
- * Game layer data access — reads from Cloud tables where available,
- * falls back to Core supabase for game settings/teams/progress views.
+ * Game layer data access — all reads/writes use Lovable Cloud (cloudSupabase).
  */
-import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
-import type {
-  ClassroomGameSettings,
-  ClassroomTeam,
-  StudentGameProgress,
-  TeamScore,
-  StudentGameProfile,
-  StudentLoginCode,
-  ClassroomPublicLink,
-  UnlockCatalogItem,
-  StudentUnlock,
-  StudentStreak,
-  GameMode,
-  GameTheme,
-} from './game-types';
 
 // ── Classroom game settings ──
 
-export async function getClassroomGameSettings(groupId: string): Promise<ClassroomGameSettings | null> {
-  const { data } = await supabase
-    .from('classroom_game_settings' as any)
+export async function getClassroomGameSettings(groupId: string) {
+  const { data } = await cloudSupabase
+    .from('classroom_game_settings')
     .select('*')
     .eq('group_id', groupId)
     .maybeSingle();
-  return data as any;
+  return data;
 }
 
 export async function upsertClassroomGameSettings(
-  settings: Partial<ClassroomGameSettings> & { group_id: string; agency_id: string },
+  settings: Record<string, any> & { group_id: string; agency_id: string },
 ): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('classroom_game_settings' as any)
-    .upsert(settings as any, { onConflict: 'group_id' });
+  // Only send columns that exist in the DB
+  const payload: Record<string, any> = {
+    group_id: settings.group_id,
+    agency_id: settings.agency_id,
+  };
+  if (settings.game_mode !== undefined) payload.game_mode = settings.game_mode;
+  if (settings.mode_id !== undefined) payload.mode_id = settings.mode_id;
+  if (settings.theme_id !== undefined) payload.theme_id = settings.theme_id;
+  if (settings.track_id !== undefined) payload.track_id = settings.track_id;
+  if (settings.show_avatars !== undefined) payload.show_avatars = settings.show_avatars;
+  if (settings.show_leaderboard !== undefined) payload.show_leaderboard = settings.show_leaderboard;
+  if (settings.allow_team_mode !== undefined) payload.allow_team_mode = settings.allow_team_mode;
+  if (settings.total_steps !== undefined) payload.total_steps = settings.total_steps;
+
+  const { error } = await cloudSupabase
+    .from('classroom_game_settings')
+    .upsert(payload as any, { onConflict: 'group_id' });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 // ── Game modes & themes ──
 
-export async function getGameModes(): Promise<GameMode[]> {
-  const { data } = await supabase
-    .from('game_modes' as any)
+export async function getGameModes() {
+  const { data } = await cloudSupabase
+    .from('game_modes')
     .select('*')
-    .eq('is_active', true)
+    .eq('is_preset', true)
     .order('name');
-  return (data || []) as any[];
+  return data || [];
 }
 
-export async function getGameThemes(): Promise<GameTheme[]> {
-  const { data } = await supabase
-    .from('game_themes' as any)
+export async function getGameThemes() {
+  const { data } = await cloudSupabase
+    .from('game_themes')
     .select('*')
-    .eq('is_active', true)
+    .eq('is_preset', true)
     .order('name');
-  return (data || []) as any[];
+  return data || [];
 }
 
 // ── Teams ──
 
-export async function getClassroomTeams(groupId: string): Promise<ClassroomTeam[]> {
-  const { data } = await supabase
-    .from('classroom_teams' as any)
+export async function getClassroomTeams(groupId: string) {
+  const { data } = await cloudSupabase
+    .from('classroom_teams')
     .select('*')
     .eq('group_id', groupId)
     .order('team_name');
-  return (data || []) as any[];
+  return data || [];
 }
 
-export async function createTeam(team: Partial<ClassroomTeam>): Promise<ClassroomTeam | null> {
-  const { data } = await supabase
-    .from('classroom_teams' as any)
+export async function createTeam(team: {
+  group_id: string;
+  team_name: string;
+  team_color: string;
+  team_icon: string;
+  agency_id?: string;
+}) {
+  const { data } = await cloudSupabase
+    .from('classroom_teams')
     .insert(team as any)
     .select()
     .single();
-  return data as any;
+  return data;
 }
 
-export async function deleteTeam(teamId: string): Promise<void> {
-  await supabase.from('classroom_teams' as any).delete().eq('id', teamId);
-}
-
-export async function assignStudentToTeam(studentId: string, teamId: string, groupId: string): Promise<void> {
-  await supabase
-    .from('student_team_assignments' as any)
-    .upsert({ student_id: studentId, team_id: teamId, group_id: groupId } as any, {
-      onConflict: 'student_id,group_id',
-    });
+export async function deleteTeam(teamId: string) {
+  await cloudSupabase.from('classroom_teams').delete().eq('id', teamId);
 }
 
 // ── Student game progress (view) ──
 
-export async function getClassroomGameProgress(groupId: string): Promise<StudentGameProgress[]> {
-  // The view v_classroom_student_game_progress may not exist on Cloud;
-  // try Cloud first, fall back to empty (GameBoard has its own fallback loader)
+export async function getClassroomGameProgress(groupId: string) {
   try {
     const { data, error } = await cloudSupabase
       .from('v_classroom_student_game_progress' as any)
@@ -110,46 +104,40 @@ export async function getClassroomGameProgress(groupId: string): Promise<Student
   }
 }
 
-export async function getTeamScores(groupId: string): Promise<TeamScore[]> {
-  // Use cloud client — the view lives in the Cloud DB
+export async function getTeamScores(groupId: string) {
   const { data } = await cloudSupabase
     .from('v_classroom_team_scores')
     .select('*')
     .eq('group_id', groupId)
     .order('total_points', { ascending: false });
-  return (data || []) as any[];
+  return data || [];
 }
 
 // ── Student game profiles ──
 
-export async function getStudentGameProfile(studentId: string): Promise<StudentGameProfile | null> {
+export async function getStudentGameProfile(studentId: string) {
   const { data } = await cloudSupabase
     .from('student_game_profiles')
     .select('*')
     .eq('student_id', studentId)
     .maybeSingle();
-  return data as any;
+  return data;
 }
 
 // ── Student login codes ──
 
-export async function generateStudentLoginCode(
-  studentId: string,
-  agencyId: string,
-): Promise<StudentLoginCode | null> {
-  // Generate a 4-digit numeric code
+export async function generateStudentLoginCode(studentId: string, agencyId: string) {
   const code = String(Math.floor(1000 + Math.random() * 9000));
   const expiresAt = new Date();
-  expiresAt.setHours(23, 59, 59, 999); // expires end of day
+  expiresAt.setHours(23, 59, 59, 999);
 
-  // Deactivate existing codes
-  await supabase
+  await cloudSupabase
     .from('student_login_codes' as any)
     .update({ is_active: false } as any)
     .eq('student_id', studentId)
     .eq('is_active', true);
 
-  const { data } = await supabase
+  const { data } = await cloudSupabase
     .from('student_login_codes' as any)
     .insert({
       student_id: studentId,
@@ -160,24 +148,24 @@ export async function generateStudentLoginCode(
     } as any)
     .select()
     .single();
-  return data as any;
+  return data;
 }
 
-export async function getActiveStudentCode(studentId: string): Promise<StudentLoginCode | null> {
-  const { data } = await supabase
+export async function getActiveStudentCode(studentId: string) {
+  const { data } = await cloudSupabase
     .from('student_login_codes' as any)
     .select('*')
     .eq('student_id', studentId)
     .eq('is_active', true)
     .gte('expires_at', new Date().toISOString())
     .maybeSingle();
-  return data as any;
+  return data;
 }
 
 // ── Public links ──
 
-export async function getClassroomPublicLink(groupId: string): Promise<ClassroomPublicLink | null> {
-  const { data } = await supabase
+export async function getClassroomPublicLink(groupId: string) {
+  const { data } = await cloudSupabase
     .from('classroom_public_links' as any)
     .select('*')
     .eq('group_id', groupId)
@@ -186,18 +174,14 @@ export async function getClassroomPublicLink(groupId: string): Promise<Classroom
   return data as any;
 }
 
-export async function generatePublicLink(
-  groupId: string,
-  agencyId: string,
-): Promise<ClassroomPublicLink | null> {
+export async function generatePublicLink(groupId: string, agencyId: string) {
   const slug = `class-${groupId.slice(0, 8)}-${Date.now().toString(36)}`;
-  // Deactivate existing
-  await supabase
+  await cloudSupabase
     .from('classroom_public_links' as any)
     .update({ is_active: false } as any)
     .eq('group_id', groupId);
 
-  const { data } = await supabase
+  const { data } = await cloudSupabase
     .from('classroom_public_links' as any)
     .insert({ group_id: groupId, agency_id: agencyId, slug, is_active: true } as any)
     .select()
@@ -207,32 +191,32 @@ export async function generatePublicLink(
 
 // ── Unlocks ──
 
-export async function getUnlockCatalog(agencyId?: string): Promise<UnlockCatalogItem[]> {
+export async function getUnlockCatalog(agencyId?: string) {
   let q = cloudSupabase.from('unlock_catalog').select('*').eq('is_active', true);
   if (agencyId) {
     q = q.or(`agency_id.is.null,agency_id.eq.${agencyId}`);
   }
   const { data } = await q.order('points_required');
-  return (data || []) as any[];
+  return data || [];
 }
 
-export async function getStudentUnlocks(studentId: string): Promise<StudentUnlock[]> {
+export async function getStudentUnlocks(studentId: string) {
   const { data } = await cloudSupabase
     .from('student_unlocks')
     .select('*')
     .eq('student_id', studentId);
-  return (data || []) as any[];
+  return data || [];
 }
 
 // ── Streaks ──
 
-export async function getStudentStreaks(studentId: string): Promise<StudentStreak[]> {
+export async function getStudentStreaks(studentId: string) {
   const { data } = await cloudSupabase
     .from('student_streaks')
     .select('*')
     .eq('student_id', studentId)
     .order('current_count', { ascending: false });
-  return (data || []) as any[];
+  return data || [];
 }
 
 // ── Portal access validation ──
@@ -242,8 +226,7 @@ export async function validateStudentPortalAccess(code: string): Promise<{
   studentId?: string;
   accountId?: string;
 }> {
-  // Try login code first
-  const { data: loginCode } = await supabase
+  const { data: loginCode } = await cloudSupabase
     .from('student_login_codes' as any)
     .select('student_id')
     .eq('login_code', code)
@@ -255,8 +238,7 @@ export async function validateStudentPortalAccess(code: string): Promise<{
     return { valid: true, studentId: (loginCode as any).student_id };
   }
 
-  // Try portal token
-  const { data: token } = await supabase
+  const { data: token } = await cloudSupabase
     .from('student_portal_tokens' as any)
     .select('account_id')
     .eq('token', code)
