@@ -52,6 +52,8 @@ import AvatarUnlocks from "@/pages/AvatarUnlocks";
 import PointRulesManager from "@/pages/PointRulesManager";
 import FeatureTour from "@/pages/FeatureTour";
 import FAQTutorial from "@/pages/FAQTutorial";
+import LaunchReadiness from "@/pages/LaunchReadiness";
+import ParentView from "@/pages/ParentView";
 
 const queryClient = new QueryClient();
 
@@ -130,6 +132,7 @@ const WorkspaceRoutes = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/point-rules" element={<PointRulesManager />} />
+        <Route path="/launch-readiness" element={<LaunchReadiness />} />
         <Route path="/diagnostics" element={<CoreDiagnostics />} />
         <Route path="/notifications" element={<NotificationSettings />} />
         <Route path="/install" element={<InstallApp />} />
@@ -160,6 +163,7 @@ const App = () => (
             <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
             <Route path="/tour" element={<FeatureTour />} />
             <Route path="/faq" element={<FAQTutorial />} />
+            <Route path="/parent-view" element={<ParentView />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>

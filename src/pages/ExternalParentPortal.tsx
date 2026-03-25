@@ -1,19 +1,25 @@
 /**
  * ExternalParentPortal — Public parent-facing page accessed via /external/parent/:token.
- * Shows: child name, points, safe feed, rewards progress, recent redemptions.
+ * Shows: child name, points, safe feed, rewards progress, recent redemptions,
+ * parent insights, parent actions, and quests.
  * No clinical or negative content.
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { ParentInsightCards } from '@/components/ParentInsightCards';
+import { ParentActionButtons } from '@/components/ParentActionButtons';
+import { StudentQuestCards } from '@/components/StudentQuestCards';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Star, Gift, Sparkles, Heart, AlertTriangle, Loader2 } from 'lucide-react';
+import { Star, Gift, Sparkles, Heart, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface PortalData {
+  studentId: string;
+  agencyId: string;
   studentName: string;
   avatarEmoji: string;
   pointsBalance: number;
@@ -116,7 +122,7 @@ export default function ExternalParentPortal() {
         }
       } catch {}
 
-      setData({ studentName, avatarEmoji, pointsBalance, rewardsProgress, feedPosts, redemptions });
+      setData({ studentId: studentId, agencyId: link.agency_id || '', studentName, avatarEmoji, pointsBalance, rewardsProgress, feedPosts, redemptions });
     } catch (err: any) {
       setError(err.message || 'Could not load portal.');
     }
@@ -232,6 +238,27 @@ export default function ExternalParentPortal() {
             ))}
           </div>
         )}
+
+        {/* Parent Insights */}
+        <ParentInsightCards studentId={data.studentId} agencyId={data.agencyId} />
+
+        {/* Quests */}
+        <StudentQuestCards studentId={data.studentId} agencyId={data.agencyId} />
+
+        {/* Parent Actions */}
+        <ParentActionButtons studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
+
+        {/* Funnel CTA */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 text-center space-y-2">
+            <Sparkles className="h-5 w-5 text-primary mx-auto" />
+            <p className="text-sm font-semibold">Want more updates?</p>
+            <p className="text-xs text-muted-foreground">Get full access to insights, messaging, and progress.</p>
+            <Button size="sm" className="gap-1.5" onClick={() => window.location.href = '/'}>
+              Continue in Parent App <ArrowRight className="h-3 w-3" />
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground pt-4">

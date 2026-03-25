@@ -878,6 +878,57 @@ export type Database = {
         }
         Relationships: []
       }
+      classroom_quest_templates: {
+        Row: {
+          agency_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          group_id: string | null
+          id: string
+          is_active: boolean | null
+          quest_category: string | null
+          quest_type: string
+          reward_points: number | null
+          reward_unlock_id: string | null
+          target_value: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          quest_category?: string | null
+          quest_type?: string
+          reward_points?: number | null
+          reward_unlock_id?: string | null
+          target_value?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          quest_category?: string | null
+          quest_type?: string
+          reward_points?: number | null
+          reward_unlock_id?: string | null
+          target_value?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       classroom_settings: {
         Row: {
           agency_id: string
@@ -1001,6 +1052,54 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
         ]
+      }
+      cosmetic_catalog: {
+        Row: {
+          agency_id: string | null
+          category: string
+          created_at: string | null
+          description: string | null
+          icon_emoji: string | null
+          id: string
+          is_active: boolean | null
+          item_key: string
+          name: string
+          preview_url: string | null
+          rarity: string | null
+          unlock_method: string | null
+          unlock_threshold: number | null
+        }
+        Insert: {
+          agency_id?: string | null
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          icon_emoji?: string | null
+          id?: string
+          is_active?: boolean | null
+          item_key: string
+          name: string
+          preview_url?: string | null
+          rarity?: string | null
+          unlock_method?: string | null
+          unlock_threshold?: number | null
+        }
+        Update: {
+          agency_id?: string | null
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          icon_emoji?: string | null
+          id?: string
+          is_active?: boolean | null
+          item_key?: string
+          name?: string
+          preview_url?: string | null
+          rarity?: string | null
+          unlock_method?: string | null
+          unlock_threshold?: number | null
+        }
+        Relationships: []
       }
       daily_quest_progress: {
         Row: {
@@ -1507,6 +1606,45 @@ export type Database = {
         }
         Relationships: []
       }
+      home_reinforcement_log: {
+        Row: {
+          activity: string
+          agency_id: string
+          bonus_points_awarded: number | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          parent_name: string | null
+          parent_user_id: string | null
+          staff_acknowledged: boolean | null
+          student_id: string
+        }
+        Insert: {
+          activity: string
+          agency_id: string
+          bonus_points_awarded?: number | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          parent_name?: string | null
+          parent_user_id?: string | null
+          staff_acknowledged?: boolean | null
+          student_id: string
+        }
+        Update: {
+          activity?: string
+          agency_id?: string
+          bonus_points_awarded?: number | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          parent_name?: string | null
+          parent_user_id?: string | null
+          staff_acknowledged?: boolean | null
+          student_id?: string
+        }
+        Relationships: []
+      }
       iep_documents: {
         Row: {
           agency_id: string
@@ -1786,6 +1924,51 @@ export type Database = {
           role_slug?: string
           target_email?: string | null
           uses_count?: number
+        }
+        Relationships: []
+      }
+      launch_readiness_checks: {
+        Row: {
+          agency_id: string
+          category: string
+          check_key: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_complete: boolean | null
+          label: string
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          agency_id: string
+          category: string
+          check_key: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_complete?: boolean | null
+          label: string
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          agency_id?: string
+          category?: string
+          check_key?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_complete?: boolean | null
+          label?: string
+          updated_at?: string | null
+          weight?: number | null
         }
         Relationships: []
       }
@@ -2077,6 +2260,123 @@ export type Database = {
             referencedColumns: ["default_schedule_id"]
           },
         ]
+      }
+      parent_access_links: {
+        Row: {
+          agency_id: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          student_id: string
+          token: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          student_id: string
+          token: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          student_id?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      parent_actions: {
+        Row: {
+          action_type: string
+          agency_id: string
+          created_at: string | null
+          id: string
+          message: string | null
+          parent_name: string | null
+          parent_user_id: string | null
+          staff_viewed: boolean | null
+          staff_viewed_at: string | null
+          student_id: string
+        }
+        Insert: {
+          action_type: string
+          agency_id: string
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          parent_name?: string | null
+          parent_user_id?: string | null
+          staff_viewed?: boolean | null
+          staff_viewed_at?: string | null
+          student_id: string
+        }
+        Update: {
+          action_type?: string
+          agency_id?: string
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          parent_name?: string | null
+          parent_user_id?: string | null
+          staff_viewed?: boolean | null
+          staff_viewed_at?: string | null
+          student_id?: string
+        }
+        Relationships: []
+      }
+      parent_insights: {
+        Row: {
+          agency_id: string
+          body: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          insight_type: string
+          is_read: boolean | null
+          source: string | null
+          student_id: string
+          title: string
+          tone: string | null
+        }
+        Insert: {
+          agency_id: string
+          body: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          insight_type?: string
+          is_read?: boolean | null
+          source?: string | null
+          student_id: string
+          title: string
+          tone?: string | null
+        }
+        Update: {
+          agency_id?: string
+          body?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          insight_type?: string
+          is_read?: boolean | null
+          source?: string | null
+          student_id?: string
+          title?: string
+          tone?: string | null
+        }
+        Relationships: []
       }
       pending_student_changes: {
         Row: {
@@ -2615,6 +2915,70 @@ export type Database = {
         }
         Relationships: []
       }
+      student_cosmetic_loadout: {
+        Row: {
+          cosmetic_id: string
+          equipped_at: string | null
+          id: string
+          slot: string
+          student_id: string
+        }
+        Insert: {
+          cosmetic_id: string
+          equipped_at?: string | null
+          id?: string
+          slot?: string
+          student_id: string
+        }
+        Update: {
+          cosmetic_id?: string
+          equipped_at?: string | null
+          id?: string
+          slot?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_cosmetic_loadout_cosmetic_id_fkey"
+            columns: ["cosmetic_id"]
+            isOneToOne: false
+            referencedRelation: "cosmetic_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_cosmetic_unlocks: {
+        Row: {
+          cosmetic_id: string
+          id: string
+          student_id: string
+          unlock_source: string | null
+          unlocked_at: string | null
+        }
+        Insert: {
+          cosmetic_id: string
+          id?: string
+          student_id: string
+          unlock_source?: string | null
+          unlocked_at?: string | null
+        }
+        Update: {
+          cosmetic_id?: string
+          id?: string
+          student_id?: string
+          unlock_source?: string | null
+          unlocked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_cosmetic_unlocks_cosmetic_id_fkey"
+            columns: ["cosmetic_id"]
+            isOneToOne: false
+            referencedRelation: "cosmetic_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_game_profiles: {
         Row: {
           agency_id: string
@@ -2654,6 +3018,45 @@ export type Database = {
           portal_enabled?: boolean
           student_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      student_parent_links: {
+        Row: {
+          agency_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          parent_email: string | null
+          parent_name: string | null
+          parent_phone: string | null
+          parent_user_id: string | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          parent_email?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          parent_user_id?: string | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          parent_email?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
+          parent_user_id?: string | null
+          student_id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -2698,6 +3101,77 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      student_quests: {
+        Row: {
+          agency_id: string
+          completed_at: string | null
+          created_at: string | null
+          current_value: number | null
+          description: string | null
+          expires_at: string | null
+          group_id: string | null
+          id: string
+          quest_category: string | null
+          quest_type: string
+          reward_points: number | null
+          reward_unlock_id: string | null
+          status: string | null
+          student_id: string
+          target_value: number | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          agency_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          expires_at?: string | null
+          group_id?: string | null
+          id?: string
+          quest_category?: string | null
+          quest_type?: string
+          reward_points?: number | null
+          reward_unlock_id?: string | null
+          status?: string | null
+          student_id: string
+          target_value?: number | null
+          template_id?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          agency_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          current_value?: number | null
+          description?: string | null
+          expires_at?: string | null
+          group_id?: string | null
+          id?: string
+          quest_category?: string | null
+          quest_type?: string
+          reward_points?: number | null
+          reward_unlock_id?: string | null
+          status?: string | null
+          student_id?: string
+          target_value?: number | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_quests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_quest_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_reinforcement_profiles: {
         Row: {
@@ -4310,6 +4784,17 @@ export type Database = {
           last_activity: string | null
           total_items_touched: number | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_launch_readiness_score: {
+        Row: {
+          agency_id: string | null
+          completed_checks: number | null
+          completed_weight: number | null
+          score: number | null
+          total_checks: number | null
+          total_weight: number | null
         }
         Relationships: []
       }
