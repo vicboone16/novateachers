@@ -2794,6 +2794,7 @@ export type Database = {
       }
       staff_onboarding: {
         Row: {
+          agency_id: string | null
           created_at: string | null
           first_action_at: string | null
           first_action_completed: boolean | null
@@ -2801,12 +2802,15 @@ export type Database = {
           id: string
           last_active_at: string | null
           last_milestone_shown: string | null
+          onboarding_day: number | null
+          total_actions: number | null
           updated_at: string
           user_id: string
           walkthrough_completed: boolean | null
           welcome_dismissed: boolean
         }
         Insert: {
+          agency_id?: string | null
           created_at?: string | null
           first_action_at?: string | null
           first_action_completed?: boolean | null
@@ -2814,12 +2818,15 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           last_milestone_shown?: string | null
+          onboarding_day?: number | null
+          total_actions?: number | null
           updated_at?: string
           user_id: string
           walkthrough_completed?: boolean | null
           welcome_dismissed?: boolean
         }
         Update: {
+          agency_id?: string | null
           created_at?: string | null
           first_action_at?: string | null
           first_action_completed?: boolean | null
@@ -2827,6 +2834,8 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           last_milestone_shown?: string | null
+          onboarding_day?: number | null
+          total_actions?: number | null
           updated_at?: string
           user_id?: string
           walkthrough_completed?: boolean | null
