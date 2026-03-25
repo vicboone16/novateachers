@@ -27,9 +27,12 @@ export async function invokeCloudFunction<T = any>(
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token || CLOUD_ANON_KEY}`,
       'apikey': CLOUD_ANON_KEY,
     };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
     const res = await fetch(`${CLOUD_URL}/functions/v1/${functionName}`, {
       method: 'POST',
