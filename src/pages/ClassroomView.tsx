@@ -534,7 +534,7 @@ const ClassroomView = () => {
       await writeWithRetry('teacher_frequency_entries', {
         agency_id: effectiveAgencyId,
         client_id: clientId,
-        user_id: user.id,
+        staff_id: user.id,
         behavior_name: behaviorName,
         count: 1,
         logged_date: today,
