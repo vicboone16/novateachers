@@ -86,7 +86,7 @@ export default function ClassroomLive() {
     );
   }
 
-  const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
+  const skin = POINT_SKINS[(settings as any)?.point_display_type || 'stars'];
   const totalPoints = students.reduce((sum, s) => sum + (s.points_balance || 0), 0);
 
   const getDisplayName = (s: StudentGameProgress) => {
