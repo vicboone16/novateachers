@@ -48,7 +48,8 @@ export default function StudentPortalEnhanced() {
   const [error, setError] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [needsCode, setNeedsCode] = useState(false);
-  const [avatarState, setAvatarState] = useState<'idle' | 'boost'>('idle');
+  const [avatarState, setAvatarState] = useState<AvatarAnimState>('idle');
+  const { getEffect } = useGameEvents({ classroomId: groupId, agencyId: agencyId || undefined, enabled: !!studentId });
 
   useEffect(() => {
     if (token) loadPortalByToken(token);
