@@ -1,8 +1,9 @@
 /**
- * Game layer data access — reads from Core-owned Phase 5 tables.
- * All queries go through the Core supabase client.
+ * Game layer data access — reads from Cloud tables where available,
+ * falls back to Core supabase for game settings/teams/progress views.
  */
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import type {
   ClassroomGameSettings,
   ClassroomTeam,
@@ -114,8 +115,8 @@ export async function getTeamScores(groupId: string): Promise<TeamScore[]> {
 // ── Student game profiles ──
 
 export async function getStudentGameProfile(studentId: string): Promise<StudentGameProfile | null> {
-  const { data } = await supabase
-    .from('student_game_profiles' as any)
+  const { data } = await cloudSupabase
+    .from('student_game_profiles')
     .select('*')
     .eq('student_id', studentId)
     .maybeSingle();
@@ -199,7 +200,7 @@ export async function generatePublicLink(
 // ── Unlocks ──
 
 export async function getUnlockCatalog(agencyId?: string): Promise<UnlockCatalogItem[]> {
-  let q = supabase.from('unlock_catalog' as any).select('*').eq('is_active', true);
+  let q = cloudSupabase.from('unlock_catalog').select('*').eq('is_active', true);
   if (agencyId) {
     q = q.or(`agency_id.is.null,agency_id.eq.${agencyId}`);
   }
@@ -208,8 +209,8 @@ export async function getUnlockCatalog(agencyId?: string): Promise<UnlockCatalog
 }
 
 export async function getStudentUnlocks(studentId: string): Promise<StudentUnlock[]> {
-  const { data } = await supabase
-    .from('student_unlocks' as any)
+  const { data } = await cloudSupabase
+    .from('student_unlocks')
     .select('*')
     .eq('student_id', studentId);
   return (data || []) as any[];
@@ -218,8 +219,8 @@ export async function getStudentUnlocks(studentId: string): Promise<StudentUnloc
 // ── Streaks ──
 
 export async function getStudentStreaks(studentId: string): Promise<StudentStreak[]> {
-  const { data } = await supabase
-    .from('student_streaks' as any)
+  const { data } = await cloudSupabase
+    .from('student_streaks')
     .select('*')
     .eq('student_id', studentId)
     .order('current_count', { ascending: false });
