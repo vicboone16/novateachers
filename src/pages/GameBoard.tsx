@@ -255,6 +255,9 @@ const GameBoard = () => {
           }
           return bals;
         });
+        // Trigger avatar animation on point change
+        const pts = payload.new?.points || 0;
+        triggerFromEvent(sid, pts > 0 ? 'points_awarded' : 'points_deducted');
         setFlash(sid);
         setTimeout(() => setFlash(null), 1500);
       }
