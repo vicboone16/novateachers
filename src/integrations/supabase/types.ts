@@ -708,6 +708,56 @@ export type Database = {
           },
         ]
       }
+      classroom_game_settings: {
+        Row: {
+          agency_id: string
+          allow_team_mode: boolean
+          created_at: string
+          game_mode: string
+          group_id: string
+          id: string
+          show_avatars: boolean
+          show_leaderboard: boolean
+          total_steps: number
+          track_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          allow_team_mode?: boolean
+          created_at?: string
+          game_mode?: string
+          group_id: string
+          id?: string
+          show_avatars?: boolean
+          show_leaderboard?: boolean
+          total_steps?: number
+          track_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          allow_team_mode?: boolean
+          created_at?: string
+          game_mode?: string
+          group_id?: string
+          id?: string
+          show_avatars?: boolean
+          show_leaderboard?: boolean
+          total_steps?: number
+          track_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_game_settings_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "game_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_group_students: {
         Row: {
           agency_id: string | null
@@ -935,6 +985,48 @@ export type Database = {
           scope_type?: string
           start_time?: string | null
           timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      game_tracks: {
+        Row: {
+          agency_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_preset: boolean
+          name: string
+          nodes_json: Json
+          theme_slug: string | null
+          total_steps: number
+          updated_at: string
+        }
+        Insert: {
+          agency_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_preset?: boolean
+          name: string
+          nodes_json?: Json
+          theme_slug?: string | null
+          total_steps?: number
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_preset?: boolean
+          name?: string
+          nodes_json?: Json
+          theme_slug?: string | null
+          total_steps?: number
           updated_at?: string
         }
         Relationships: []
