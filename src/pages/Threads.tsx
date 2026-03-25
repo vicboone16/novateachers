@@ -114,7 +114,7 @@ const Threads = () => {
     init();
   }, [user, agencyId, initialized]);
 
-  // ── Load threads ──
+  // ── Load threads + read receipts ──
   const loadThreads = useCallback(async () => {
     if (!user || !agencyId) return;
     setLoading(true);
@@ -126,7 +126,29 @@ const Threads = () => {
         .eq('is_archived', false)
         .order('last_message_at', { ascending: false });
       if (error) throw error;
-      setThreads((data || []) as ThreadRow[]);
+      const threadList = (data || []) as ThreadRow[];
+      setThreads(threadList);
+
+      // Load read receipts for all threads
+      const { data: receipts } = await cloudSupabase
+        .from('thread_read_receipts')
+        .select('thread_id, last_read_at')
+        .eq('user_id', user.id);
+      const receiptMap: Record<string, string> = {};
+      (receipts || []).forEach((r: any) => { receiptMap[r.thread_id] = r.last_read_at; });
+      setReadReceipts(receiptMap);
+
+      // Compute unread counts
+      const counts: Record<string, number> = {};
+      for (const t of threadList) {
+        const lastRead = receiptMap[t.id];
+        if (!lastRead && t.last_message_at) {
+          counts[t.id] = 1; // At least 1 unread
+        } else if (lastRead && t.last_message_at && new Date(t.last_message_at) > new Date(lastRead)) {
+          counts[t.id] = 1; // Simplified: show dot for any unread
+        }
+      }
+      setUnreadCounts(counts);
     } catch (err: any) {
       console.warn('[Threads] load error:', err);
       setThreads([]);
