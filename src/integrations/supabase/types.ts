@@ -783,22 +783,28 @@ export type Database = {
           agency_id: string | null
           client_id: string
           created_at: string
+          first_name: string | null
           group_id: string
           id: string
+          last_name: string | null
         }
         Insert: {
           agency_id?: string | null
           client_id: string
           created_at?: string
+          first_name?: string | null
           group_id: string
           id?: string
+          last_name?: string | null
         }
         Update: {
           agency_id?: string | null
           client_id?: string
           created_at?: string
+          first_name?: string | null
           group_id?: string
           id?: string
+          last_name?: string | null
         }
         Relationships: [
           {
