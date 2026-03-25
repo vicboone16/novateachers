@@ -204,6 +204,9 @@ export default function StudentPortalEnhanced() {
           </div>
         </div>
 
+        {/* Journey Narrative */}
+        <StudentNarrativeCard studentId={studentId!} agencyId={agencyId || undefined} variant="student" />
+
         {/* Balance */}
         <Card className="overflow-hidden border-0 shadow-lg">
           <CardContent className="p-6 text-center bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
