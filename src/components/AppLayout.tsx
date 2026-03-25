@@ -137,6 +137,15 @@ export const AppLayout = () => {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => navigate('/faq')}
+              title="Help Center"
+              className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => navigate('/settings')}
               title="Settings"
               className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9"
