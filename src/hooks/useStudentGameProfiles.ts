@@ -52,10 +52,11 @@ export function useStudentGameProfiles(studentIds: string[]) {
 
       // Auto-seed missing profiles
       const missing = studentIds.filter(id => !existingIds.has(id));
-      if (missing.length > 0) {
+      if (missing.length > 0 && agencyId) {
         const avatars = ['🐱','🐶','🦊','🐻','🐼','🐨','🐯','🦁','🐸','🐵','🐙','🦄','🐲','🐬','🦋','🐢'];
         const seeds = missing.map((id, i) => ({
           student_id: id,
+          agency_id: agencyId,
           avatar_emoji: avatars[i % avatars.length],
           current_level: 1,
           current_xp: 0,
