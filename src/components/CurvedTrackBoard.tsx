@@ -20,6 +20,7 @@ interface StudentPosition {
   isFlashing: boolean;
   teamColor?: string | null;
   activeEffect?: AnimationEffect | null;
+  avatarAnimState?: AvatarAnimState;
   hasComeback?: boolean;
   streakEmoji?: string | null;
 }
