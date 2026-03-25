@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,12 +6,31 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Auth validation
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const _authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: _claims, error: _authError } = await _authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+    if (_authError || !_claims?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const PINGRAM_API_KEY = Deno.env.get("PINGRAM_API_KEY");
     if (!PINGRAM_API_KEY) {
       throw new Error("PINGRAM_API_KEY is not configured");
@@ -49,7 +68,6 @@ serve(async (req) => {
     let smsSent = 0;
     const errors: string[] = [];
 
-    // Send emails via Pingram
     if (recipient_emails?.length > 0) {
       for (const email of recipient_emails) {
         try {
@@ -61,17 +79,9 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               type: "mayday_alert_email",
-              to: {
-                id: email,
-                email: email,
-              },
+              to: { id: email, email: email },
               forceChannels: ["EMAIL"],
-              email: {
-                subject,
-                html: htmlBody,
-                senderName: "Beacon Alerts",
-                senderEmail: "noreply@novabehavior.com",
-              },
+              email: { subject, html: htmlBody, senderName: "Beacon Alerts", senderEmail: "noreply@novabehavior.com" },
             }),
           });
           if (res.ok) emailsSent++;
@@ -85,7 +95,6 @@ serve(async (req) => {
       }
     }
 
-    // Send SMS via Pingram
     if (recipient_phones?.length > 0) {
       for (const phone of recipient_phones) {
         try {
@@ -97,14 +106,9 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               type: "mayday_alert_sms",
-              to: {
-                id: phone,
-                number: phone,
-              },
+              to: { id: phone, number: phone },
               forceChannels: ["SMS"],
-              sms: {
-                message: smsBody.slice(0, 1600),
-              },
+              sms: { message: smsBody.slice(0, 1600) },
             }),
           });
           if (res.ok) smsSent++;

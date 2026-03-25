@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -6,43 +5,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Auth validation
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const _authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: _claims, error: _authError } = await _authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+    if (_authError || !_claims?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { client_id, client_name, agency_id, fba_content } = await req.json();
     if (!client_id || !agency_id) throw new Error("client_id and agency_id required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const authHeader = req.headers.get("Authorization");
     const CORE_URL = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
     const CORE_KEY = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "";
     const supabase = createClient(CORE_URL, CORE_KEY, {
-      global: { headers: { Authorization: authHeader || "" } },
+      global: { headers: { Authorization: authHeader } },
     });
 
-    // Fetch recent data for context
-    const { data: logs } = await supabase
-      .from("abc_logs")
-      .select("*")
-      .eq("client_id", client_id)
-      .order("logged_at", { ascending: false })
-      .limit(200);
-
-    const { data: freq } = await supabase
-      .from("teacher_frequency_entries")
-      .select("*")
-      .eq("client_id", client_id)
-      .eq("agency_id", agency_id)
-      .order("logged_date", { ascending: false })
-      .limit(100);
-
-    const { data: categories } = await supabase
-      .from("behavior_categories")
-      .select("*")
-      .eq("client_id", client_id);
+    const { data: logs } = await supabase.from("abc_logs").select("*").eq("client_id", client_id).order("logged_at", { ascending: false }).limit(200);
+    const { data: freq } = await supabase.from("teacher_frequency_entries").select("*").eq("client_id", client_id).eq("agency_id", agency_id).order("logged_date", { ascending: false }).limit(100);
+    const { data: categories } = await supabase.from("behavior_categories").select("*").eq("client_id", client_id);
 
     const dataContext = JSON.stringify({
       abc_logs: (logs || []).slice(0, 100),
@@ -70,21 +70,14 @@ Structure the BIP with these sections:
 
 Use professional clinical language. Provide specific, actionable strategies. Base recommendations on the actual data patterns.`;
 
-    let userContent = `Generate a BIP for student "${client_name || "Student"}".
-
-Here is the collected behavioral data:
-${dataContext}`;
-
+    let userContent = `Generate a BIP for student "${client_name || "Student"}".\n\nHere is the collected behavioral data:\n${dataContext}`;
     if (fba_content) {
       userContent += `\n\nHere is the completed FBA for this student:\n${fba_content.slice(0, 8000)}`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
@@ -95,16 +88,8 @@ ${dataContext}`;
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Usage limit reached. Please add credits." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 402) return new Response(JSON.stringify({ error: "Usage limit reached. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error("AI generation failed");
     }
 
