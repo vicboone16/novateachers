@@ -69,6 +69,8 @@ interface EngagementData { total: number; engaged: number }
 interface StudentPresenceMap { [studentId: string]: StudentPresenceData }
 interface ResponseCostMap { [studentId: string]: boolean }
 interface StudentTargetMap { [studentId: string]: { id: string; name: string; icon: string | null; points: number; target_type: string }[] }
+interface StudentBehaviorRule { behavior_name: string; points: number; rule_type: string }
+interface StudentBehaviorMap { [studentId: string]: StudentBehaviorRule[] }
 
 const ClassroomView = () => {
   const navigate = useNavigate();
