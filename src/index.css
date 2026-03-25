@@ -274,6 +274,22 @@
   100% { transform: scale(1); }
 }
 
+@keyframes badge-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+@keyframes checkpoint-burst {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes mayday-confirmed {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
 .reward-ready-glow {
   box-shadow: 0 0 0 2px hsl(var(--accent) / 0.25), 0 0 12px 2px hsl(var(--accent) / 0.1);
   animation: subtle-pulse 2s ease-in-out infinite;
@@ -294,6 +310,18 @@
   animation: point-pop 0.3s ease-out;
 }
 
+.animate-badge-bounce {
+  animation: badge-bounce 0.4s ease-out;
+}
+
+.animate-checkpoint-burst {
+  animation: checkpoint-burst 0.6s ease-out forwards;
+}
+
+.animate-mayday-confirmed {
+  animation: mayday-confirmed 0.5s ease-out;
+}
+
 /* Card press feedback */
 .card-press {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -301,6 +329,11 @@
 .card-press:active {
   transform: scale(0.985);
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+
+/* Button press feedback */
+.btn-press:active {
+  transform: scale(0.95);
 }
 
 /* Attention-needed subtle indicator */
@@ -316,3 +349,37 @@
 .rank-gold { color: hsl(45 93% 47%); }
 .rank-silver { color: hsl(220 10% 60%); }
 .rank-bronze { color: hsl(25 75% 47%); }
+
+/* ── Global Section Consistency ── */
+.section-header {
+  @apply text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5;
+}
+
+/* Status color utilities using semantic tokens */
+.status-available { color: hsl(var(--success)); }
+.status-caution { color: hsl(var(--warning)); }
+.status-urgent { color: hsl(var(--destructive)); }
+.status-info { color: hsl(var(--primary)); }
+
+/* Premium empty state */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-10 text-center;
+}
+.empty-state-icon {
+  @apply h-10 w-10 text-muted-foreground/30 mb-3;
+}
+.empty-state-title {
+  @apply text-sm font-semibold text-foreground mb-1;
+}
+.empty-state-text {
+  @apply text-xs text-muted-foreground max-w-[260px];
+}
+
+/* Smooth hover lift for interactive cards */
+.hover-lift {
+  @apply transition-all duration-200;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+}
