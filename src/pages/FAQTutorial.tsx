@@ -17,39 +17,12 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
-  Zap,
-  LogIn,
-  Search,
-  ArrowLeft,
-  BarChart3,
-  Star,
-  Users,
-  Shield,
-  MessageCircle,
-  Target,
-  Gift,
-  Gamepad2,
-  BookOpen,
-  Settings,
-  FileText,
-  Clock,
-  HelpCircle,
-  ChevronRight,
-  ChevronDown,
-  GraduationCap,
-  UserCog,
-  Heart,
-  CheckCircle2,
-  Circle,
-  Megaphone,
-  Eye,
-  Smartphone,
-  Bell,
-  AlertTriangle,
-  LayoutDashboard,
-  UserPlus,
-  Send,
-  TrendingUp,
+  Zap, LogIn, Search, ArrowLeft, BarChart3, Star, Users, Shield,
+  MessageCircle, Target, Gift, Gamepad2, BookOpen, Settings, FileText,
+  Clock, HelpCircle, ChevronRight, ChevronDown, GraduationCap, UserCog,
+  Heart, CheckCircle2, Circle, Megaphone, Eye, Smartphone, Bell,
+  AlertTriangle, LayoutDashboard, UserPlus, Send, TrendingUp, Play,
+  Wrench, Flame, Lightbulb, Zap as ZapIcon,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════ */
@@ -115,6 +88,7 @@ const faqSections: FAQSection[] = [
       { q: 'How do Token Boards work?', a: "Token Boards visualize a student's progress toward a point goal. As they earn points, tokens fill up on their board." },
       { q: 'Can I reset points?', a: 'Yes. Reset points for individual students or the entire class from the Beacon Points controls.' },
       { q: 'How do Point Rules work?', a: 'Point Rules define how many points are awarded or deducted for specific events. Rules can be linked to specific data types.' },
+      { q: 'Can I customize points per behavior?', a: 'Yes. You can adjust point values in the reinforcement settings or assign custom points when logging behavior.' },
     ],
   },
   {
@@ -125,6 +99,7 @@ const faqSections: FAQSection[] = [
       { q: 'How do I create a reward?', a: 'Go to the Rewards page and tap Add Reward. Enter a name, point cost, category, and optional description.' },
       { q: 'What are Sponsored Rewards?', a: 'Sponsored Rewards are special items added by administrators or partners with a Sponsored badge.' },
       { q: 'Can students redeem rewards themselves?', a: 'Yes! Through the Student Portal, students browse and request redemption. Teachers approve or deny the request.' },
+      { q: 'Why are rewards not showing?', a: 'Rewards must be active and properly configured. Check the reward store settings and ensure rewards are marked as active.' },
     ],
   },
   {
@@ -135,6 +110,7 @@ const faqSections: FAQSection[] = [
       { q: 'How do avatars work?', a: 'Each student selects a starting avatar. As they earn more points, they unlock new avatar options.' },
       { q: 'Can I project the Game Board on a smartboard?', a: 'Absolutely! Open the board URL on any browser connected to your smartboard. It updates in real time.' },
       { q: 'How do class goals work?', a: 'Set a class-wide point goal. The Game Board shows a progress bar filling up as the whole class earns points together.' },
+      { q: 'Why is my Game Board not loading?', a: 'This usually happens if no students are assigned to your classroom or the classroom group is not properly set. Make sure students are added and refresh the page.' },
     ],
   },
   {
@@ -146,6 +122,8 @@ const faqSections: FAQSection[] = [
       { q: 'What are Parent Snapshots?', a: "Parent Snapshots are secure, read-only links showing a student's daily highlights. Parents view them in their browser without needing an account." },
       { q: 'How do I send a Parent Snapshot?', a: "From the student's detail page, tap Parent Snapshot. Share the generated link via text or email." },
       { q: 'Can parents respond to messages?', a: 'Parent Snapshots are read-only. For two-way communication, your school may use the Behavior Decoded parent companion app.' },
+      { q: 'Can I message multiple staff at once?', a: 'Yes. Use group threads or @mention multiple users in a message.' },
+      { q: 'Why are my threads not updating?', a: 'Threads rely on real-time updates. Try refreshing the page or check your internet connection. If the issue continues, confirm you are in the correct classroom or agency.' },
     ],
   },
   {
@@ -156,6 +134,7 @@ const faqSections: FAQSection[] = [
       { q: 'Who receives MAYDAY alerts?', a: 'MAYDAY alerts go to all configured Mayday Contacts for your agency — typically BCBAs, program directors, and on-call supervisors.' },
       { q: 'What urgency levels are available?', a: 'Three levels: Urgent (immediate physical safety concern), High (escalating situation), and Standard (non-emergency support request).' },
       { q: 'Can I cancel a MAYDAY alert?', a: 'Yes. After sending, you can resolve or cancel the alert. This updates all recipients immediately.' },
+      { q: 'How do I know if a Mayday alert was sent?', a: 'After sending, the system shows a confirmation and recipient status. If not, check your Mayday settings.' },
     ],
   },
   {
@@ -176,6 +155,16 @@ const faqSections: FAQSection[] = [
       { q: 'How do I add students to my classroom?', a: 'In the Classroom Manager, select your classroom and tap Add Students. Choose from the students assigned to your agency.' },
       { q: 'What staff roles are available?', a: 'Teacher, Behavior Interventionist (BI), Aide, BCBA, SPED, SLP, OT, and Other. Each shows as a role badge.' },
       { q: 'How do Guest Access Codes work?', a: 'Guest Access Codes are temporary, time-limited codes for substitute teachers. Generate one from the Classroom Manager.' },
+      { q: 'How do I assign staff to a classroom?', a: 'Go to the Classroom Manager, select a classroom, and add staff members under the assignment section.' },
+    ],
+  },
+  {
+    title: "Who's Here & Staff",
+    icon: Eye,
+    items: [
+      { q: "Why can't I see other staff in Who's Here?", a: "Who's Here only shows active staff in your agency or classroom. If someone is missing, they may not be logged in or assigned to your group." },
+      { q: 'How do I reset a student\'s token board?', a: 'Open the student\'s quick actions and select Reset Token Board.' },
+      { q: 'Can students see other students\' data?', a: 'No. Student views are isolated and privacy-protected.' },
     ],
   },
   {
@@ -191,7 +180,7 @@ const faqSections: FAQSection[] = [
     title: 'Account & Settings',
     icon: Settings,
     items: [
-      { q: 'How do I change my notification settings?', a: "Go to Settings \u2192 Notifications. Toggle engagement prompts, data log reminders, escalation alerts, and more. Set quiet hours for off-school times." },
+      { q: 'How do I change my notification settings?', a: "Go to Settings → Notifications. Toggle engagement prompts, data log reminders, escalation alerts, and more. Set quiet hours for off-school times." },
       { q: 'How do I reset my password?', a: "From the login page, tap Forgot Password. Enter your email and you'll receive a reset link." },
       { q: 'Can I switch between agencies or workspaces?', a: "If you belong to multiple agencies, you'll see a Workspace Selector when you log in." },
       { q: 'What data can my BCBA see?', a: 'Your BCBA can see all collected data — frequency counts, duration logs, ABC entries, engagement checks, and skill probes. They cannot see your personal settings.' },
@@ -200,7 +189,36 @@ const faqSections: FAQSection[] = [
 ];
 
 /* ═══════════════════════════════════════════════════════════ */
-/*  GENERIC TUTORIALS (kept from before)                      */
+/*  MOST USED / TROUBLESHOOTING / QUICK FIXES                */
+/* ═══════════════════════════════════════════════════════════ */
+
+const mostUsed = [
+  { label: 'Send Mayday', icon: AlertTriangle, answer: 'Classroom View → Red MAYDAY button → Select urgency → Send. All configured contacts are notified instantly.' },
+  { label: 'Add Points', icon: Star, answer: 'Tap the + button on any student card → Enter point amount → Done. Points appear instantly on the Game Board.' },
+  { label: 'Message Staff', icon: MessageCircle, answer: 'Go to Threads → Select or create a thread → Type message → Send. Use @mentions for specific staff.' },
+  { label: 'Message Parent', icon: Heart, answer: 'Student Detail → Parent Snapshot → Copy link → Share via text or email. No parent login required.' },
+  { label: 'Use Game Board', icon: Gamepad2, answer: 'Board Settings → Copy board URL → Open on smartboard browser. Auto-updates in real time.' },
+];
+
+const troubleshooting = [
+  { problem: 'Mayday not sending', fix: 'Check that Mayday contacts are configured in your agency settings. Ensure at least one contact has active notification channels (email/in-app).' },
+  { problem: 'Game Board not loading', fix: 'Verify students are assigned to the classroom group. Check that the board slug is set in Board Settings. Try refreshing the page.' },
+  { problem: 'Threads not updating', fix: 'Refresh the page. Check your internet connection. Confirm you are viewing the correct classroom or agency thread.' },
+  { problem: 'Students not showing', fix: 'Ensure students are assigned to your classroom in the Classroom Manager. If you recently switched workspaces, select the correct one.' },
+  { problem: 'Points not appearing', fix: 'Check if the student has a reinforcement profile assigned. Verify point rules are active. Try a manual point award to test.' },
+  { problem: 'Rewards not showing', fix: 'Ensure rewards are marked as active in the Reward Store settings. Check that the student has enough points to see available rewards.' },
+];
+
+const quickFixes = [
+  { issue: 'Access Not Configured', fix: 'Clear session storage → Refresh → Or click the Retry button on the error screen.' },
+  { issue: 'Blank classroom', fix: 'Switch to the correct workspace using the dropdown in the header.' },
+  { issue: 'Engagement prompts not appearing', fix: 'Check notification settings. Ensure prompts are enabled and intervals are configured.' },
+  { issue: 'Can\'t see staff presence', fix: 'Staff must be logged in and assigned to your classroom group.' },
+  { issue: 'Data not saving', fix: 'Check internet connection. Data syncs automatically when reconnected.' },
+];
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  TUTORIALS                                                  */
 /* ═══════════════════════════════════════════════════════════ */
 
 interface TutorialStep { step: number; title: string; description: string; icon: React.ElementType }
@@ -241,6 +259,126 @@ const tutorials: TutorialSection[] = [
       { step: 5, title: 'Respond to engagement prompts', description: 'When prompted, take a quick scan and tap On Task or Off Task. Consistency matters.', icon: Target },
       { step: 6, title: 'End-of-day review', description: 'Check the data summary to make sure nothing was missed. Add notes while the day is fresh.', icon: BookOpen },
     ],
+  },
+  {
+    title: 'Send Your First Mayday',
+    description: 'Quickly request help from staff.',
+    steps: [
+      { step: 1, title: 'Find the Mayday button', description: 'Look for the red MAYDAY button at the bottom of the Classroom View. It is always accessible.', icon: AlertTriangle },
+      { step: 2, title: 'Select urgency level', description: 'Choose Urgent, High, or Standard based on the situation severity.', icon: Megaphone },
+      { step: 3, title: 'Add context and send', description: 'Add an optional note describing the situation, then tap Send. All contacts are notified instantly.', icon: Send },
+    ],
+  },
+  {
+    title: 'Add Points to a Student',
+    description: 'Reinforce positive behavior with one tap.',
+    steps: [
+      { step: 1, title: 'Select the student', description: 'Tap the student card in the Classroom View.', icon: Users },
+      { step: 2, title: 'Choose the behavior', description: 'Select the positive behavior or use the + button for manual points.', icon: Star },
+      { step: 3, title: 'Confirm points', description: 'Points are added instantly and visible on the Game Board.', icon: CheckCircle2 },
+    ],
+  },
+  {
+    title: 'Create a Classroom',
+    description: 'Set up your classroom environment.',
+    steps: [
+      { step: 1, title: 'Open Classroom Manager', description: 'Navigate to More → Classroom Manager from the top navigation.', icon: LayoutDashboard },
+      { step: 2, title: 'Create the classroom', description: 'Tap Create Classroom and enter the name, school, and grade band.', icon: Users },
+      { step: 3, title: 'Assign staff and students', description: 'Add team members and students from your agency roster.', icon: UserPlus },
+    ],
+  },
+  {
+    title: "Use Who's Here",
+    description: 'See who is available to help.',
+    steps: [
+      { step: 1, title: 'Open the Classroom View', description: "The Who's Here panel shows a count of present students.", icon: Eye },
+      { step: 2, title: 'View staff presence', description: 'See which staff are in-room, available, or elsewhere.', icon: Users },
+      { step: 3, title: 'Tap to message or request help', description: 'Quickly coordinate with available staff members.', icon: MessageCircle },
+    ],
+  },
+  {
+    title: 'Send a Staff Message',
+    description: 'Communicate quickly with your team.',
+    steps: [
+      { step: 1, title: 'Open Threads', description: 'Navigate to the Threads tab in the main navigation.', icon: MessageCircle },
+      { step: 2, title: 'Select or create a thread', description: 'Choose an existing thread or tap Create New.', icon: Send },
+      { step: 3, title: 'Send your message', description: 'Type your message and press Send. Delivered instantly to all members.', icon: CheckCircle2 },
+    ],
+  },
+  {
+    title: 'Use the Reward Store',
+    description: 'Motivate students with redeemable rewards.',
+    steps: [
+      { step: 1, title: 'Open Rewards', description: 'Navigate to the Rewards tab in the main navigation.', icon: Gift },
+      { step: 2, title: 'Select a reward', description: 'Browse available items and select one to redeem for a student.', icon: Star },
+      { step: 3, title: 'Confirm redemption', description: 'Points are deducted and the reward is recorded.', icon: CheckCircle2 },
+    ],
+  },
+  {
+    title: 'Share a Parent Link',
+    description: 'Give parents secure access to their child\'s progress.',
+    steps: [
+      { step: 1, title: 'Open student detail', description: 'Tap a student card in the Classroom View to open their detail page.', icon: Users },
+      { step: 2, title: 'Generate parent link', description: 'Tap Parent Snapshot or Quick Actions → Share Link.', icon: Eye },
+      { step: 3, title: 'Share with parent', description: 'Copy and send the link via text, email, or messaging app.', icon: Send },
+    ],
+  },
+];
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  FEATURES DATA                                              */
+/* ═══════════════════════════════════════════════════════════ */
+
+const features = [
+  {
+    category: 'Classroom Management',
+    icon: LayoutDashboard,
+    items: ['Live classroom dashboard', 'Student cards with behavior tracking', 'Token boards per student', 'Group and individual reinforcement systems', 'Visual classroom engagement tools'],
+  },
+  {
+    category: 'Data Collection & ABA Tools',
+    icon: BarChart3,
+    items: ['Real-time behavior tracking', 'Custom behavior targets', 'Probe and engagement data', 'Session-based tracking', 'Auto summaries and insights'],
+  },
+  {
+    category: 'Beacon Points & Rewards',
+    icon: Star,
+    items: ['Flexible point system', 'Student-specific reinforcement', 'Reward store with redemption tracking', 'Positive reinforcement automation', 'Token-to-reward conversion'],
+  },
+  {
+    category: 'Game Board',
+    icon: Gamepad2,
+    items: ['Classroom race system', 'Checkpoint-based progress', 'Live leaderboard', 'Student motivation visualization', 'Projector-friendly display'],
+  },
+  {
+    category: 'Communication (Threads)',
+    icon: MessageCircle,
+    items: ['Slack-style messaging', 'Agency-wide thread', 'Classroom threads (auto-created)', 'Direct messages and group chats', '@mentions and notifications'],
+  },
+  {
+    category: "Who's Here (Live Staff)",
+    icon: Eye,
+    items: ['Real-time staff availability', 'Room-based presence tracking', 'Quick help coordination', 'Mayday integration', 'Tap-to-message staff'],
+  },
+  {
+    category: 'Safety & Mayday',
+    icon: Shield,
+    items: ['Instant emergency alerts', 'Admin-managed contact list', 'Multi-recipient notifications', 'Classroom-based escalation', 'Live response tracking'],
+  },
+  {
+    category: 'Parent Engagement',
+    icon: Heart,
+    items: ['Parent portal access', 'Student progress visibility', 'Rewards tracking', 'Classroom updates feed', 'Secure communication'],
+  },
+  {
+    category: 'External Access',
+    icon: Smartphone,
+    items: ['Parent links', 'Student links', 'Secure token-based access', 'No login required', 'Controlled visibility'],
+  },
+  {
+    category: 'Staff Coordination',
+    icon: UserCog,
+    items: ['Room assignments', 'Staff movement tracking', 'Support coordination', 'Admin controls', 'Real-time updates'],
   },
 ];
 
@@ -283,68 +421,56 @@ const roleTracks: RoleTrack[] = [
     description: 'Everything you need to run a Beacon-powered classroom from day one.',
     modules: [
       {
-        title: 'First Day Setup',
-        description: 'Get your classroom ready in under 10 minutes.',
-        icon: Smartphone,
+        title: 'First Day Setup', description: 'Get your classroom ready in under 10 minutes.', icon: Smartphone,
         steps: [
-          { title: 'Install Beacon on your device', action: 'Open Beacon in Safari/Chrome \u2192 Tap Share \u2192 Add to Home Screen', detail: 'This gives you a native-app experience with offline support and push notifications.', icon: Smartphone, tip: 'Pin it right next to your most-used apps so it becomes part of your routine.' },
+          { title: 'Install Beacon on your device', action: 'Open Beacon in Safari/Chrome → Tap Share → Add to Home Screen', detail: 'This gives you a native-app experience with offline support and push notifications.', icon: Smartphone, tip: 'Pin it right next to your most-used apps so it becomes part of your routine.' },
           { title: 'Sign in with your credentials', action: 'Enter the email and password your admin provided', detail: 'If you received an invite code instead, go to the Join page and enter the code first.', icon: LogIn },
-          { title: 'Check your Classroom View', action: 'Tap Classroom in the bottom nav', detail: "You should see your students listed with yesterday's attendance. If the list is empty, contact your admin.", icon: Users, tip: 'This screen is your home base \u2014 you will start here every morning.' },
-          { title: 'Take your first attendance', action: "Tap each student's colored dot \u2192 Select Present, Absent, or Tardy", detail: 'Changes save instantly and are visible to your whole team. Takes about 30 seconds for a full class.', icon: CheckCircle2 },
-          { title: 'Open the Game Board on your smartboard', action: 'Navigate to Board Settings \u2192 Copy the board URL \u2192 Open on your display', detail: 'Students will see their avatars, points, and class goal in real time. No refreshing needed!', icon: Gamepad2, tip: 'Bookmark the board URL on your smartboard browser for one-click access each morning.' },
+          { title: 'Check your Classroom View', action: 'Tap Classroom in the bottom nav', detail: "You should see your students listed with yesterday's attendance. If the list is empty, contact your admin.", icon: Users, tip: 'This screen is your home base — you will start here every morning.' },
+          { title: 'Take your first attendance', action: "Tap each student's colored dot → Select Present, Absent, or Tardy", detail: 'Changes save instantly and are visible to your whole team.', icon: CheckCircle2 },
+          { title: 'Open the Game Board on your smartboard', action: 'Navigate to Board Settings → Copy the board URL → Open on your display', detail: 'Students will see their avatars, points, and class goal in real time.', icon: Gamepad2, tip: 'Bookmark the board URL on your smartboard browser for one-click access each morning.' },
         ],
       },
       {
-        title: 'Running a Classroom',
-        description: 'Your daily Beacon workflow from bell to bell.',
-        icon: Users,
+        title: 'Running a Classroom', description: 'Your daily Beacon workflow from bell to bell.', icon: Users,
         steps: [
-          { title: 'Morning: Take attendance', action: 'Classroom View \u2192 Tap attendance dots for each student', detail: 'Mark Present, Absent, Tardy, or Early Dismissal. Staff Presence updates automatically.', icon: CheckCircle2 },
-          { title: 'Update student presence throughout the day', action: 'Tap a student \u2192 Change location (Classroom, Pull-out, Bathroom, etc.)', detail: 'Presence tracking lets your team know where every student is at all times.', icon: Eye },
-          { title: 'Log behaviors as they happen', action: 'Quick Add \u2192 Select student \u2192 Tap behavior button', detail: 'Each tap records one occurrence with an automatic timestamp. Use the \u2013 button to correct mistakes.', icon: BarChart3 },
-          { title: 'Respond to engagement prompts', action: 'When the prompt pops up \u2192 Tap On Task or Off Task', detail: 'Takes 2 seconds. If you are mid-instruction, tap Snooze and it will come back shortly.', icon: Target, tip: 'Consistency over perfection. Even partial engagement data is valuable for your BCBA.' },
-          { title: 'End-of-day: Send parent snapshots', action: 'Student Detail \u2192 Parent Snapshot \u2192 Share link', detail: 'Families see a positive summary of the day. You can share via text, email, or any messaging app.', icon: Send },
+          { title: 'Morning: Take attendance', action: 'Classroom View → Tap attendance dots for each student', detail: 'Mark Present, Absent, Tardy, or Early Dismissal.', icon: CheckCircle2 },
+          { title: 'Update student presence throughout the day', action: 'Tap a student → Change location (Classroom, Pull-out, Bathroom, etc.)', detail: 'Presence tracking lets your team know where every student is at all times.', icon: Eye },
+          { title: 'Log behaviors as they happen', action: 'Quick Add → Select student → Tap behavior button', detail: 'Each tap records one occurrence with an automatic timestamp.', icon: BarChart3 },
+          { title: 'Respond to engagement prompts', action: 'When the prompt pops up → Tap On Task or Off Task', detail: 'Takes 2 seconds. If you are mid-instruction, tap Snooze.', icon: Target, tip: 'Consistency over perfection. Even partial engagement data is valuable for your BCBA.' },
+          { title: 'End-of-day: Send parent snapshots', action: 'Student Detail → Parent Snapshot → Share link', detail: 'Families see a positive summary of the day.', icon: Send },
         ],
       },
       {
-        title: 'Using Points & Token Board',
-        description: 'Maximize your token economy throughout the day.',
-        icon: Star,
+        title: 'Using Points & Token Board', description: 'Maximize your token economy.', icon: Star,
         steps: [
-          { title: 'Award points for positive behavior', action: 'Tap the + button on any student \u2192 Enter points \u2192 Done', detail: 'Points appear instantly on the Game Board. Students love watching their avatars advance!', icon: Star },
-          { title: 'Use Bulk Award for class-wide recognition', action: 'Classroom View \u2192 Bulk Award \u2192 Select students \u2192 Enter points', detail: 'Perfect for transitions, group activities, or rewarding the whole class at once.', icon: Users },
-          { title: 'Monitor token boards', action: 'Check the Game Board or individual student cards', detail: 'Tokens fill up as students approach their goal. When full, they have earned their reward!', icon: Gamepad2, tip: 'Narrate the progress aloud: "Jamie only needs 5 more points to reach the goal!"' },
-          { title: 'Let students redeem rewards', action: 'Students browse the Reward Store \u2192 Request redemption \u2192 You approve', detail: 'This builds self-management skills. You can also manually redeem for younger students.', icon: Gift },
+          { title: 'Award points for positive behavior', action: 'Tap the + button on any student → Enter points → Done', detail: 'Points appear instantly on the Game Board.', icon: Star },
+          { title: 'Use Bulk Award for class-wide recognition', action: 'Classroom View → Bulk Award → Select students → Enter points', detail: 'Perfect for transitions and group activities.', icon: Users },
+          { title: 'Monitor token boards', action: 'Check the Game Board or individual student cards', detail: 'Tokens fill up as students approach their goal.', icon: Gamepad2, tip: 'Narrate the progress aloud: "Jamie only needs 5 more points!"' },
+          { title: 'Let students redeem rewards', action: 'Students browse the Reward Store → Request redemption → You approve', detail: 'Builds self-management skills.', icon: Gift },
         ],
       },
       {
-        title: 'Sending Mayday',
-        description: 'Get immediate support when you need it most.',
-        icon: AlertTriangle,
+        title: 'Sending Mayday', description: 'Get immediate support when you need it.', icon: AlertTriangle,
         steps: [
-          { title: 'Locate the Mayday button', action: 'Bottom of the Classroom View \u2192 Red MAYDAY button', detail: 'The button is always accessible from your main screen \u2014 no navigation needed.', icon: AlertTriangle },
-          { title: 'Select urgency and send', action: 'Choose Urgent / High / Standard \u2192 Add optional note \u2192 Send', detail: 'All configured contacts receive the alert immediately via email and in-app notification.', icon: Megaphone, tip: "Do not hesitate to use it. That is exactly what it is for. Your safety team wants to know." },
-          { title: 'Wait for acknowledgment', action: 'The alert status updates in real time as contacts respond', detail: 'You can also resolve or cancel the alert once the situation is handled.', icon: CheckCircle2 },
+          { title: 'Locate the Mayday button', action: 'Bottom of the Classroom View → Red MAYDAY button', detail: 'Always accessible from your main screen.', icon: AlertTriangle },
+          { title: 'Select urgency and send', action: 'Choose Urgent / High / Standard → Add optional note → Send', detail: 'All configured contacts receive the alert immediately.', icon: Megaphone, tip: "Don't hesitate to use it. That's exactly what it's for." },
+          { title: 'Wait for acknowledgment', action: 'The alert status updates in real time as contacts respond', detail: 'You can resolve or cancel the alert once handled.', icon: CheckCircle2 },
         ],
       },
       {
-        title: 'Messaging Staff',
-        description: 'Coordinate with your team without leaving the app.',
-        icon: MessageCircle,
+        title: 'Messaging Staff', description: 'Coordinate without leaving the app.', icon: MessageCircle,
         steps: [
-          { title: 'Start or join a Thread', action: 'Threads tab \u2192 Create New or tap an existing thread', detail: 'Use public threads for team-wide updates and private threads for sensitive topics.', icon: MessageCircle },
-          { title: 'Send a message', action: 'Type your message \u2192 Tap Send', detail: 'Messages are delivered instantly. You can include @mentions and attach images.', icon: Send },
-          { title: 'Use the Inbox for formal messages', action: 'Inbox tab \u2192 Compose \u2192 Add recipients and attachments', detail: 'Inbox messages can be pinned to specific students for reference.', icon: FileText, tip: 'Use Threads for quick coordination, Inbox for things that need to be found later.' },
+          { title: 'Start or join a Thread', action: 'Threads tab → Create New or tap existing thread', detail: 'Use public threads for team-wide updates, private for sensitive topics.', icon: MessageCircle },
+          { title: 'Send a message', action: 'Type your message → Tap Send', detail: 'Delivered instantly. Supports @mentions and images.', icon: Send },
+          { title: 'Use Inbox for formal messages', action: 'Inbox tab → Compose → Add recipients and attachments', detail: 'Inbox messages can be pinned to specific students.', icon: FileText, tip: 'Threads for quick coordination, Inbox for things that need to be found later.' },
         ],
       },
       {
-        title: 'Messaging Parents',
-        description: 'Keep families informed with zero effort.',
-        icon: Heart,
+        title: 'Messaging Parents', description: 'Keep families informed with zero effort.', icon: Heart,
         steps: [
-          { title: 'Generate a Parent Snapshot', action: 'Student Detail \u2192 Tap Parent Snapshot', detail: 'Beacon creates a secure, time-limited link with daily highlights, points, and positive notes.', icon: Eye },
-          { title: 'Share the link', action: 'Copy the link \u2192 Send via text, email, or school messaging platform', detail: 'Parents open it in any browser \u2014 no account or app download required.', icon: Send },
-          { title: 'Review what parents see', action: 'Tap Preview to see the snapshot before sharing', detail: 'The snapshot focuses on positive highlights and progress. Parents love it!', icon: Heart, tip: 'Sending a snapshot at the end of a great day builds trust and parent engagement.' },
+          { title: 'Generate a Parent Snapshot', action: 'Student Detail → Tap Parent Snapshot', detail: 'Creates a secure, time-limited link with daily highlights.', icon: Eye },
+          { title: 'Share the link', action: 'Copy link → Send via text, email, or school messaging', detail: 'Parents open it in any browser — no account needed.', icon: Send },
+          { title: 'Review what parents see', action: 'Tap Preview to see the snapshot before sharing', detail: 'Focuses on positive highlights and progress.', icon: Heart, tip: 'Sending a snapshot after a great day builds trust and parent engagement.' },
         ],
       },
     ],
@@ -355,56 +481,46 @@ const roleTracks: RoleTrack[] = [
     emoji: '\uD83D\uDC69\u200D\uD83D\uDCBC',
     color: 'bg-blue-500',
     icon: UserCog,
-    description: 'Set up and manage Beacon for your team — classrooms, staff, students, and safety.',
+    description: 'Set up and manage Beacon for your team.',
     modules: [
       {
-        title: 'Creating Classrooms',
-        description: 'Set up classroom groups for your staff.',
-        icon: LayoutDashboard,
+        title: 'Creating Classrooms', description: 'Set up classroom groups for your staff.', icon: LayoutDashboard,
         steps: [
-          { title: 'Open Classroom Manager', action: 'More menu \u2192 Classroom Manager', detail: 'This is where you create, edit, and manage all classroom groups for your agency.', icon: LayoutDashboard },
-          { title: 'Create a new classroom', action: 'Tap Create Classroom \u2192 Enter name, school, grade band', detail: 'Use descriptive names like "Room 12 \u2014 Ms. Rivera" so staff can find theirs easily.', icon: Users },
-          { title: 'Set the board slug', action: 'Edit classroom \u2192 Set a URL-friendly slug', detail: 'This creates a shareable URL for the Game Board (e.g., /board/room-12).', icon: Gamepad2, tip: 'Keep slugs short and memorable for easy smartboard setup.' },
+          { title: 'Open Classroom Manager', action: 'More menu → Classroom Manager', detail: 'Create, edit, and manage all classroom groups.', icon: LayoutDashboard },
+          { title: 'Create a new classroom', action: 'Tap Create Classroom → Enter name, school, grade band', detail: 'Use descriptive names like "Room 12 — Ms. Rivera".', icon: Users },
+          { title: 'Set the board slug', action: 'Edit classroom → Set a URL-friendly slug', detail: 'Creates a shareable URL for the Game Board.', icon: Gamepad2, tip: 'Keep slugs short and memorable.' },
         ],
       },
       {
-        title: 'Assigning Staff',
-        description: 'Add teachers, BIs, aides, and specialists to classrooms.',
-        icon: UserPlus,
+        title: 'Assigning Staff', description: 'Add teachers, BIs, aides to classrooms.', icon: UserPlus,
         steps: [
-          { title: 'Select the classroom', action: 'Classroom Manager \u2192 Tap the classroom', detail: 'You will see the current student roster and staff assignments.', icon: Users },
-          { title: 'Add staff members', action: 'Tap Add Staff \u2192 Search by name \u2192 Select role', detail: 'Available roles: Teacher, BI, Aide, BCBA, SPED, SLP, OT, Other.', icon: UserPlus },
-          { title: 'Verify role badges', action: 'Check the Classroom View to confirm badges display correctly', detail: 'Each staff member shows their role badge so the team knows who is who.', icon: CheckCircle2, tip: 'Staff can be assigned to multiple classrooms with different roles.' },
+          { title: 'Select the classroom', action: 'Classroom Manager → Tap the classroom', detail: 'View current roster and staff assignments.', icon: Users },
+          { title: 'Add staff members', action: 'Tap Add Staff → Search by name → Select role', detail: 'Roles: Teacher, BI, Aide, BCBA, SPED, SLP, OT, Other.', icon: UserPlus },
+          { title: 'Verify role badges', action: 'Check Classroom View for correct badge display', detail: 'Each staff member shows their role badge.', icon: CheckCircle2, tip: 'Staff can be in multiple classrooms with different roles.' },
         ],
       },
       {
-        title: "Managing Who's Here",
-        description: 'Real-time visibility into student and staff presence.',
-        icon: Eye,
+        title: "Managing Who's Here", description: 'Real-time visibility into presence.', icon: Eye,
         steps: [
-          { title: "Open Who's Here panel", action: "Classroom View \u2192 Who's Here section", detail: 'See a live count of present vs. absent students with visual indicators.', icon: Eye },
-          { title: 'View Staff Presence', action: 'Scroll to Staff Presence panel', detail: 'See which staff are in-room, on break, or at another location.', icon: Users },
-          { title: 'Update a student location', action: 'Tap student \u2192 Change presence (Classroom, Pull-out, Bathroom, etc.)', detail: 'The entire team sees updates instantly. Great for safety accountability.', icon: Target, tip: 'During drills, quickly verify all student locations from this panel.' },
+          { title: "Open Who's Here panel", action: "Classroom View → Who's Here section", detail: 'Live count of present vs. absent students.', icon: Eye },
+          { title: 'View Staff Presence', action: 'Scroll to Staff Presence panel', detail: 'See which staff are in-room, on break, or elsewhere.', icon: Users },
+          { title: 'Update a student location', action: 'Tap student → Change presence', detail: 'Entire team sees updates instantly.', icon: Target, tip: 'During drills, verify all locations from this panel.' },
         ],
       },
       {
-        title: 'Configuring Mayday Contacts',
-        description: 'Ensure emergency alerts reach the right people.',
-        icon: Shield,
+        title: 'Configuring Mayday Contacts', description: 'Ensure alerts reach the right people.', icon: Shield,
         steps: [
-          { title: 'Open Mayday Contacts Manager', action: 'Settings or Admin Dashboard \u2192 Mayday Contacts', detail: 'This is where you define who receives MAYDAY alerts for your agency.', icon: Shield },
-          { title: 'Add a contact', action: 'Tap Add Contact \u2192 Enter name, email, phone \u2192 Set notification channels', detail: 'Choose whether they receive alerts via email, SMS, in-app, or all three.', icon: UserPlus },
-          { title: 'Set availability and overrides', action: 'Configure opt-out days, admin override, and active status', detail: 'Contacts can be deactivated during vacation without removing them.', icon: Settings, tip: 'Always have at least 2 active contacts configured for safety redundancy.' },
+          { title: 'Open Mayday Contacts Manager', action: 'Settings or Admin Dashboard → Mayday Contacts', detail: 'Define who receives MAYDAY alerts.', icon: Shield },
+          { title: 'Add a contact', action: 'Tap Add Contact → Enter name, email, phone → Set channels', detail: 'Choose email, SMS, in-app, or all three.', icon: UserPlus },
+          { title: 'Set availability and overrides', action: 'Configure opt-out days, admin override, active status', detail: 'Deactivate during vacation without removing.', icon: Settings, tip: 'Always have at least 2 active contacts for safety.' },
         ],
       },
       {
-        title: 'Viewing Reports',
-        description: 'Access data summaries and trends across your team.',
-        icon: TrendingUp,
+        title: 'Viewing Reports', description: 'Access data summaries and trends.', icon: TrendingUp,
         steps: [
-          { title: 'Open Weekly Data Summary', action: 'Data Summary page \u2192 Select student and date range', detail: 'See auto-generated trend charts for frequency, duration, and engagement.', icon: BarChart3 },
-          { title: 'Generate Parent Reports', action: 'Parent Reports page \u2192 Select student \u2192 Generate', detail: 'Family-friendly summaries with highlights and progress notes.', icon: FileText },
-          { title: 'Review IEP data linkage', action: 'IEP Reader \u2192 View extracted goals alongside collected data', detail: 'Match IEP goals to real behavior data for evidence-based progress monitoring.', icon: BookOpen, tip: 'Use trend data in IEP meetings to show concrete progress with visuals.' },
+          { title: 'Open Weekly Data Summary', action: 'Data Summary page → Select student and date range', detail: 'Auto-generated trend charts for frequency, duration, engagement.', icon: BarChart3 },
+          { title: 'Generate Parent Reports', action: 'Parent Reports page → Select student → Generate', detail: 'Family-friendly summaries with highlights.', icon: FileText },
+          { title: 'Review IEP data linkage', action: 'IEP Reader → View extracted goals alongside collected data', detail: 'Match IEP goals to real behavior data.', icon: BookOpen, tip: 'Use trend data in IEP meetings for concrete evidence.' },
         ],
       },
     ],
@@ -415,46 +531,38 @@ const roleTracks: RoleTrack[] = [
     emoji: '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67',
     color: 'bg-purple-500',
     icon: Heart,
-    description: 'Stay connected to your child\'s classroom experience \u2014 no app download needed.',
+    description: 'Stay connected to your child\'s classroom — no app download needed.',
     modules: [
       {
-        title: 'Viewing Child Progress',
-        description: "See your child's daily highlights and point balance.",
-        icon: Eye,
+        title: 'Viewing Child Progress', description: "See your child's daily highlights.", icon: Eye,
         steps: [
-          { title: 'Open the snapshot link', action: 'Tap the link your teacher shared via text or email', detail: 'The link opens in any browser \u2014 no login or app download required.', icon: Smartphone },
-          { title: 'Review daily highlights', action: 'Scroll through the summary card', detail: 'You will see points earned, positive behaviors, and any teacher notes for the day.', icon: Star },
-          { title: 'Check the points balance', action: 'View the current point total and recent transactions', detail: 'Points represent your child earning recognition for positive classroom behavior.', icon: TrendingUp, tip: 'Ask your child about their points! It reinforces the positive behavior at home too.' },
+          { title: 'Open the snapshot link', action: 'Tap the link your teacher shared via text or email', detail: 'Opens in any browser — no login required.', icon: Smartphone },
+          { title: 'Review daily highlights', action: 'Scroll through the summary card', detail: 'See points earned, positive behaviors, and teacher notes.', icon: Star },
+          { title: 'Check the points balance', action: 'View current point total and recent transactions', detail: 'Points represent positive classroom recognition.', icon: TrendingUp, tip: 'Ask your child about their points! It reinforces positive behavior at home.' },
         ],
       },
       {
-        title: 'Understanding Rewards',
-        description: 'How the Beacon Points reward system works.',
-        icon: Gift,
+        title: 'Understanding Rewards', description: 'How Beacon Points rewards work.', icon: Gift,
         steps: [
-          { title: 'Points = classroom currency', action: 'Your child earns points for following rules, staying on task, and positive interactions', detail: 'The teacher awards points throughout the day. Some points are automatic, others are manual recognition.', icon: Star },
-          { title: 'Rewards are earned, not given', action: 'Students choose rewards from the Reward Store when they have enough points', detail: 'Rewards include extra free time, special activities, small tangible items, and more.', icon: Gift },
-          { title: 'Token boards show progress', action: 'On the classroom Game Board, your child has an avatar that advances as they earn points', detail: "It's a fun, visual motivator that the whole class can see on the smartboard.", icon: Gamepad2, tip: 'Celebrate milestones together! When your child reaches a goal, acknowledge it at home.' },
+          { title: 'Points = classroom currency', action: 'Earned for following rules, staying on task, positive interactions', detail: 'Teachers award points throughout the day.', icon: Star },
+          { title: 'Rewards are earned, not given', action: 'Students choose from the Reward Store when they have enough points', detail: 'Includes free time, activities, small tangible items.', icon: Gift },
+          { title: 'Token boards show progress', action: 'On the classroom Game Board, your child has an avatar that advances', detail: "A fun, visual motivator for the whole class.", icon: Gamepad2, tip: 'Celebrate milestones together at home!' },
         ],
       },
       {
-        title: 'Messaging Teacher',
-        description: 'How communication works between school and home.',
-        icon: MessageCircle,
+        title: 'Messaging Teacher', description: 'How school-home communication works.', icon: MessageCircle,
         steps: [
-          { title: 'Parent Snapshots are read-only', action: 'Snapshots are one-way summaries designed to share positive highlights', detail: 'They focus on what went well so families see the positive side of the school day.', icon: Eye },
-          { title: 'For questions, contact the teacher directly', action: 'Use your existing school communication channel (email, phone, app)', detail: 'Beacon focuses on data and classroom management. Family communication uses your school\'s standard channels.', icon: MessageCircle },
-          { title: 'Ask about Behavior Decoded', action: 'The companion parent app provides two-way communication features', detail: 'Ask your teacher or BCBA if your school uses Behavior Decoded for parent engagement.', icon: Smartphone, tip: 'Regular communication with your child\'s teacher makes the biggest impact on progress.' },
+          { title: 'Parent Snapshots are read-only', action: 'Snapshots share positive highlights — one-way summaries', detail: 'Focused on what went well during the day.', icon: Eye },
+          { title: 'For questions, contact teacher directly', action: 'Use your existing school communication channel', detail: 'Beacon focuses on data and classroom management.', icon: MessageCircle },
+          { title: 'Ask about Behavior Decoded', action: 'The companion parent app provides two-way features', detail: 'Ask your teacher if your school uses it.', icon: Smartphone, tip: 'Regular communication with your child\'s teacher has the biggest impact.' },
         ],
       },
       {
-        title: 'Reading Updates',
-        description: 'Understanding the information shared with you.',
-        icon: FileText,
+        title: 'Reading Updates', description: 'Understanding shared information.', icon: FileText,
         steps: [
-          { title: 'What you see in a snapshot', action: 'Points earned, positive behavior highlights, daily summary', detail: 'Snapshots are curated to show progress and wins. They are generated by the teacher at the end of the day.', icon: Eye },
-          { title: 'Understanding behavior data', action: 'If shared, you may see trend charts showing progress over weeks', detail: 'Upward trends in positive behaviors and downward trends in challenging behaviors show growth.', icon: TrendingUp },
-          { title: 'IEP progress updates', action: 'During IEP meetings, your BCBA may share Beacon data visuals', detail: 'These charts are generated from real classroom data collected daily by your child\'s team.', icon: BookOpen, tip: 'Keep snapshots \u2014 they make great conversation starters at parent-teacher conferences!' },
+          { title: 'What you see in a snapshot', action: 'Points earned, positive behavior highlights, daily summary', detail: 'Generated by the teacher at end of day.', icon: Eye },
+          { title: 'Understanding behavior data', action: 'Trend charts show progress over weeks', detail: 'Upward trends in positive behaviors show growth.', icon: TrendingUp },
+          { title: 'IEP progress updates', action: 'BCBAs may share Beacon data visuals in IEP meetings', detail: 'Charts from real daily classroom data.', icon: BookOpen, tip: 'Keep snapshots — great conversation starters at parent-teacher conferences!' },
         ],
       },
     ],
@@ -465,7 +573,7 @@ const roleTracks: RoleTrack[] = [
 /*  COMPONENT                                                 */
 /* ═══════════════════════════════════════════════════════════ */
 
-type TabKey = 'faq' | 'tutorials' | 'tracks';
+type TabKey = 'faq' | 'tutorials' | 'tracks' | 'features';
 
 const FAQTutorial = () => {
   const navigate = useNavigate();
@@ -517,7 +625,8 @@ const FAQTutorial = () => {
   const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
     { key: 'faq', label: 'FAQ', icon: HelpCircle },
     { key: 'tutorials', label: 'Tutorials', icon: BookOpen },
-    { key: 'tracks', label: 'Training Tracks', icon: GraduationCap },
+    { key: 'tracks', label: 'Training', icon: GraduationCap },
+    { key: 'features', label: 'Features', icon: Zap },
   ];
 
   return (
@@ -547,7 +656,7 @@ const FAQTutorial = () => {
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
             <HelpCircle className="h-3.5 w-3.5" />
-            {totalQuestions} questions · 3 training tracks
+            {totalQuestions} questions · {tutorials.length} tutorials · 3 training tracks
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
             Help Center & Training
@@ -558,14 +667,14 @@ const FAQTutorial = () => {
         </div>
 
         {/* Tab toggle */}
-        <div className="flex items-center justify-center gap-1 p-1 bg-muted rounded-xl w-fit mx-auto">
+        <div className="flex items-center justify-center gap-1 p-1 bg-muted rounded-xl w-fit mx-auto overflow-x-auto">
           {tabs.map((tab) => {
             const TIcon = tab.icon;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -584,9 +693,90 @@ const FAQTutorial = () => {
           <>
             <div className="relative max-w-md mx-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search questions\u2026" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder="Search questions…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
 
+            {/* Most Used Actions */}
+            {!search && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  <h2 className="text-lg font-semibold text-foreground">Most Used</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {mostUsed.map((item) => {
+                    const IIcon = item.icon;
+                    return (
+                      <Card key={item.label} className="border-border/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <IIcon className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-foreground">{item.label}</h3>
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.answer}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Troubleshooting */}
+            {!search && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-amber-500" />
+                  <h2 className="text-lg font-semibold text-foreground">Troubleshooting</h2>
+                </div>
+                <Card className="border-border/50">
+                  <CardContent className="p-0">
+                    <Accordion type="multiple" className="w-full">
+                      {troubleshooting.map((item, i) => (
+                        <AccordionItem key={i} value={`trouble-${i}`} className="border-border/30 last:border-b-0">
+                          <AccordionTrigger className="px-4 py-3 text-sm font-medium text-foreground hover:no-underline text-left">
+                            <span className="flex items-center gap-2">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                              {item.problem}
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-4 text-sm text-muted-foreground leading-relaxed">
+                            {item.fix}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Quick Fixes */}
+            {!search && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                  <h2 className="text-lg font-semibold text-foreground">Quick Fixes</h2>
+                </div>
+                <div className="space-y-2">
+                  {quickFixes.map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border/30">
+                      <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-sm font-medium text-foreground">{item.issue}</span>
+                        <span className="text-sm text-muted-foreground"> → {item.fix}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Category chips */}
             {!search && (
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {faqSections.map((section) => {
@@ -612,7 +802,7 @@ const FAQTutorial = () => {
                       </div>
                       <h2 className="text-lg font-semibold text-foreground">{section.title}</h2>
                       <Badge variant="outline" className="text-[10px] ml-auto">
-                        {section.items.length} {section.items.length === 1 ? 'question' : 'questions'}
+                        {section.items.length}
                       </Badge>
                     </div>
                     <Card className="border-border/50">
@@ -688,6 +878,43 @@ const FAQTutorial = () => {
           </div>
         )}
 
+        {/* ─── FEATURES TAB ─── */}
+        {activeTab === 'features' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold text-foreground">Everything Beacon Can Do</h2>
+              <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                A complete platform for classroom management, behavior tracking, and family engagement.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {features.map((section) => {
+                const FIcon = section.icon;
+                return (
+                  <Card key={section.category} className="border-border/50">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <FIcon className="h-4 w-4 text-primary" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-foreground">{section.category}</h3>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {section.items.map((item, j) => (
+                          <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ─── TRAINING TRACKS TAB ─── */}
         {activeTab === 'tracks' && (
           <div className="space-y-6">
@@ -730,6 +957,19 @@ const FAQTutorial = () => {
                         {completedTrackSteps}/{totalTrackSteps} steps
                       </span>
                     </div>
+                    {completedTrackSteps === 0 && (
+                      <Button
+                        size="sm"
+                        className="mt-3 gap-1.5"
+                        onClick={() => {
+                          const firstModKey = `${currentTrack.role}-mod-0`;
+                          setExpandedModules((prev) => new Set(prev).add(firstModKey));
+                        }}
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                        Start Learning
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
