@@ -288,7 +288,7 @@ const GameBoard = () => {
   const finishedCount = students.filter(s => getEffectiveBalance(s) >= TRACK_LENGTH).length;
 
   const getDisplayName = (s: StudentGameProgress) => {
-    const mode = settings?.privacy_mode || 'first_names';
+    const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
     const first = s.first_name || '';
     const last = s.last_name || '';
