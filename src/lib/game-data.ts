@@ -114,8 +114,8 @@ export async function getTeamScores(groupId: string): Promise<TeamScore[]> {
 // ── Student game profiles ──
 
 export async function getStudentGameProfile(studentId: string): Promise<StudentGameProfile | null> {
-  const { data } = await supabase
-    .from('student_game_profiles' as any)
+  const { data } = await cloudSupabase
+    .from('student_game_profiles')
     .select('*')
     .eq('student_id', studentId)
     .maybeSingle();
