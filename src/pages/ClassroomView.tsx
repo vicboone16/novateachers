@@ -709,7 +709,7 @@ const ClassroomView = () => {
     <div className="space-y-5 pb-6">
       {/* ─── HEADER BAND ─── */}
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
             {allGroups.length > 0 ? (
               <Select value={showAll ? '__all__' : (activeGroupId || '')} onValueChange={(v) => {
@@ -732,36 +732,36 @@ const ClassroomView = () => {
             )}
             <p className="text-xs text-muted-foreground mt-0.5">
               {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
-              {' · '}{clients.length} students
+              {' · '}{clients.length} student{clients.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <ScrollArea className="w-full">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/game-board')}>
-                <Gamepad2 className="h-3.5 w-3.5" /> Game
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/rewards')}>
-                <Gift className="h-3.5 w-3.5" /> Rewards
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setBulkAwardOpen(true)} title="Award all students">
-                <Users className="h-3.5 w-3.5" /> Award All
-              </Button>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
-                <Settings2 className="h-3.5 w-3.5" /> Reinforcement
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => navigate('/threads')} title="Threads">
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-              {activeGroupId && (
-                <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-              )}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          {activeGroupId && (
+            <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+          )}
         </div>
+        <ScrollArea className="w-full">
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/game-board')}>
+              <Gamepad2 className="h-3.5 w-3.5" /> Game
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/rewards')}>
+              <Gift className="h-3.5 w-3.5" /> Rewards
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/threads')}>
+              <MessageSquare className="h-3.5 w-3.5" /> Threads
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setBulkAwardOpen(true)}>
+              <Users className="h-3.5 w-3.5" /> Award All
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)}>
+              <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
 
       {/* ─── SUMMARY BAR (horizontally scrollable, drag-to-reorder) ─── */}
@@ -828,13 +828,17 @@ const ClassroomView = () => {
 
       {/* ─── STUDENT GRID ─── */}
       {clients.length === 0 ? (
-        <Card className="border-dashed border-2 border-border">
-          <CardContent className="py-12 text-center">
-            <Users className="mx-auto h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">No students in this workspace yet.</p>
-            <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate('/students')}>
-              Manage Students
-            </Button>
+        <Card className="border-dashed border-2 border-border/50 bg-card/50">
+          <CardContent className="py-14 text-center">
+            <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-primary/10 mb-4">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-foreground mb-1">No students yet</p>
+            <p className="text-xs text-muted-foreground mb-4 max-w-[240px] mx-auto">Add students to start tracking behavior, awarding points, and running the game board.</p>
+            <div className="flex gap-2 justify-center">
+              <Button size="sm" variant="outline" onClick={() => navigate('/students')}>Manage Students</Button>
+              <Button size="sm" className="gap-1.5" onClick={() => setQuickStartOpen(true)}><Zap className="h-3.5 w-3.5" /> Quick Start</Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -848,19 +852,29 @@ const ClassroomView = () => {
             const avatarEmoji = gp?.avatar_emoji || '👤';
             const level = gp?.current_level || 1;
             const xp = gp?.current_xp || 0;
+            const balance = pointBalances[client.id] || 0;
+            const isRewardReady = tp && tp.current >= tp.target;
+            const hasNegativeEvents = (todayCounts[client.id] || 0) >= 3;
 
             return (
               <Card
                 key={client.id}
                 className={cn(
-                  'rounded-2xl border-border/60 shadow-sm transition-all duration-300 overflow-hidden relative',
+                  'rounded-2xl border-border/60 shadow-sm card-press overflow-hidden relative',
+                  'transition-all duration-300',
                   flashCard === client.id && 'ring-2 ring-amber-400/60 scale-[1.01] shadow-md',
                   isAbsent && 'opacity-50',
+                  isRewardReady && 'reward-ready-glow',
+                  hasNegativeEvents && !flashCard && 'attention-needed',
                 )}
               >
                 {/* Celebration flash overlay */}
                 {flashCard === client.id && (
                   <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 via-amber-200/10 to-amber-400/5 animate-pulse pointer-events-none z-10 rounded-2xl" />
+                )}
+                {/* Reward-ready shimmer overlay */}
+                {isRewardReady && (
+                  <div className="absolute inset-0 reward-ready-shimmer pointer-events-none z-10 rounded-2xl" />
                 )}
                 <CardContent className="p-0">
                   {/* Top row: avatar + name + level + status */}

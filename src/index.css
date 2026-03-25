@@ -256,3 +256,63 @@
 .animate-avatar-reward-ready { animation: avatar-reward-ready 1.5s ease-in-out infinite; }
 .animate-avatar-sparkle-dot { animation: avatar-sparkle-dot 0.8s ease-in-out infinite; }
 .animate-avatar-shake { animation: avatar-shake 0.5s ease-in-out; }
+
+/* ── Premium Microinteraction Utilities ── */
+@keyframes reward-ready-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes point-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.reward-ready-glow {
+  box-shadow: 0 0 0 2px hsl(var(--accent) / 0.25), 0 0 12px 2px hsl(var(--accent) / 0.1);
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+.reward-ready-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--accent) / 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: reward-ready-shimmer 3s ease-in-out infinite;
+}
+
+.animate-point-pop {
+  animation: point-pop 0.3s ease-out;
+}
+
+/* Card press feedback */
+.card-press {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-press:active {
+  transform: scale(0.985);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+
+/* Attention-needed subtle indicator */
+@keyframes attention-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--destructive) / 0); }
+  50% { box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.1); }
+}
+.attention-needed {
+  animation: attention-pulse 3s ease-in-out infinite;
+}
+
+/* Leaderboard rank medals */
+.rank-gold { color: hsl(45 93% 47%); }
+.rank-silver { color: hsl(220 10% 60%); }
+.rank-bronze { color: hsl(25 75% 47%); }

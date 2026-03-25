@@ -384,26 +384,28 @@ const GameBoard = () => {
 
       {/* Class banner */}
       <Card className="overflow-hidden border-0 shadow-md">
-        <CardContent className="p-4 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <CardContent className="p-4 bg-gradient-to-r from-primary/8 via-accent/5 to-primary/8">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                {activeGroup?.name || 'Class'} · Total
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                {activeGroup?.name || 'Class'} · Race Total
               </p>
-              <p className="text-2xl font-bold tabular-nums">{skin.icon} {totalClassPoints.toLocaleString()}</p>
+              <p className="text-3xl font-bold tabular-nums font-heading">{skin.icon} {totalClassPoints.toLocaleString()}</p>
             </div>
-            {finishedCount > 0 && (
-              <Badge className="bg-accent/20 text-accent-foreground border-accent/30 gap-1"><PartyPopper className="h-3 w-3" /> {finishedCount} lapped!</Badge>
-            )}
-            {track?.zones && track.zones.length > 0 && (
-              <div className="flex gap-1">
-                {track.zones.map((z, i) => (
-                  <Badge key={i} variant="outline" className="text-[9px] py-0" style={{ borderColor: z.color, color: z.color }}>
-                    {z.type === 'boost' ? '⚡' : z.type === 'slow' ? '❄️' : z.type === 'reward' ? '🎁' : '✨'} {z.label}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {finishedCount > 0 && (
+                <Badge className="bg-accent/15 text-accent border-accent/20 gap-1 font-semibold"><PartyPopper className="h-3 w-3" /> {finishedCount} lapped!</Badge>
+              )}
+              {track?.zones && track.zones.length > 0 && (
+                <div className="flex gap-1">
+                  {track.zones.map((z, i) => (
+                    <Badge key={i} variant="outline" className="text-[9px] py-0.5 font-medium" style={{ borderColor: z.color, color: z.color }}>
+                      {z.type === 'boost' ? '⚡' : z.type === 'slow' ? '❄️' : z.type === 'reward' ? '🎁' : '✨'} {z.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -460,8 +462,8 @@ const GameBoard = () => {
       {settings?.leaderboard_enabled !== false && students.length > 0 && (
         <Card className="border-border/40">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3"><Trophy className="h-4 w-4 text-amber-500" /><p className="text-sm font-bold">Standings</p></div>
-            <div className="space-y-1">
+             <div className="flex items-center gap-2 mb-3"><Trophy className="h-4 w-4 text-amber-500" /><p className="text-sm font-bold font-heading">Standings</p></div>
+            <div className="space-y-0.5">
               {sortedStudents.slice(0, 10).map((s, i) => {
                 const bal = getEffectiveBalance(s);
                 const pos = getPosition(bal, TRACK_LENGTH);
@@ -473,12 +475,13 @@ const GameBoard = () => {
 
                 return (
                   <div key={s.student_id} className={cn(
-                    "flex items-center gap-3 rounded-lg px-2.5 py-2 transition-all duration-500",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-500",
                     isFlashing && "bg-accent/10 ring-1 ring-accent/30",
                     laps > 0 && "bg-accent/5"
                   )}>
                     <span className={cn("text-sm font-bold w-5 text-center tabular-nums",
-                      i === 0 && "text-amber-500", i === 1 && "text-muted-foreground", i === 2 && "text-orange-400"
+                      i === 0 && "rank-gold", i === 1 && "rank-silver", i === 2 && "rank-bronze",
+                      i > 2 && "text-muted-foreground"
                     )}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
                     <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
