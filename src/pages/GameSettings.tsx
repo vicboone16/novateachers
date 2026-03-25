@@ -116,11 +116,18 @@ const GameSettings = () => {
   };
 
   const handleSave = async () => {
+    if (!groupId || !effectiveAgencyId) {
+      toast({ title: 'Error', description: 'Missing classroom or agency. Please reload.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
-    const res = await upsertClassroomGameSettings(settings);
+    const payload = { ...settings, group_id: groupId, agency_id: effectiveAgencyId };
+    console.log('[GameSettings] Saving:', payload);
+    const res = await upsertClassroomGameSettings(payload);
     if (res.ok) {
       toast({ title: 'Saved', description: 'Game settings updated.' });
     } else {
+      console.error('[GameSettings] Save error:', res.error);
       toast({ title: 'Error', description: res.error, variant: 'destructive' });
     }
     setSaving(false);
