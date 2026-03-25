@@ -414,7 +414,7 @@ const GameBoard = () => {
       </Card>
 
       {/* Team scores */}
-      {settings?.teams_enabled && teams.length > 0 && (
+      {settings?.allow_team_mode && teams.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {teams.map(t => (
             <Card key={t.team_id} className="shrink-0 min-w-[120px] border-border/40">
