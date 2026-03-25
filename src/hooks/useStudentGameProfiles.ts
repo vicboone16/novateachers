@@ -10,6 +10,11 @@ export interface GameProfile {
   avatar_emoji: string;
   current_level: number;
   current_xp: number;
+  identity_title: string | null;
+  identity_emoji: string | null;
+  momentum_state: string | null;
+  comeback_active: boolean;
+  daily_narrative: string | null;
 }
 
 export function useStudentGameProfiles(studentIds: string[]) {
@@ -22,7 +27,7 @@ export function useStudentGameProfiles(studentIds: string[]) {
     try {
       const { data } = await cloudSupabase
         .from('student_game_profiles')
-        .select('student_id, avatar_emoji, current_level, current_xp')
+        .select('student_id, avatar_emoji, current_level, current_xp, identity_title, identity_emoji, momentum_state, comeback_active, daily_narrative')
         .in('student_id', studentIds);
       const map: Record<string, GameProfile> = {};
       for (const row of (data || []) as any[]) {
@@ -31,6 +36,11 @@ export function useStudentGameProfiles(studentIds: string[]) {
           avatar_emoji: row.avatar_emoji || '👤',
           current_level: row.current_level || 1,
           current_xp: row.current_xp || 0,
+          identity_title: row.identity_title || null,
+          identity_emoji: row.identity_emoji || null,
+          momentum_state: row.momentum_state || null,
+          comeback_active: row.comeback_active || false,
+          daily_narrative: row.daily_narrative || null,
         };
       }
       setProfiles(map);
@@ -63,6 +73,11 @@ export function useStudentGameProfiles(studentIds: string[]) {
               avatar_emoji: row.avatar_emoji || '👤',
               current_level: row.current_level || 1,
               current_xp: row.current_xp || 0,
+              identity_title: row.identity_title || null,
+              identity_emoji: row.identity_emoji || null,
+              momentum_state: row.momentum_state || null,
+              comeback_active: row.comeback_active || false,
+              daily_narrative: row.daily_narrative || null,
             },
           }));
         }

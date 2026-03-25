@@ -29,6 +29,7 @@ import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { AvatarPicker } from '@/components/AvatarPicker';
 import { AnimatedAvatar } from '@/components/AnimatedAvatar';
 import { ClassroomMomentum } from '@/components/ClassroomMomentum';
+import { StudentIdentityBadge } from '@/components/StudentIdentityBadge';
 import { TeacherWinsFeed } from '@/components/TeacherWinsFeed';
 import { SessionSummaryPopup } from '@/components/SessionSummaryPopup';
 import { QuickStartSetup } from '@/components/QuickStartSetup';
@@ -941,6 +942,13 @@ const ClassroomView = () => {
                           {/* Level badge hidden for hybrid v1 — uncomment when ready */}
                           {/* <StudentLevelBadge level={level} xp={xp} compact /> */}
                         </div>
+                        <StudentIdentityBadge
+                          identityTitle={gp?.identity_title}
+                          identityEmoji={gp?.identity_emoji}
+                          momentumState={(gp?.momentum_state as any) || null}
+                          comebackActive={gp?.comeback_active}
+                          compact
+                        />
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           {client.grade && <span>Gr {client.grade}</span>}
                           {lastEvents[client.id] && (

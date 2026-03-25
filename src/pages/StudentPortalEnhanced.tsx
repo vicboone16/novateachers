@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Star, Lock, Flame, Gift, Flag, Sparkles, Trophy, CheckCircle, PartyPopper, Award, Paintbrush } from 'lucide-react';
 import { CosmeticInventory } from '@/components/CosmeticInventory';
 import { StudentQuestCards } from '@/components/StudentQuestCards';
+import { StudentNarrativeCard } from '@/components/StudentNarrativeCard';
 import { cn } from '@/lib/utils';
 
 const TRACK_LENGTH = 100;
@@ -202,6 +203,9 @@ export default function StudentPortalEnhanced() {
             )}
           </div>
         </div>
+
+        {/* Journey Narrative */}
+        <StudentNarrativeCard studentId={studentId!} agencyId={agencyId || undefined} variant="student" />
 
         {/* Balance */}
         <Card className="overflow-hidden border-0 shadow-lg">
