@@ -29,7 +29,7 @@ export const SmartHelpBanner = () => {
   });
   const [suggestion, setSuggestion] = useState<HelpSuggestion | null>(null);
 
-  const agencyId = currentWorkspace?.agencyId;
+  const agencyId = currentWorkspace?.agency_id;
 
   useEffect(() => {
     if (!user || !agencyId) return;
