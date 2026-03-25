@@ -1,16 +1,20 @@
 /**
  * ExternalParentPortal — Public parent-facing page accessed via /external/parent/:token.
- * Shows: child name, points, safe feed, rewards progress, recent redemptions.
+ * Shows: child name, points, safe feed, rewards progress, recent redemptions,
+ * parent insights, parent actions, and quests.
  * No clinical or negative content.
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { ParentInsightCards } from '@/components/ParentInsightCards';
+import { ParentActionButtons } from '@/components/ParentActionButtons';
+import { StudentQuestCards } from '@/components/StudentQuestCards';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Star, Gift, Sparkles, Heart, AlertTriangle, Loader2 } from 'lucide-react';
+import { Star, Gift, Sparkles, Heart, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface PortalData {
