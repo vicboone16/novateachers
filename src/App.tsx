@@ -54,6 +54,7 @@ import FeatureTour from "@/pages/FeatureTour";
 import FAQTutorial from "@/pages/FAQTutorial";
 import LaunchReadiness from "@/pages/LaunchReadiness";
 import ParentView from "@/pages/ParentView";
+import ClassroomInsights from "@/pages/ClassroomInsights";
 
 const queryClient = new QueryClient();
 
