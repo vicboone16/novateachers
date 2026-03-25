@@ -528,6 +528,26 @@ const Threads = () => {
             return (
               <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
                 <div className={cn('max-w-[80%] rounded-2xl px-4 py-2.5', isMine ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                  {/* Reply reference */}
+                  {msg.parent_id && (
+                    <div className={cn(
+                      'text-[10px] mb-1.5 px-2 py-1 rounded-lg border-l-2',
+                      isMine ? 'bg-primary-foreground/10 border-primary-foreground/30' : 'bg-background/50 border-primary/30'
+                    )}>
+                      <span className="font-semibold">
+                        {(() => {
+                          const parent = messages.find(m => m.id === msg.parent_id);
+                          return parent ? (userNames.get(parent.sender_id) || 'Staff') : 'Message';
+                        })()}
+                      </span>
+                      <p className="truncate opacity-70">
+                        {(() => {
+                          const parent = messages.find(m => m.id === msg.parent_id);
+                          return parent?.body?.slice(0, 60) || (msg.metadata as any)?.reply_preview || '…';
+                        })()}
+                      </p>
+                    </div>
+                  )}
                   {!isMine && (
                     <p className="text-[10px] font-semibold mb-0.5 opacity-70">
                       {userNames.get(msg.sender_id) || 'Staff'}
@@ -554,6 +574,10 @@ const Threads = () => {
                   )}
 
                   <div className="flex gap-0.5 mt-1 opacity-0 hover:opacity-100 transition-opacity">
+                    <button onClick={() => setReplyTo(msg)}
+                      className="text-[10px] hover:bg-accent/20 rounded px-1.5 py-0.5 mr-1 transition-colors">
+                      ↩ Reply
+                    </button>
                     {QUICK_EMOJIS.map(emoji => (
                       <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)}
                         className="text-xs hover:scale-125 transition-transform p-0.5">
