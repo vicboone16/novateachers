@@ -845,10 +845,18 @@ const ClassroomView = () => {
                     <button onClick={() => setQuickActionStudent(client)} className="flex items-center gap-2.5 group text-left min-w-0">
                       <button
                         onClick={(e) => { e.stopPropagation(); setAvatarPickerStudent(client); }}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg hover:scale-110 transition-transform active:scale-95"
+                        className="shrink-0 hover:scale-110 transition-transform active:scale-95"
                         title="Change avatar"
                       >
-                        {avatarEmoji}
+                        <AnimatedAvatar
+                          emoji={avatarEmoji}
+                          state={(() => {
+                            const eff = getEffect(client.id);
+                            return eff ? eventTypeToAnimState(eff.eventType) : 'idle';
+                          })()}
+                          size="sm"
+                          className="bg-primary/10"
+                        />
                       </button>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
