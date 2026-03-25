@@ -27,12 +27,14 @@ import { resolveDisplayNames } from '@/lib/resolve-names';
 import type { Client } from '@/lib/types';
 import { NOTIFICATION_LABELS } from '@/lib/notifications';
 import { MaydayContactsManager } from '@/components/MaydayContactsManager';
+import { AdminAuditLog } from '@/components/AdminAuditLog';
+import { StaffCoordinationPanel } from '@/components/StaffCoordinationPanel';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
   ArrowLeft, Users, UserPlus, Shield, Copy, Pencil, Check, X, Search,
   Key, GraduationCap, Building2, Hash, RefreshCw, Plus, Trash2, Bug, LogOut,
-  Bell, BellOff, Smartphone, Timer, Zap,
+  Bell, BellOff, Smartphone, Timer, Zap, ClipboardList, MapPin,
 } from 'lucide-react';
 
 // ── Types ──
@@ -401,6 +403,8 @@ const AdminDashboard = () => {
               <TabsTrigger value="students" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><GraduationCap className="h-3.5 w-3.5" /> Students</TabsTrigger>
               <TabsTrigger value="staff" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Users className="h-3.5 w-3.5" /> Staff</TabsTrigger>
               <TabsTrigger value="mayday" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 text-destructive" /> Mayday</TabsTrigger>
+              <TabsTrigger value="coordination" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><MapPin className="h-3.5 w-3.5" /> Coordination</TabsTrigger>
+              <TabsTrigger value="audit" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><ClipboardList className="h-3.5 w-3.5" /> Audit</TabsTrigger>
               <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
             </TabsList>
           </div>
@@ -927,6 +931,16 @@ const AdminDashboard = () => {
                 </p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Coordination Tab */}
+          <TabsContent value="coordination" className="space-y-4">
+            <StaffCoordinationPanel />
+          </TabsContent>
+
+          {/* Audit Log Tab */}
+          <TabsContent value="audit" className="space-y-4">
+            <AdminAuditLog />
           </TabsContent>
         </Tabs>
       )}

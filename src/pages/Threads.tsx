@@ -86,6 +86,7 @@ const Threads = () => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [whosHereExpanded, setWhosHereExpanded] = useState(false);
+  const [replyTo, setReplyTo] = useState<ThreadMessageRow | null>(null);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
   const agencyId = currentWorkspace?.agency_id || '';
@@ -248,10 +249,12 @@ const Threads = () => {
           sender_id: user.id,
           body: msgText.trim(),
           message_type: 'text',
-          metadata: { app_source: 'beacon' },
+          parent_id: replyTo?.id || null,
+          metadata: { app_source: 'beacon', ...(replyTo ? { reply_preview: replyTo.body.slice(0, 80) } : {}) },
         });
       if (error) throw error;
       setMsgText('');
+      setReplyTo(null);
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
     } finally {
@@ -525,6 +528,26 @@ const Threads = () => {
             return (
               <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
                 <div className={cn('max-w-[80%] rounded-2xl px-4 py-2.5', isMine ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
+                  {/* Reply reference */}
+                  {msg.parent_id && (
+                    <div className={cn(
+                      'text-[10px] mb-1.5 px-2 py-1 rounded-lg border-l-2',
+                      isMine ? 'bg-primary-foreground/10 border-primary-foreground/30' : 'bg-background/50 border-primary/30'
+                    )}>
+                      <span className="font-semibold">
+                        {(() => {
+                          const parent = messages.find(m => m.id === msg.parent_id);
+                          return parent ? (userNames.get(parent.sender_id) || 'Staff') : 'Message';
+                        })()}
+                      </span>
+                      <p className="truncate opacity-70">
+                        {(() => {
+                          const parent = messages.find(m => m.id === msg.parent_id);
+                          return parent?.body?.slice(0, 60) || (msg.metadata as any)?.reply_preview || '…';
+                        })()}
+                      </p>
+                    </div>
+                  )}
                   {!isMine && (
                     <p className="text-[10px] font-semibold mb-0.5 opacity-70">
                       {userNames.get(msg.sender_id) || 'Staff'}
@@ -551,6 +574,10 @@ const Threads = () => {
                   )}
 
                   <div className="flex gap-0.5 mt-1 opacity-0 hover:opacity-100 transition-opacity">
+                    <button onClick={() => setReplyTo(msg)}
+                      className="text-[10px] hover:bg-accent/20 rounded px-1.5 py-0.5 mr-1 transition-colors">
+                      ↩ Reply
+                    </button>
                     {QUICK_EMOJIS.map(emoji => (
                       <button key={emoji} onClick={() => toggleReaction(msg.id, emoji)}
                         className="text-xs hover:scale-125 transition-transform p-0.5">
@@ -564,6 +591,19 @@ const Threads = () => {
           })}
           <div ref={msgEndRef} />
         </div>
+
+        {/* Reply preview */}
+        {replyTo && (
+          <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border/40 bg-accent/10">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-primary">
+                Replying to {userNames.get(replyTo.sender_id) || 'Staff'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{replyTo.body.slice(0, 80)}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="text-muted-foreground hover:text-foreground text-sm">✕</button>
+          </div>
+        )}
 
         {/* Compose */}
         <div className="flex gap-2 px-4 py-3 border-t border-border/40 bg-card/30">
