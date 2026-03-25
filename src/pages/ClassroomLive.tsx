@@ -118,7 +118,7 @@ export default function ClassroomLive() {
         </Card>
 
         {/* Teams */}
-        {settings?.teams_enabled && teams.length > 0 && (
+        {settings?.allow_team_mode && teams.length > 0 && (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {teams.map(t => (
               <Card key={t.team_id}>
