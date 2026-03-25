@@ -19,18 +19,59 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth validation
+    // Auth validation — accept either Cloud JWT or external Core JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return json({ error: "Unauthorized" }, 401);
     }
-    const _authClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: _claims, error: _authError } = await _authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (_authError || !_claims?.claims) {
+
+    const token = authHeader.replace("Bearer ", "");
+    const cloudUrl = Deno.env.get("SUPABASE_URL")!;
+    const cloudAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const coreAuthUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
+    const coreAnonKey = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs";
+
+    let userId: string | null = null;
+
+    const cloudAuthClient = createClient(cloudUrl, cloudAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: cloudClaims } = await cloudAuthClient.auth.getClaims(token);
+    if (cloudClaims?.claims?.sub) {
+      userId = String(cloudClaims.claims.sub);
+    }
+
+    if (!userId && coreAnonKey) {
+      const coreAuthClient = createClient(coreAuthUrl, coreAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: coreClaims } = await coreAuthClient.auth.getClaims(token);
+      if (coreClaims?.claims?.sub) {
+        userId = String(coreClaims.claims.sub);
+      }
+    }
+
+    // Final fallback: ask the auth server directly to validate the token
+    if (!userId && coreAnonKey) {
+      try {
+        const authRes = await fetch(`${coreAuthUrl}/auth/v1/user`, {
+          headers: {
+            Authorization: authHeader,
+            apikey: coreAnonKey,
+          },
+        });
+        if (authRes.ok) {
+          const authUser = await authRes.json();
+          if (authUser?.id) {
+            userId = String(authUser.id);
+          }
+        }
+      } catch {
+        // fall through
+      }
+    }
+
+    if (!userId) {
       return json({ error: "Unauthorized" }, 401);
     }
 
