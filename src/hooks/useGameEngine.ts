@@ -201,8 +201,25 @@ export function useGameEngine({
   const recordCheckpoint = useCallback(async (studentId: string, checkpointLabel: string, rewardPoints: number) => {
     if (!agencyId || !modeConfig?.checkpoint_rewards_enabled) return;
     addFeedback(studentId, `🎁 ${checkpointLabel}! +${rewardPoints}`, '🎁', 'checkpoint');
+
     try {
-      await supabase.from('game_events' as any).insert({
+      // Award bonus points into the ledger
+      if (rewardPoints > 0) {
+        const staffId = (await supabase.auth.getUser()).data.user?.id;
+        if (staffId) {
+          await supabase.from('beacon_points_ledger').insert({
+            agency_id: agencyId,
+            student_id: studentId,
+            staff_id: staffId,
+            points: rewardPoints,
+            source: 'checkpoint_bonus',
+            reason: `Checkpoint: ${checkpointLabel}`,
+            entry_kind: 'checkpoint',
+          });
+        }
+      }
+      // Record game event
+      await supabase.from('game_events').insert({
         agency_id: agencyId,
         classroom_id: classroomId,
         student_id: studentId,
