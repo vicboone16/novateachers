@@ -90,6 +90,7 @@ const ClassroomView = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { agencyId } = useAppAccess();
   const { toast } = useToast();
+  const { onboardingDay } = useStaffOnboarding();
 
   // clients is now derived from allClients + group filter (see below)
   const [loading, setLoading] = useState(true);
