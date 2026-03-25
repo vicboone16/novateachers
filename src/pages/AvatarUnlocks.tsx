@@ -95,8 +95,12 @@ const AvatarUnlocks = () => {
     load();
   }, [selectedStudent]);
 
-  const getName = (s: StudentRow) =>
-    ((s.first_name || '') + ' ' + (s.last_name || '')).trim() || s.client_id.slice(0, 8);
+  const getName = (s: StudentRow) => {
+    const full = ((s.first_name || '') + ' ' + (s.last_name || '')).trim();
+    if (full) return full;
+    const idx = students.indexOf(s);
+    return `Student ${idx + 1}`;
+  };
 
   const unlockedIds = new Set(unlocks.map(u => u.unlock_id));
 
