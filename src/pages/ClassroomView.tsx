@@ -851,7 +851,8 @@ const ClassroomView = () => {
                           <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                             {displayName(client)}
                           </p>
-                          <StudentLevelBadge level={level} xp={xp} compact />
+                          {/* Level badge hidden for hybrid v1 — uncomment when ready */}
+                          {/* <StudentLevelBadge level={level} xp={xp} compact /> */}
                         </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           {client.grade && <span>Gr {client.grade}</span>}
