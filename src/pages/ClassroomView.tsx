@@ -702,29 +702,32 @@ const ClassroomView = () => {
               {' · '}{clients.length} students
             </p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/game-board')}>
-              <Gamepad2 className="h-3.5 w-3.5" /> Game
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/rewards')}>
-              <Gift className="h-3.5 w-3.5" /> Rewards
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setBulkAwardOpen(true)} title="Award all students">
-              <Users className="h-3.5 w-3.5" /> Award All
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
-              <Settings2 className="h-3.5 w-3.5" /> Reinforcement
-            </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => navigate('/threads')} title="Threads">
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-            {activeGroupId && (
-              <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-            )}
-          </div>
+          <ScrollArea className="w-full">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/game-board')}>
+                <Gamepad2 className="h-3.5 w-3.5" /> Game
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/rewards')}>
+                <Gift className="h-3.5 w-3.5" /> Rewards
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setBulkAwardOpen(true)} title="Award all students">
+                <Users className="h-3.5 w-3.5" /> Award All
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
+                <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => navigate('/threads')} title="Threads">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              {activeGroupId && (
+                <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+              )}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
       </div>
 
