@@ -932,6 +932,16 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Coordination Tab */}
+          <TabsContent value="coordination" className="space-y-4">
+            <StaffCoordinationPanel />
+          </TabsContent>
+
+          {/* Audit Log Tab */}
+          <TabsContent value="audit" className="space-y-4">
+            <AdminAuditLog />
+          </TabsContent>
         </Tabs>
       )}
     </div>
