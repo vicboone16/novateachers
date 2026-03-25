@@ -29,6 +29,7 @@ import { NOTIFICATION_LABELS } from '@/lib/notifications';
 import { MaydayContactsManager } from '@/components/MaydayContactsManager';
 import { AdminAuditLog } from '@/components/AdminAuditLog';
 import { StaffCoordinationPanel } from '@/components/StaffCoordinationPanel';
+import { StaffEngagementDashboard } from '@/components/onboarding/StaffEngagementDashboard';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
