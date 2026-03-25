@@ -202,6 +202,10 @@ export const AppLayout = () => {
 
       {/* Quick Add Panel */}
       <QuickAddPanel />
+
+      {/* Guided Walkthrough */}
+      <WalkthroughOverlay />
+      <HelpMeLauncher />
     </div>
   );
 };
