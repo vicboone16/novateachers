@@ -358,6 +358,7 @@ const GameBoard = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate('/classroom')} className="gap-1"><ArrowLeft className="h-4 w-4" /> Classroom</Button>
         <h1 className="text-lg font-bold font-heading flex items-center gap-2"><Flag className="h-5 w-5 text-accent" /> Race Board</h1>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTeamManagerOpen(true)} title="Teams"><Users className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTrackSelectorOpen(true)} title="Change Track"><Map className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/game-settings')} title="Game Settings"><Settings className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setResetOpen(true)} title="Reset race"><RotateCcw className="h-4 w-4 text-muted-foreground" /></Button>
