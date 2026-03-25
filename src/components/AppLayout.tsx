@@ -19,6 +19,7 @@ import { SmartHelpBanner } from '@/components/SmartHelpBanner';
 import { HelpMeLauncher } from '@/components/HelpMeLauncher';
 import { WalkthroughOverlay } from '@/components/WalkthroughOverlay';
 import { BeaconHelpAssistant } from '@/components/BeaconHelpAssistant';
+import { StaffOnboardingFlow } from '@/components/onboarding/StaffOnboardingFlow';
 
 const navItems = [
   { to: '/classroom', label: 'Classroom', icon: LayoutGrid },
@@ -209,6 +210,7 @@ export const AppLayout = () => {
       <WalkthroughOverlay />
       <HelpMeLauncher />
       <BeaconHelpAssistant />
+      <StaffOnboardingFlow />
     </div>
   );
 };

@@ -29,6 +29,7 @@ import { NOTIFICATION_LABELS } from '@/lib/notifications';
 import { MaydayContactsManager } from '@/components/MaydayContactsManager';
 import { AdminAuditLog } from '@/components/AdminAuditLog';
 import { StaffCoordinationPanel } from '@/components/StaffCoordinationPanel';
+import { StaffEngagementDashboard } from '@/components/onboarding/StaffEngagementDashboard';
 import { isPushAvailable, registerPush, getPendingLocalNotifications, cancelAllLocalNotifications, scheduleLocalNotification } from '@/lib/push';
 import { rebuildLocalSchedules, getReminderSummary } from '@/lib/reminder-scheduler';
 import {
@@ -405,6 +406,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="mayday" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Shield className="h-3.5 w-3.5 text-destructive" /> Mayday</TabsTrigger>
               <TabsTrigger value="coordination" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><MapPin className="h-3.5 w-3.5" /> Coordination</TabsTrigger>
               <TabsTrigger value="audit" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><ClipboardList className="h-3.5 w-3.5" /> Audit</TabsTrigger>
+              <TabsTrigger value="engagement" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Zap className="h-3.5 w-3.5" /> Engagement</TabsTrigger>
               <TabsTrigger value="debug" className="gap-1 sm:gap-1.5 text-xs sm:text-sm"><Bug className="h-3.5 w-3.5" /> Debug</TabsTrigger>
             </TabsList>
           </div>
@@ -941,6 +943,11 @@ const AdminDashboard = () => {
           {/* Audit Log Tab */}
           <TabsContent value="audit" className="space-y-4">
             <AdminAuditLog />
+          </TabsContent>
+
+          {/* Staff Engagement Tab */}
+          <TabsContent value="engagement" className="space-y-4">
+            <StaffEngagementDashboard />
           </TabsContent>
         </Tabs>
       )}

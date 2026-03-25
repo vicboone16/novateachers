@@ -6,6 +6,8 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { OnboardingHomeBanner } from '@/components/onboarding/OnboardingHomeBanner';
+import { useStaffOnboarding } from '@/hooks/useStaffOnboarding';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,6 +90,7 @@ const ClassroomView = () => {
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { agencyId } = useAppAccess();
   const { toast } = useToast();
+  const { onboardingDay } = useStaffOnboarding();
 
   // clients is now derived from allClients + group filter (see below)
   const [loading, setLoading] = useState(true);
@@ -725,6 +728,8 @@ const ClassroomView = () => {
 
   return (
     <div className="space-y-5 pb-6">
+      {/* ─── ONBOARDING BANNER ─── */}
+      <OnboardingHomeBanner onboardingDay={onboardingDay} />
       {/* ─── HEADER BAND ─── */}
       <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-4">
         <div className="flex items-center justify-between gap-3 mb-3">

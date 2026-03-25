@@ -2794,31 +2794,52 @@ export type Database = {
       }
       staff_onboarding: {
         Row: {
+          agency_id: string | null
           created_at: string | null
+          first_action_at: string | null
           first_action_completed: boolean | null
           first_login_at: string | null
           id: string
           last_active_at: string | null
-          user_id: string | null
+          last_milestone_shown: string | null
+          onboarding_day: number | null
+          total_actions: number | null
+          updated_at: string
+          user_id: string
           walkthrough_completed: boolean | null
+          welcome_dismissed: boolean
         }
         Insert: {
+          agency_id?: string | null
           created_at?: string | null
+          first_action_at?: string | null
           first_action_completed?: boolean | null
           first_login_at?: string | null
           id?: string
           last_active_at?: string | null
-          user_id?: string | null
+          last_milestone_shown?: string | null
+          onboarding_day?: number | null
+          total_actions?: number | null
+          updated_at?: string
+          user_id: string
           walkthrough_completed?: boolean | null
+          welcome_dismissed?: boolean
         }
         Update: {
+          agency_id?: string | null
           created_at?: string | null
+          first_action_at?: string | null
           first_action_completed?: boolean | null
           first_login_at?: string | null
           id?: string
           last_active_at?: string | null
-          user_id?: string | null
+          last_milestone_shown?: string | null
+          onboarding_day?: number | null
+          total_actions?: number | null
+          updated_at?: string
+          user_id?: string
           walkthrough_completed?: boolean | null
+          welcome_dismissed?: boolean
         }
         Relationships: []
       }
@@ -4911,12 +4932,18 @@ export type Database = {
       }
       v_staff_engagement: {
         Row: {
+          actions_this_week: number | null
+          agency_id: string | null
+          first_action_at: string | null
           first_action_completed: boolean | null
           first_login_at: string | null
           last_active_at: string | null
+          onboarding_day: number | null
+          status: string | null
           total_actions: number | null
           user_id: string | null
           walkthrough_completed: boolean | null
+          welcome_dismissed: boolean | null
         }
         Relationships: []
       }
