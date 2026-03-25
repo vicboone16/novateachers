@@ -8,6 +8,7 @@ import { WelcomeModal } from './WelcomeModal';
 import { WalkthroughCarousel } from './WalkthroughCarousel';
 import { FirstActionCelebration } from './FirstActionCelebration';
 import { EndOfDayNudge } from './EndOfDayNudge';
+import { toast } from 'sonner';
 
 export const StaffOnboardingFlow = () => {
   const {
