@@ -12,20 +12,51 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth validation
+    // Auth validation — three-tier: Cloud JWT, Core JWT, Core auth endpoint
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const _authClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: _claims, error: _authError } = await _authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (_authError || !_claims?.claims) {
+    const token = authHeader.replace("Bearer ", "");
+    let authenticated = false;
+
+    // Tier 1: Try Cloud Supabase
+    try {
+      const cloudClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data, error } = await cloudClient.auth.getClaims(token);
+      if (!error && data?.claims) authenticated = true;
+    } catch {}
+
+    // Tier 2: Try Nova Core Supabase
+    if (!authenticated) {
+      const coreUrl2 = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
+      const coreAnon = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs";
+      try {
+        const coreClient = createClient(coreUrl2, coreAnon, { global: { headers: { Authorization: authHeader } } });
+        const { data, error } = await coreClient.auth.getClaims(token);
+        if (!error && data?.claims) authenticated = true;
+      } catch {}
+    }
+
+    // Tier 3: Direct auth endpoint
+    if (!authenticated) {
+      const coreUrl3 = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
+      try {
+        const res2 = await fetch(`${coreUrl3}/auth/v1/user`, {
+          headers: { Authorization: authHeader, apikey: Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs" },
+        });
+        if (res2.ok) authenticated = true;
+        else await res2.text();
+      } catch {}
+    }
+
+    if (!authenticated) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

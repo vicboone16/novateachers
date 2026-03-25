@@ -40,7 +40,7 @@ interface FreqEntry { behavior_name: string; count: number; logged_date: string;
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
 interface QuickNote { behavior_name: string | null; note: string; logged_at: string; }
 interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; }
-interface UnifiedEvent { event_type: string; event_subtype: string | null; event_value: any; recorded_at: string; }
+interface UnifiedEvent { event_type: string; event_subtype?: string | null; event_value: any; recorded_at: string; }
 
 export const WeeklyDataSummary = () => {
   const { user } = useAuth();
@@ -178,18 +178,18 @@ export const WeeklyDataSummary = () => {
 
     const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_duration_entries').select('behavior_name,duration_seconds,logged_date')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_quick_notes').select('behavior_name,note,logged_at')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
         .eq('client_id', selectedClientId).eq('user_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      supabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
+      supabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
         .eq('student_id', selectedClientId).eq('staff_id', user?.id)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);
@@ -233,7 +233,7 @@ export const WeeklyDataSummary = () => {
   // Engagement stats from unified events
   const engagementStats = useMemo(() => {
     const samples = unifiedEvents.filter(e => e.event_type === 'engagement_sample');
-    const engaged = samples.filter(e => e.event_subtype === 'engaged').length;
+    const engaged = samples.filter(e => e.event_subtype === 'engaged' || e.event_value?.subtype === 'engaged' || e.event_value?.engaged === true).length;
     const total = samples.length;
     return { total, engaged, percentage: total > 0 ? Math.round((engaged / total) * 100) : null };
   }, [unifiedEvents]);
@@ -241,7 +241,7 @@ export const WeeklyDataSummary = () => {
   // Skill probe stats from unified events
   const skillProbeStats = useMemo(() => {
     const summaries = unifiedEvents.filter(
-      e => e.event_type === 'skill_probe' && e.event_subtype === 'session_summary'
+      e => e.event_type === 'skill_probe' && (e.event_subtype === 'session_summary' || e.event_value?.subtype === 'session_summary')
     );
     const bySkill: Record<string, { trials: number; correct: number; sessions: number }> = {};
     for (const s of summaries) {

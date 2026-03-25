@@ -4,6 +4,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 export interface GameProfile {
   student_id: string;
@@ -20,6 +21,8 @@ export interface GameProfile {
 export function useStudentGameProfiles(studentIds: string[]) {
   const [profiles, setProfiles] = useState<Record<string, GameProfile>>({});
   const [loading, setLoading] = useState(false);
+  const { currentWorkspace } = useWorkspace();
+  const agencyId = currentWorkspace?.agency_id;
 
   const fetchProfiles = useCallback(async () => {
     if (studentIds.length === 0) return;
@@ -29,8 +32,11 @@ export function useStudentGameProfiles(studentIds: string[]) {
         .from('student_game_profiles')
         .select('student_id, avatar_emoji, current_level, current_xp, identity_title, identity_emoji, momentum_state, comeback_active, daily_narrative')
         .in('student_id', studentIds);
+
       const map: Record<string, GameProfile> = {};
+      const existingIds = new Set<string>();
       for (const row of (data || []) as any[]) {
+        existingIds.add(row.student_id);
         map[row.student_id] = {
           student_id: row.student_id,
           avatar_emoji: row.avatar_emoji || '👤',
@@ -43,6 +49,34 @@ export function useStudentGameProfiles(studentIds: string[]) {
           daily_narrative: row.daily_narrative || null,
         };
       }
+
+      // Auto-seed missing profiles
+      const missing = studentIds.filter(id => !existingIds.has(id));
+      if (missing.length > 0 && agencyId) {
+        const avatars = ['🐱','🐶','🦊','🐻','🐼','🐨','🐯','🦁','🐸','🐵','🐙','🦄','🐲','🐬','🦋','🐢'];
+        const seeds = missing.map((id, i) => ({
+          student_id: id,
+          agency_id: agencyId,
+          avatar_emoji: avatars[i % avatars.length],
+          current_level: 1,
+          current_xp: 0,
+        }));
+        await cloudSupabase.from('student_game_profiles').upsert(seeds, { onConflict: 'student_id' });
+        for (const s of seeds) {
+          map[s.student_id] = {
+            student_id: s.student_id,
+            avatar_emoji: s.avatar_emoji,
+            current_level: 1,
+            current_xp: 0,
+            identity_title: null,
+            identity_emoji: null,
+            momentum_state: null,
+            comeback_active: false,
+            daily_narrative: null,
+          };
+        }
+      }
+
       setProfiles(map);
     } catch (err) {
       console.warn('[GameProfiles] fetch failed:', err);
