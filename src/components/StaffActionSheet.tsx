@@ -95,7 +95,7 @@ export function StaffActionSheet({
       const availabilityNew = isAvailable ? 'available' : 'busy';
 
       // Use upsert_staff_presence RPC to populate both legacy + new columns
-      const { error: rpcError } = await cloudSupabase.rpc('upsert_staff_presence', {
+      const { error: rpcError } = await (cloudSupabase.rpc as any)('upsert_staff_presence', {
         p_agency_id: agencyId,
         p_user_id: userId,
         p_staff_name: staffName || null,
