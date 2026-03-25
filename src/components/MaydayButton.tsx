@@ -102,16 +102,30 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         .eq('is_active', true);
       const allContacts = (data || []) as any as MaydayContact[];
 
-      // Enrich with presence data
+      // Enrich with presence data — try v_mayday_candidates first, fallback to direct queries
       try {
-        const [{ data: roomStaff }, { data: supportStaff }] = await Promise.all([
-          supabase.from('v_classroom_staff_presence' as any)
-            .select('user_id, status, location_label, classroom_group_id, available_for_support')
-            .eq('agency_id', agencyId),
-          supabase.from('v_available_support_staff' as any)
-            .select('user_id, availability_status, location_label, status, classroom_group_id')
-            .eq('agency_id', agencyId),
-        ]);
+        let presenceMap = new Map<string, any>();
+
+        // Try the smarter v_mayday_candidates view first
+        const { data: maydayCandidates, error: mcErr } = await cloudSupabase
+          .from('v_mayday_candidates' as any)
+          .select('*')
+          .eq('agency_id', agencyId);
+
+        if (!mcErr && maydayCandidates && maydayCandidates.length > 0) {
+          for (const s of maydayCandidates as any[]) {
+            presenceMap.set(s.user_id, s);
+          }
+        } else {
+          // Fallback: query staff_presence directly
+          const { data: roomStaff } = await cloudSupabase
+            .from('staff_presence')
+            .select('user_id, status, location_label, classroom_group_id, available_for_support, availability_status')
+            .eq('agency_id', agencyId);
+          for (const s of (roomStaff || []) as any[]) {
+            presenceMap.set(s.user_id, s);
+          }
+        }
 
         const presenceMap = new Map<string, any>();
         for (const s of [...(roomStaff || []), ...(supportStaff || [])] as any[]) {
