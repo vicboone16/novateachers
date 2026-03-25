@@ -426,6 +426,7 @@ const GameBoard = () => {
                     <span className={cn("text-sm font-bold w-5 text-center tabular-nums", i === 0 && "text-amber-500", i === 1 && "text-gray-400", i === 2 && "text-orange-400")}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
                     <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
+                    <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || 0} compact />
                     {laps > 0 && <Badge className="text-[9px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><CheckCircle className="h-2 w-2" />Lap {laps}</Badge>}
                     <Badge variant="outline" className="text-[10px] tabular-nums gap-0.5 shrink-0">{skin.icon} {bal}</Badge>
                     <div className="w-16 shrink-0"><Progress value={(pos / TRACK_LENGTH) * 100} className="h-2" /></div>

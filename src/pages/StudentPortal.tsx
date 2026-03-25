@@ -4,6 +4,8 @@
  * Includes realtime balance updates via beacon_points_ledger subscription.
  */
 import { useEffect, useState, useRef } from 'react';
+import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
+import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
