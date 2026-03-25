@@ -194,6 +194,7 @@ export const AppLayout = () => {
 
       {/* Main Content */}
       <main className="mx-auto w-full max-w-6xl flex-1 px-3 sm:px-4 py-4 sm:py-6 pb-28 sm:pb-24 safe-x safe-bottom">
+        <SmartHelpBanner />
         <Outlet />
       </main>
 
