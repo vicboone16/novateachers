@@ -506,7 +506,7 @@ const FeatureTour = () => {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Button
               size="lg"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/')}
               className="gap-2 px-8"
             >
               <LogIn className="h-5 w-5" />
