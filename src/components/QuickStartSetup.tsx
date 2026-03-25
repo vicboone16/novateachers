@@ -212,15 +212,15 @@ export function QuickStartSetup({ open, onOpenChange, agencyId, onComplete }: Pr
       // 6. Create demo students if demo mode
       if (demoMode) {
         for (const s of DEMO_STUDENTS) {
-          const { data: client } = await cloudSupabase
-            .from('clients')
+          const { data: client } = await (cloudSupabase
+            .from('clients' as any)
             .insert({
               first_name: s.first_name,
               last_name: s.last_name,
               agency_id: agencyId,
               student_origin: 'demo',
               created_in_app: 'beacon',
-            } as any)
+            }) as any)
             .select('id')
             .single();
 
