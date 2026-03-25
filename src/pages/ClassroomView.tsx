@@ -182,6 +182,10 @@ const ClassroomView = () => {
     ? allClients
     : allClients.filter(c => groupStudentIds.has(c.id));
 
+  // Game profiles (level, xp, avatar)
+  const { profiles: gameProfiles } = useStudentGameProfiles(clients.map(c => c.id));
+  const [avatarPickerStudent, setAvatarPickerStudent] = useState<Client | null>(null);
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
