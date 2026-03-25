@@ -1,13 +1,14 @@
 /**
- * GameBoard — Curved Track Race Board with dynamic track from game_tracks.
- * Uses nodes_json for SVG path, interpolates student positions along the curve.
- * Supports laps, realtime updates, checkpoint celebrations, and team mode.
+ * GameBoard — Dynamic Game Engine with curved track, zones, checkpoints,
+ * momentum streaks, comeback mechanics, floating feedback, and track selector.
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
 import { useGameTrack } from '@/hooks/useGameTrack';
 import { useGameEvents } from '@/hooks/useGameEvents';
+import { useGameEngine } from '@/hooks/useGameEngine';
 import { CurvedTrackBoard } from '@/components/CurvedTrackBoard';
+import { TrackSelector } from '@/components/TrackSelector';
 import { StudentLevelBadge } from '@/components/StudentLevelBadge';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,10 +26,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CHECKPOINT_INTERVAL = 10;
@@ -61,14 +60,47 @@ const GameBoard = () => {
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [allGroups, setAllGroups] = useState<{ group_id: string; name: string }[]>([]);
+  const [trackSelectorOpen, setTrackSelectorOpen] = useState(false);
+
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
-  const { track } = useGameTrack(activeGroupId);
+  const { track, allTracks, refetch: refetchTrack } = useGameTrack(activeGroupId);
   const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
 
   const TRACK_LENGTH = track?.total_steps || 100;
 
-  // Load all groups for selector
+  const getEffectiveBalance = (s: StudentGameProgress) => liveBalances[s.student_id] ?? s.points_balance ?? 0;
+
+  // Build engine students for momentum calculations
+  const sortedStudents = useMemo(() =>
+    [...students].sort((a, b) => getEffectiveBalance(b) - getEffectiveBalance(a)),
+    [students, liveBalances]
+  );
+
+  const engineStudents = useMemo(() =>
+    sortedStudents.map((s, i) => {
+      const bal = getEffectiveBalance(s);
+      const pos = getPosition(bal, TRACK_LENGTH);
+      return {
+        student_id: s.student_id,
+        balance: bal,
+        rank: i + 1,
+        progress: Math.min(pos / TRACK_LENGTH, 1),
+      };
+    }),
+    [sortedStudents, liveBalances, TRACK_LENGTH]
+  );
+
+  const { feedbacks, studentStatuses, recordCheckpoint } = useGameEngine({
+    classroomId: activeGroupId,
+    agencyId: effectiveAgencyId,
+    modeSlug: (settings as any)?.game_mode || 'race',
+    students: engineStudents,
+    zones: track?.zones || [],
+    enabled: !!activeGroupId,
+  });
+
+  // Load all groups
   useEffect(() => {
     if (!user || !effectiveAgencyId) return;
     cloudSupabase
@@ -79,7 +111,6 @@ const GameBoard = () => {
       .then(({ data }) => setAllGroups(data || []));
   }, [user, effectiveAgencyId]);
 
-  // Use shared classroom context
   useEffect(() => {
     if (sharedGroupId) setActiveGroupId(sharedGroupId);
     else if (!classroomLoading && !sharedGroupId) setLoading(false);
@@ -92,12 +123,40 @@ const GameBoard = () => {
     setSharedGroupId(gid);
   };
 
+  const handleTrackSelect = async (trackId: string) => {
+    if (!activeGroupId) return;
+    try {
+      const { data: existing } = await cloudSupabase
+        .from('classroom_game_settings')
+        .select('id')
+        .eq('group_id', activeGroupId)
+        .maybeSingle();
+      if (existing) {
+        await cloudSupabase.from('classroom_game_settings').update({ track_id: trackId }).eq('group_id', activeGroupId);
+      } else {
+        await cloudSupabase.from('classroom_game_settings').insert({
+          group_id: activeGroupId,
+          agency_id: effectiveAgencyId,
+          track_id: trackId,
+        });
+      }
+      refetchTrack();
+      toast({ title: '🗺️ Track updated!' });
+    } catch (e: any) {
+      toast({ title: 'Failed to update track', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const loadBoard = async () => {
     if (!activeGroupId || !user) return;
     setLoading(true);
     setLoadError(null);
     try {
-      const [s, prog, t] = await Promise.all([getClassroomGameSettings(activeGroupId), getClassroomGameProgress(activeGroupId), getTeamScores(activeGroupId)]);
+      const [s, prog, t] = await Promise.all([
+        getClassroomGameSettings(activeGroupId),
+        getClassroomGameProgress(activeGroupId),
+        getTeamScores(activeGroupId),
+      ]);
       if (prog && prog.length > 0) {
         setSettings(s); setStudents(prog); setTeams(t);
         const bals = await getStudentBalances(user.id, prog.map(p => p.student_id));
@@ -116,13 +175,13 @@ const GameBoard = () => {
     if (!activeGroupId || !user) return;
     try {
       const { data: groupStudents } = await cloudSupabase.from('classroom_group_students').select('client_id').eq('group_id', activeGroupId);
-      const studentIds = (groupStudents || []).map((s: any) => s.client_id);
-      if (studentIds.length === 0) { setStudents([]); return; }
+      const sids = (groupStudents || []).map((s: any) => s.client_id);
+      if (sids.length === 0) { setStudents([]); return; }
 
-      const bals = await getStudentBalances(user.id, studentIds);
+      const bals = await getStudentBalances(user.id, sids);
       setLiveBalances(bals);
 
-      let nameMap = new Map<string, { first_name: string; last_name: string }>();
+      const nameMap: Record<string, { first_name: string; last_name: string }> = {};
       try {
         const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
         const aid = (grpData as any)?.agency_id;
@@ -130,49 +189,36 @@ const GameBoard = () => {
           const { data: allClients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').eq('agency_id', aid);
           for (const c of (allClients || []) as any[]) {
             const cid = c.client_id || c.id;
-            if (studentIds.includes(cid)) nameMap.set(cid, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            if (sids.includes(cid)) nameMap[cid] = { first_name: c.first_name || '', last_name: c.last_name || '' };
           }
         }
       } catch { /* silent */ }
 
-      if (nameMap.size < studentIds.length) {
-        try {
-          const { data: clients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').in('client_id', studentIds);
-          for (const c of (clients || []) as any[]) {
-            const cid = c.client_id || c.id;
-            if (!nameMap.has(cid)) nameMap.set(cid, { first_name: c.first_name || '', last_name: c.last_name || '' });
-          }
-        } catch { /* silent */ }
-      }
-
-      let avatarMap = new Map<string, string>();
+      const avatarMap: Record<string, string> = {};
       try {
-        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', studentIds);
-        for (const p of (profiles || []) as any[]) avatarMap.set(p.student_id, p.avatar_emoji || '');
+        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', sids);
+        for (const p of (profiles || []) as any[]) avatarMap[p.student_id] = p.avatar_emoji || '';
       } catch { /* silent */ }
 
-      const fallbackStudents: StudentGameProgress[] = studentIds.map(sid => {
-        const names = nameMap.get(sid);
+      const fallbackStudents: StudentGameProgress[] = sids.map(sid => {
+        const names = nameMap[sid];
         return {
           student_id: sid,
           first_name: names?.first_name || '',
           last_name: names?.last_name || '',
-          avatar_emoji: avatarMap.get(sid) || '👤',
+          avatar_emoji: avatarMap[sid] || '👤',
           points_balance: bals[sid] || 0,
           track_position: getPosition(bals[sid] || 0, TRACK_LENGTH),
-          team_name: undefined,
-          team_color: undefined,
-          team_icon: undefined,
         } as any;
       });
       setStudents(fallbackStudents);
     } catch (err: any) {
-      console.error('[GameBoard] Fallback load also failed:', err);
+      console.error('[GameBoard] Fallback load failed:', err);
       setLoadError('Could not load game data. Please try again.');
     }
   };
 
-  // Realtime subscription
+  // Realtime subscription for points
   useEffect(() => {
     if (!user) return;
     const channel = cloudSupabase.channel('game-board-live').on('postgres_changes', {
@@ -180,8 +226,8 @@ const GameBoard = () => {
     }, async (payload: any) => {
       const sid = payload.new?.student_id;
       if (sid && students.some(s => s.student_id === sid)) {
-        const studentIds = students.map(s => s.student_id);
-        const bals = await getStudentBalances(user.id, studentIds);
+        const sids = students.map(s => s.student_id);
+        const bals = await getStudentBalances(user.id, sids);
         setLiveBalances(prev => {
           const prevBal = prev[sid] || 0;
           const newBal = bals[sid] || 0;
@@ -191,6 +237,16 @@ const GameBoard = () => {
             setRecentCheckpoint(sid);
             setTimeout(() => setRecentCheckpoint(null), 3000);
           }
+          // Check checkpoint crossings from track data
+          if (track?.checkpoints) {
+            const prevProg = getPosition(prevBal, TRACK_LENGTH) / TRACK_LENGTH;
+            const newProg = getPosition(newBal, TRACK_LENGTH) / TRACK_LENGTH;
+            for (const cp of track.checkpoints) {
+              if (prevProg < cp.progress_pct && newProg >= cp.progress_pct) {
+                recordCheckpoint(sid, cp.label, cp.reward_points);
+              }
+            }
+          }
           return bals;
         });
         setFlash(sid);
@@ -198,14 +254,14 @@ const GameBoard = () => {
       }
     }).subscribe();
     return () => { cloudSupabase.removeChannel(channel); };
-  }, [user, students, TRACK_LENGTH]);
+  }, [user, students, TRACK_LENGTH, track?.checkpoints, recordCheckpoint]);
 
   const handleReset = async () => {
     if (!user || !activeGroupId) return;
     setResetting(true);
     try {
-      const studentIds = students.map(s => s.student_id);
-      for (const sid of studentIds) {
+      const sids = students.map(s => s.student_id);
+      for (const sid of sids) {
         await cloudSupabase.from('beacon_points_ledger').delete().eq('staff_id', user.id).eq('student_id', sid);
       }
       setLiveBalances({});
@@ -217,9 +273,7 @@ const GameBoard = () => {
   };
 
   const skin = POINT_SKINS[settings?.point_display_type || 'stars'];
-  const getEffectiveBalance = (s: StudentGameProgress) => liveBalances[s.student_id] ?? s.points_balance ?? 0;
   const totalClassPoints = students.reduce((sum, s) => sum + getEffectiveBalance(s), 0);
-  const sortedStudents = [...students].sort((a, b) => getEffectiveBalance(b) - getEffectiveBalance(a));
   const finishedCount = students.filter(s => getEffectiveBalance(s) >= TRACK_LENGTH).length;
 
   const getDisplayName = (s: StudentGameProgress) => {
@@ -231,12 +285,13 @@ const GameBoard = () => {
     return first || last || s.student_id.slice(0, 6);
   };
 
-  // Build student positions for curved track
+  // Build track students with engine data
   const trackStudents = useMemo(() => {
     return students.map(s => {
       const bal = getEffectiveBalance(s);
       const pos = getPosition(bal, TRACK_LENGTH);
       const progress = Math.min(pos / TRACK_LENGTH, 1);
+      const status = studentStatuses[s.student_id];
       return {
         student_id: s.student_id,
         avatar_emoji: s.avatar_emoji || '👤',
@@ -247,9 +302,11 @@ const GameBoard = () => {
         isFlashing: flash === s.student_id,
         teamColor: s.team_color,
         activeEffect: getEffect(s.student_id)?.effect ?? null,
+        hasComeback: status?.hasComeback || false,
+        streakEmoji: status?.emoji || null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, studentStatuses]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
@@ -277,12 +334,8 @@ const GameBoard = () => {
         <p className="text-sm text-muted-foreground">
           {classroomError || 'No classroom found. Create a classroom group first.'}
         </p>
-        {errorReason === 'no_teacher_assignment' && (
-          <p className="text-xs text-muted-foreground">You are not assigned to any classroom as staff.</p>
-        )}
-        {errorReason === 'no_classrooms_at_all' && (
-          <p className="text-xs text-muted-foreground">No classroom groups exist yet.</p>
-        )}
+        {errorReason === 'no_teacher_assignment' && <p className="text-xs text-muted-foreground">You are not assigned to any classroom as staff.</p>}
+        {errorReason === 'no_classrooms_at_all' && <p className="text-xs text-muted-foreground">No classroom groups exist yet.</p>}
         <Button variant="outline" size="sm" onClick={() => navigate('/classrooms')}>Classroom Manager</Button>
       </div>
     </div>
@@ -295,6 +348,7 @@ const GameBoard = () => {
         <Button variant="ghost" size="sm" onClick={() => navigate('/classroom')} className="gap-1"><ArrowLeft className="h-4 w-4" /> Classroom</Button>
         <h1 className="text-lg font-bold font-heading flex items-center gap-2"><Flag className="h-5 w-5 text-accent" /> Race Board</h1>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTrackSelectorOpen(true)} title="Change Track"><Map className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/game-settings')} title="Game Settings"><Settings className="h-4 w-4 text-muted-foreground" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setResetOpen(true)} title="Reset race"><RotateCcw className="h-4 w-4 text-muted-foreground" /></Button>
         </div>
@@ -327,7 +381,15 @@ const GameBoard = () => {
             {finishedCount > 0 && (
               <Badge className="bg-accent/20 text-accent-foreground border-accent/30 gap-1"><PartyPopper className="h-3 w-3" /> {finishedCount} lapped!</Badge>
             )}
-            {settings?.mission_of_the_day && <div className="text-right"><p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mission</p><p className="text-sm font-semibold">{settings.mission_of_the_day}</p></div>}
+            {track?.zones && track.zones.length > 0 && (
+              <div className="flex gap-1">
+                {track.zones.map((z, i) => (
+                  <Badge key={i} variant="outline" className="text-[9px] py-0" style={{ borderColor: z.color, color: z.color }}>
+                    {z.type === 'boost' ? '⚡' : z.type === 'slow' ? '❄️' : z.type === 'reward' ? '🎁' : '✨'} {z.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -351,8 +413,12 @@ const GameBoard = () => {
       <Card className="border-border/40 overflow-hidden">
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent" /><p className="text-sm font-bold">{track?.name || 'Race Track'}</p></div>
-            <p className="text-[10px] text-muted-foreground">{TRACK_LENGTH}pt lap · {track?.nodes.length || 0} waypoints</p>
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-accent" />
+              <p className="text-sm font-bold">{track?.name || 'Race Track'}</p>
+              {track?.theme && <Badge variant="outline" className="text-[9px]">{track.theme.name}</Badge>}
+            </div>
+            <p className="text-[10px] text-muted-foreground">{TRACK_LENGTH}pt lap · {track?.zones.length || 0} zones · {track?.checkpoints.length || 0} checkpoints</p>
           </div>
 
           {students.length === 0 ? (
@@ -366,13 +432,17 @@ const GameBoard = () => {
               nodes={track.nodes}
               totalSteps={TRACK_LENGTH}
               students={trackStudents}
+              zones={track.zones}
+              checkpoints={track.checkpoints}
+              theme={track.theme}
+              feedbacks={feedbacks}
               className="border border-border/30"
             />
           ) : null}
         </CardContent>
       </Card>
 
-      {/* Standings */}
+      {/* Standings with momentum indicators */}
       {settings?.leaderboard_enabled !== false && students.length > 0 && (
         <Card className="border-border/40">
           <CardContent className="p-4">
@@ -383,24 +453,46 @@ const GameBoard = () => {
                 const pos = getPosition(bal, TRACK_LENGTH);
                 const laps = getLaps(bal, TRACK_LENGTH);
                 const isFlashing = flash === s.student_id;
-                const cp = getCheckpointsReached(pos);
                 const name = getDisplayName(s);
                 const distToFinish = Math.max(0, TRACK_LENGTH - pos);
+                const status = studentStatuses[s.student_id];
 
                 return (
                   <div key={s.student_id} className={cn(
                     "flex items-center gap-3 rounded-lg px-2.5 py-2 transition-all duration-500",
-                    isFlashing && "bg-amber-50 dark:bg-amber-900/10 ring-1 ring-amber-300/50",
+                    isFlashing && "bg-accent/10 ring-1 ring-accent/30",
                     laps > 0 && "bg-accent/5"
                   )}>
-                    <span className={cn("text-sm font-bold w-5 text-center tabular-nums", i === 0 && "text-amber-500", i === 1 && "text-gray-400", i === 2 && "text-orange-400")}>{i + 1}</span>
+                    <span className={cn("text-sm font-bold w-5 text-center tabular-nums",
+                      i === 0 && "text-amber-500", i === 1 && "text-muted-foreground", i === 2 && "text-orange-400"
+                    )}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
                     <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
+
+                    {/* Momentum indicators */}
+                    {status?.status === 'on_fire' && (
+                      <Badge className="text-[9px] bg-orange-100 text-orange-700 border-orange-200 gap-0.5 dark:bg-orange-900/20 dark:text-orange-400">
+                        <Flame className="h-2.5 w-2.5" /> {status.streak}🔥
+                      </Badge>
+                    )}
+                    {status?.status === 'heating_up' && (
+                      <Badge variant="outline" className="text-[9px] gap-0.5 text-orange-500 border-orange-200">
+                        🔥 Heating up
+                      </Badge>
+                    )}
+                    {status?.status === 'close_to_reward' && (
+                      <Badge variant="outline" className="text-[9px] gap-0.5 text-accent border-accent/30">
+                        🎯 Close!
+                      </Badge>
+                    )}
+                    {status?.hasComeback && (
+                      <Badge variant="outline" className="text-[9px] text-blue-500 border-blue-200">💪</Badge>
+                    )}
+
                     <StudentLevelBadge level={gameProfiles[s.student_id]?.current_level || 1} xp={gameProfiles[s.student_id]?.current_xp || 0} compact />
                     {laps > 0 && <Badge className="text-[9px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><CheckCircle className="h-2 w-2" />Lap {laps}</Badge>}
                     <Badge variant="outline" className="text-[10px] tabular-nums gap-0.5 shrink-0">{skin.icon} {bal}</Badge>
                     {distToFinish > 0 && <span className="text-[9px] text-muted-foreground shrink-0 whitespace-nowrap">{distToFinish}pts left</span>}
-                    {cp > 0 && <span className="text-[9px] text-muted-foreground shrink-0">{cp}cp</span>}
                   </div>
                 );
               })}
@@ -408,6 +500,15 @@ const GameBoard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Track Selector */}
+      <TrackSelector
+        tracks={allTracks}
+        activeTrackId={track?.id || null}
+        onSelect={handleTrackSelect}
+        open={trackSelectorOpen}
+        onOpenChange={setTrackSelectorOpen}
+      />
 
       {/* Reset Dialog */}
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
