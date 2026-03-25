@@ -104,8 +104,9 @@ export async function getClassroomGameProgress(groupId: string): Promise<Student
 }
 
 export async function getTeamScores(groupId: string): Promise<TeamScore[]> {
-  const { data } = await supabase
-    .from('v_student_team_scores' as any)
+  // Use cloud client — the view lives in the Cloud DB
+  const { data } = await cloudSupabase
+    .from('v_classroom_team_scores')
     .select('*')
     .eq('group_id', groupId)
     .order('total_points', { ascending: false });
