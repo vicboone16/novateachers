@@ -72,21 +72,25 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Try clients table first, then students
+    // Try clients table first with client_id
     let coreData: any[] = [];
     const { data: clients, error: clientsErr } = await coreClient
       .from("clients")
       .select("client_id, first_name, last_name")
       .in("client_id", clientIds);
 
+    console.log("clients by client_id:", clients?.length, clientsErr?.message);
+
     if (!clientsErr && clients && clients.length > 0) {
       coreData = clients;
     } else {
       // Fallback: try with 'id' as PK
-      const { data: clientsById } = await coreClient
+      const { data: clientsById, error: byIdErr } = await coreClient
         .from("clients")
         .select("id, first_name, last_name")
         .in("id", clientIds);
+      console.log("clients by id:", clientsById?.length, byIdErr?.message);
+
       if (clientsById && clientsById.length > 0) {
         coreData = clientsById.map((c: any) => ({
           client_id: c.id,
@@ -95,11 +99,13 @@ Deno.serve(async (req) => {
         }));
       } else {
         // Try students table
-        const { data: studs } = await coreClient
+        const { data: studs, error: studsErr } = await coreClient
           .from("students")
           .select("id, first_name, last_name")
           .in("id", clientIds);
-        if (studs) {
+        console.log("students by id:", studs?.length, studsErr?.message);
+
+        if (studs && studs.length > 0) {
           coreData = studs.map((s: any) => ({
             client_id: s.id,
             first_name: s.first_name,
