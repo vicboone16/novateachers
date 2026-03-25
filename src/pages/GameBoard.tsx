@@ -571,6 +571,18 @@ const GameBoard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Game Mode Selector */}
+      {activeGroupId && (
+        <GameModeSelector
+          groupId={activeGroupId}
+          agencyId={effectiveAgencyId}
+          currentModeSlug={gameMode}
+          open={modeSelectorOpen}
+          onOpenChange={setModeSelectorOpen}
+          onModeChange={(mode) => { setGameMode(mode.slug); loadBoard(); }}
+        />
+      )}
     </div>
   );
 };
