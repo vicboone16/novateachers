@@ -2795,30 +2795,42 @@ export type Database = {
       staff_onboarding: {
         Row: {
           created_at: string | null
+          first_action_at: string | null
           first_action_completed: boolean | null
           first_login_at: string | null
           id: string
           last_active_at: string | null
-          user_id: string | null
+          last_milestone_shown: string | null
+          updated_at: string
+          user_id: string
           walkthrough_completed: boolean | null
+          welcome_dismissed: boolean
         }
         Insert: {
           created_at?: string | null
+          first_action_at?: string | null
           first_action_completed?: boolean | null
           first_login_at?: string | null
           id?: string
           last_active_at?: string | null
-          user_id?: string | null
+          last_milestone_shown?: string | null
+          updated_at?: string
+          user_id: string
           walkthrough_completed?: boolean | null
+          welcome_dismissed?: boolean
         }
         Update: {
           created_at?: string | null
+          first_action_at?: string | null
           first_action_completed?: boolean | null
           first_login_at?: string | null
           id?: string
           last_active_at?: string | null
-          user_id?: string | null
+          last_milestone_shown?: string | null
+          updated_at?: string
+          user_id?: string
           walkthrough_completed?: boolean | null
+          welcome_dismissed?: boolean
         }
         Relationships: []
       }
