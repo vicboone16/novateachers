@@ -24,6 +24,7 @@ interface StudentPosition {
   avatarAnimState?: AvatarAnimState;
   hasComeback?: boolean;
   streakEmoji?: string | null;
+  activeZone?: { type: string; color: string; label: string; multiplier: number } | null;
 }
 
 interface Props {
@@ -204,8 +205,23 @@ function AnimatedAvatarGroup({
         </g>
       )}
 
+      {/* Active zone ring + badge */}
+      {sp.activeZone && (
+        <g>
+          <circle cx={0} cy={0} r={20} fill="none" stroke={sp.activeZone.color} strokeWidth="2" opacity="0.5" strokeDasharray="4 2">
+            <animate attributeName="opacity" values="0.3;0.6;0.3" dur="1.5s" repeatCount="indefinite" />
+          </circle>
+          <g transform="translate(14, -14)">
+            <rect x={-14} y={-7} width={28} height={14} rx={7} fill={sp.activeZone.color} opacity="0.85" />
+            <text x={0} y={1} textAnchor="middle" dominantBaseline="central" fontSize="6" fontWeight="700" fill="white">
+              {sp.activeZone.multiplier !== 1 ? `${sp.activeZone.multiplier}x` : sp.activeZone.label.slice(0, 4)}
+            </text>
+          </g>
+        </g>
+      )}
+
       {/* Team color ring */}
-      {sp.teamColor && (
+      {sp.teamColor && !sp.activeZone && (
         <circle cx={0} cy={0} r={18} fill="none" stroke={sp.teamColor} strokeWidth="2.5" opacity="0.7" />
       )}
 

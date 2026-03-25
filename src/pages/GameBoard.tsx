@@ -301,6 +301,8 @@ const GameBoard = () => {
       const pos = getPosition(bal, TRACK_LENGTH);
       const progress = Math.min(pos / TRACK_LENGTH, 1);
       const status = studentStatuses[s.student_id];
+      // Find active zone for this student
+      const activeZone = (track?.zones || []).find(z => progress >= z.start_pct && progress <= z.end_pct) || null;
       return {
         student_id: s.student_id,
         avatar_emoji: s.avatar_emoji || '👤',
@@ -314,9 +316,10 @@ const GameBoard = () => {
         avatarAnimState: getAnimState(s.student_id),
         hasComeback: status?.hasComeback || false,
         streakEmoji: status?.emoji || null,
+        activeZone: activeZone ? { type: activeZone.type, color: activeZone.color, label: activeZone.label, multiplier: activeZone.multiplier } : null,
       };
     });
-  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, getAnimState, studentStatuses]);
+  }, [students, liveBalances, flash, TRACK_LENGTH, settings?.privacy_mode, getEffect, getAnimState, studentStatuses, track?.zones]);
 
   const activeGroup = allGroups.find(g => g.group_id === activeGroupId);
 
