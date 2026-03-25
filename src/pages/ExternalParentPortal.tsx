@@ -122,7 +122,7 @@ export default function ExternalParentPortal() {
         }
       } catch {}
 
-      setData({ studentName, avatarEmoji, pointsBalance, rewardsProgress, feedPosts, redemptions });
+      setData({ studentId: studentId, agencyId: link.agency_id || '', studentName, avatarEmoji, pointsBalance, rewardsProgress, feedPosts, redemptions });
     } catch (err: any) {
       setError(err.message || 'Could not load portal.');
     }
