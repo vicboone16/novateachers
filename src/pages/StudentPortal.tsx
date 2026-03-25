@@ -1,10 +1,12 @@
 /**
  * StudentPortal — Read-only student view showing points balance, reward goals, and progress.
  * Accessed via token-based auth: /portal/:token
+ * Includes realtime balance updates via beacon_points_ledger subscription.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -34,11 +36,53 @@ export default function StudentPortal() {
   const [goals, setGoals] = useState<RewardGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const studentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!token) { setError('No token provided'); setLoading(false); return; }
     loadPortal(token);
   }, [token]);
+
+  // Realtime balance subscription — updates points live when teacher awards
+  useEffect(() => {
+    const sid = studentIdRef.current;
+    if (!sid) return;
+
+    const channel = cloudSupabase
+      .channel(`portal-balance-${sid}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'beacon_points_ledger',
+      }, (payload: any) => {
+        if (payload.new?.student_id === sid) {
+          // Refetch accurate balance from view
+          refreshBalance(sid);
+        }
+      })
+      .subscribe();
+
+    return () => { cloudSupabase.removeChannel(channel); };
+  }, [account?.student_id]);
+
+  const refreshBalance = async (studentId: string) => {
+    try {
+      const { data } = await cloudSupabase
+        .from('v_student_points_balance' as any)
+        .select('balance')
+        .eq('student_id', studentId)
+        .maybeSingle();
+      if (data) setBalance(Number((data as any).balance) || 0);
+    } catch {
+      // Fallback: sum ledger
+      const { data: ledger } = await supabase
+        .from('beacon_points_ledger' as any)
+        .select('points')
+        .eq('student_id', studentId);
+      const total = (ledger || []).reduce((sum: number, r: any) => sum + (r.points || 0), 0);
+      setBalance(total);
+    }
+  };
 
   const loadPortal = async (t: string) => {
     setLoading(true);
@@ -66,14 +110,10 @@ export default function StudentPortal() {
       setAccount(acct as any);
 
       const studentId = (acct as any).student_id;
+      studentIdRef.current = studentId;
 
-      // 3) Load balance
-      const { data: ledger } = await supabase
-        .from('beacon_points_ledger' as any)
-        .select('points')
-        .eq('student_id', studentId);
-      const total = (ledger || []).reduce((sum: number, r: any) => sum + (r.points || 0), 0);
-      setBalance(total);
+      // 3) Load balance from view (single row, not all ledger entries)
+      await refreshBalance(studentId);
 
       // 4) Load reward goals
       const { data: goalData } = await supabase
