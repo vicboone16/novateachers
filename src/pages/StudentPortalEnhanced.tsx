@@ -39,10 +39,13 @@ export default function StudentPortalEnhanced() {
   const [wordOfWeek, setWordOfWeek] = useState('');
   const [streakCount, setStreakCount] = useState(0);
   const [unlocks, setUnlocks] = useState<Array<{ name: string; emoji: string }>>([]);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [agencyId, setAgencyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [needsCode, setNeedsCode] = useState(false);
+  const [avatarState, setAvatarState] = useState<'idle' | 'boost'>('idle');
 
   useEffect(() => {
     if (token) loadPortalByToken(token);
