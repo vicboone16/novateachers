@@ -17,6 +17,7 @@ interface StudentPosition {
   laps: number;
   isFlashing: boolean;
   teamColor?: string | null;
+  activeEffect?: AnimationEffect | null;
 }
 
 interface Props {
