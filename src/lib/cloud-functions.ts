@@ -1,7 +1,7 @@
 /**
  * Helper to call Nova Core edge functions and Cloud edge functions.
  */
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as authSupabase } from '@/lib/supabase';
 
 const CORE_URL = 'https://yboqqmkghwhlhhnsegje.supabase.co';
 const CORE_ANON_KEY = import.meta.env.VITE_CORE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs';
@@ -22,7 +22,7 @@ export async function invokeCloudFunction<T = any>(
     // Auto-resolve auth token from current session if not provided
     let token = authToken;
     if (!token) {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await authSupabase.auth.getSession();
       token = sessionData?.session?.access_token || undefined;
     }
 
