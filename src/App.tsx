@@ -73,7 +73,9 @@ const ProtectedRoutes = () => {
       <AppAccessGuard>
         <WorkspaceProvider>
           <ActiveClassroomProvider>
-            <WorkspaceRoutes />
+            <WalkthroughProvider>
+              <WorkspaceRoutes />
+            </WalkthroughProvider>
           </ActiveClassroomProvider>
         </WorkspaceProvider>
       </AppAccessGuard>
