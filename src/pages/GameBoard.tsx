@@ -67,6 +67,7 @@ const GameBoard = () => {
   const [trackSelectorOpen, setTrackSelectorOpen] = useState(false);
   const [teamManagerOpen, setTeamManagerOpen] = useState(false);
   const [gameMode, setGameMode] = useState<string>('race');
+  const [modeSelectorOpen, setModeSelectorOpen] = useState(false);
 
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
