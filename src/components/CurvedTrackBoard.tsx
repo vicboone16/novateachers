@@ -271,6 +271,10 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
                 transform: `translate(${sp.cx}px, ${sp.cy}px)`,
               }}
             >
+              {/* Avatar animation state effect */}
+              {sp.avatarAnimState && sp.avatarAnimState !== 'idle' && (
+                <SvgAvatarEffect state={sp.avatarAnimState} />
+              )}
               <ellipse cx={0} cy={4} rx={14} ry={5} fill="black" opacity="0.12" />
 
               {nearFinish && (
