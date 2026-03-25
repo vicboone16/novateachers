@@ -9,11 +9,9 @@
  *   beacon_reward_redemptions: id, student_id, reward_id, staff_id, points_spent, status, redeemed_at, agency_id
  */
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { invokeCloudFunction } from '@/lib/cloud-functions';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { writePointEntry } from '@/lib/beacon-points';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
