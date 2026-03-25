@@ -54,7 +54,7 @@ export function ParentInsightCards({ studentId, agencyId, maxItems = 5, classNam
 
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+      <p className="section-header">
         <Sparkles className="h-3 w-3" /> Updates for You
       </p>
       {insights.map(ins => {
