@@ -43,6 +43,8 @@ interface StaffActionSheetProps {
   } | null;
   onUpdated: () => void;
   studentMap?: Record<string, string>;
+  staffName?: string;
+  staffRole?: string;
 }
 
 const LOCATION_PRESETS = [
