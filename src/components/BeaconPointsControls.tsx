@@ -49,8 +49,18 @@ export const BeaconPointsControls = ({
 }: Props) => {
   const [awarding, setAwarding] = useState(false);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  // Duplicate tap guard: track last award timestamp + params
+  const lastAwardRef = useState(() => ({ t: 0, key: '' }))[0];
 
   const handleAward = async (points: number, source: PointSource = 'manual', reason?: string) => {
+    // Duplicate tap guard: ignore identical taps within 800ms
+    const now = Date.now();
+    const tapKey = `${studentId}:${points}:${source}`;
+    if (now - lastAwardRef.t < 800 && lastAwardRef.key === tapKey) return;
+    lastAwardRef.t = now;
+    lastAwardRef.key = tapKey;
+
+    if (awarding) return; // Already in flight
     setAwarding(true);
     setFlash(points > 0 ? 'up' : 'down');
     
@@ -69,6 +79,12 @@ export const BeaconPointsControls = ({
       source,
       entryKind: source === 'response_cost' ? 'response_cost' : 'manual',
     });
+
+    if (!result.ok) {
+      // Rollback optimistic update on failure
+      onPointChange(studentId, -points);
+      console.warn('[BeaconPoints] Write failed, rolled back:', result.error);
+    }
 
     // Notify parent for undo
     if (result.ok && onPointAction) {

@@ -78,25 +78,42 @@ export async function getStudentBalances(
 ): Promise<Record<string, number>> {
   if (studentIds.length === 0) return {};
   try {
-    // Query ALL ledger rows for these students (not filtered by staff)
-    // so balances reflect awards from all staff members
+    // Use the pre-aggregated view to avoid fetching every ledger row
+    // (prevents hitting the 1000-row Supabase limit for active students)
     const { data, error } = await cloudSupabase
-      .from('beacon_points_ledger')
-      .select('student_id, points')
+      .from('v_student_points_balance' as any)
+      .select('student_id, balance')
       .in('student_id', studentIds);
 
     if (error) {
-      console.warn('[BeaconPoints] balance query failed:', error.message);
-      return {};
+      console.warn('[BeaconPoints] balance view query failed, falling back to ledger sum:', error.message);
+      return getStudentBalancesFallback(studentIds);
     }
 
+    const balances: Record<string, number> = {};
+    for (const row of (data || []) as any[]) {
+      balances[row.student_id] = Number(row.balance) || 0;
+    }
+    return balances;
+  } catch (err) {
+    console.warn('[BeaconPoints] balance failed:', err);
+    return getStudentBalancesFallback(studentIds);
+  }
+}
+
+/** Fallback: sum ledger rows directly (may hit 1000-row limit for very active students) */
+async function getStudentBalancesFallback(studentIds: string[]): Promise<Record<string, number>> {
+  try {
+    const { data } = await cloudSupabase
+      .from('beacon_points_ledger')
+      .select('student_id, points')
+      .in('student_id', studentIds);
     const balances: Record<string, number> = {};
     for (const row of (data || []) as any[]) {
       balances[row.student_id] = (balances[row.student_id] || 0) + (row.points || 0);
     }
     return balances;
-  } catch (err) {
-    console.warn('[BeaconPoints] balance failed:', err);
+  } catch {
     return {};
   }
 }
