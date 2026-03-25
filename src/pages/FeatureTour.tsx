@@ -294,7 +294,7 @@ const FeatureTour = () => {
             </Button>
             <Button
               size="sm"
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/')}
               className="gap-1.5"
             >
               <LogIn className="h-4 w-4" />
