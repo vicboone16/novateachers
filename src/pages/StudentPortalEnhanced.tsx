@@ -63,6 +63,7 @@ export default function StudentPortalEnhanced() {
     }
   }, [studentId, getEffect]);
 
+  useEffect(() => {
     if (token) loadPortalByToken(token);
     else { setNeedsCode(true); setLoading(false); }
   }, [token]);
