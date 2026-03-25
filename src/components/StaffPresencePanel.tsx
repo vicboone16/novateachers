@@ -251,6 +251,8 @@ export function StaffPresencePanel({ groupId, agencyId, studentMap, compact }: S
           currentPresence={presenceRows.find(r => r.user_id === actionSheetUserId) || null}
           onUpdated={loadPresence}
           studentMap={studentMap}
+          staffName={nameMap.get(actionSheetUserId) || undefined}
+          staffRole={roleMap[actionSheetUserId] || undefined}
         />
       )}
     </Card>
