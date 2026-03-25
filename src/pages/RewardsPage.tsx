@@ -244,12 +244,13 @@ const RewardsPage = () => {
       </div>
 
       <Tabs defaultValue="store" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="store" className="gap-1.5 text-xs"><ShoppingBag className="h-3.5 w-3.5" /> Store</TabsTrigger>
           <TabsTrigger value="balances" className="gap-1.5 text-xs"><Trophy className="h-3.5 w-3.5" /> Balances</TabsTrigger>
           <TabsTrigger value="tokens" className="gap-1.5 text-xs"><Sparkles className="h-3.5 w-3.5" /> Tokens</TabsTrigger>
           <TabsTrigger value="redemptions" className="gap-1.5 text-xs"><Gift className="h-3.5 w-3.5" /> Redemptions</TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 text-xs"><History className="h-3.5 w-3.5" /> History</TabsTrigger>
+          <TabsTrigger value="economy" className="gap-1.5 text-xs"><Settings2 className="h-3.5 w-3.5" /> Economy</TabsTrigger>
         </TabsList>
 
         <TabsContent value="store">
