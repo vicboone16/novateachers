@@ -86,7 +86,7 @@ export default function ExternalParentPortal() {
       // Load rewards
       let rewardsProgress: PortalData['rewardsProgress'] = [];
       try {
-        const { data: rws } = await supabase.from('beacon_rewards' as any).select('name, image_url, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
+        const { data: rws } = await cloudSupabase.from('beacon_rewards' as any).select('name, image_url, cost').eq('active', true).order('cost', { ascending: true }).limit(4);
         rewardsProgress = (rws || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost }));
       } catch {}
 
