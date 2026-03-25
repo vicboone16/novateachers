@@ -690,8 +690,17 @@ const ClassroomView = () => {
           <div className="flex gap-2 justify-center">
             <Button variant="outline" size="sm" onClick={loadClients}>Retry</Button>
             <Button variant="outline" size="sm" onClick={() => navigate('/classrooms')}>Classroom Manager</Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setQuickStartOpen(true)}>
+              <Zap className="h-3.5 w-3.5" /> Quick Start
+            </Button>
           </div>
         </div>
+        <QuickStartSetup
+          open={quickStartOpen}
+          onOpenChange={setQuickStartOpen}
+          agencyId={effectiveAgencyId}
+          onComplete={(groupId) => { setActiveGroupId(groupId); loadClients(); }}
+        />
       </div>
     );
   }
