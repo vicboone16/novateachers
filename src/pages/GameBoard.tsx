@@ -64,6 +64,7 @@ const GameBoard = () => {
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
   const { track } = useGameTrack(activeGroupId);
+  const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
 
   const TRACK_LENGTH = track?.total_steps || 100;
 
