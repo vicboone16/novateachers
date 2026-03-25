@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, useRef } from 'react';
 import { useStudentGameProfiles } from '@/hooks/useStudentGameProfiles';
-import { StudentLevelBadge } from '@/components/StudentLevelBadge';
+// StudentLevelBadge hidden for hybrid v1
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
