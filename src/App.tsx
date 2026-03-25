@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppAccessProvider } from "@/contexts/AppAccessContext";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { ActiveClassroomProvider } from "@/contexts/ActiveClassroomContext";
+import { WalkthroughProvider } from "@/contexts/WalkthroughContext";
 
 import { AppAccessGuard } from "@/components/AppAccessGuard";
 import { AppLayout } from "@/components/AppLayout";
