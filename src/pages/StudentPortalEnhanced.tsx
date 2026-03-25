@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { validateStudentPortalAccess, getStudentGameProfile, getStudentUnlocks, getStudentStreaks } from '@/lib/game-data';
 import type { StudentUnlock, StudentStreak } from '@/lib/game-types';
-import { getLevelThreshold, getLevelColor } from '@/lib/level-utils';
+import { LEVEL_THRESHOLDS, levelColor } from '@/lib/level-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
