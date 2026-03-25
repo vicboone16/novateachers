@@ -69,6 +69,8 @@ interface EngagementData { total: number; engaged: number }
 interface StudentPresenceMap { [studentId: string]: StudentPresenceData }
 interface ResponseCostMap { [studentId: string]: boolean }
 interface StudentTargetMap { [studentId: string]: { id: string; name: string; icon: string | null; points: number; target_type: string }[] }
+interface StudentBehaviorRule { behavior_name: string; points: number; rule_type: string }
+interface StudentBehaviorMap { [studentId: string]: StudentBehaviorRule[] }
 
 const ClassroomView = () => {
   const navigate = useNavigate();
@@ -112,6 +114,7 @@ const ClassroomView = () => {
   const [staffCount, setStaffCount] = useState(0);
   const [teacherActions, setTeacherActions] = useState<TeacherPointAction[]>([]);
   const [studentTargets, setStudentTargets] = useState<StudentTargetMap>({});
+  const [studentBehaviors, setStudentBehaviors] = useState<StudentBehaviorMap>({});
   const [editingWord, setEditingWord] = useState(false);
   const [editingMission, setEditingMission] = useState(false);
   const [wordDraft, setWordDraft] = useState('');
@@ -378,6 +381,20 @@ const ClassroomView = () => {
         });
       }
       setStudentTargets(map);
+
+      // Also build per-student behavior map from reinforcement rules
+      const behaviorMap: StudentBehaviorMap = {};
+      for (const r of (rules || []) as any[]) {
+        if (!r.student_id || !r.behavior_name || !r.is_active) continue;
+        if (r.linked_target_id) continue; // skip target-linked rules, those are skill goals
+        if (!behaviorMap[r.student_id]) behaviorMap[r.student_id] = [];
+        behaviorMap[r.student_id].push({
+          behavior_name: r.behavior_name,
+          points: r.points,
+          rule_type: r.rule_type,
+        });
+      }
+      setStudentBehaviors(behaviorMap);
     } catch { /* silent */ }
   };
 
@@ -685,29 +702,32 @@ const ClassroomView = () => {
               {' · '}{clients.length} students
             </p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/game-board')}>
-              <Gamepad2 className="h-3.5 w-3.5" /> Game
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => navigate('/rewards')}>
-              <Gift className="h-3.5 w-3.5" /> Rewards
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setBulkAwardOpen(true)} title="Award all students">
-              <Users className="h-3.5 w-3.5" /> Award All
-            </Button>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
-              <Settings2 className="h-3.5 w-3.5" /> Reinforcement
-            </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={() => navigate('/threads')} title="Threads">
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-            {activeGroupId && (
-              <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
-            )}
-          </div>
+          <ScrollArea className="w-full">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/game-board')}>
+                <Gamepad2 className="h-3.5 w-3.5" /> Game
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => navigate('/rewards')}>
+                <Gift className="h-3.5 w-3.5" /> Rewards
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setBulkAwardOpen(true)} title="Award all students">
+                <Users className="h-3.5 w-3.5" /> Award All
+              </Button>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs px-3 rounded-xl font-medium text-foreground shrink-0" onClick={() => setClassReinforcementOpen(true)} title="Classroom reinforcement templates">
+                <Settings2 className="h-3.5 w-3.5" /> Reinforcement
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => window.open(`/board${activeGroupId ? `?classroom=${activeGroupId}` : ''}`, '_blank')} title="Display Board">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground shrink-0" onClick={() => navigate('/threads')} title="Threads">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              {activeGroupId && (
+                <MaydayButton agencyId={effectiveAgencyId} classroomId={activeGroupId} />
+              )}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
       </div>
 
@@ -1074,7 +1094,49 @@ const ClassroomView = () => {
 
                   {/* Behavior + engagement row */}
                   <div className="border-t border-border/40 px-3 py-1.5 flex items-center gap-1 flex-wrap">
-                    {behaviorActions.length > 0 ? (
+                    {/* Per-student custom behaviors take priority */}
+                    {(studentBehaviors[client.id] || []).length > 0 ? (
+                      <>
+                        {studentBehaviors[client.id].slice(0, 3).map((rule, idx) => (
+                          <button
+                            key={`${rule.behavior_name}-${idx}`}
+                            onClick={() => logBehavior(client.id, rule.behavior_name)}
+                            title={`${rule.behavior_name} (${rule.rule_type === 'response_cost' ? `-${rule.points}` : `+${rule.points}`})`}
+                            className={cn(
+                              "flex items-center gap-0.5 rounded-lg border px-1.5 py-1 text-[9px] font-medium active:scale-95 transition-colors",
+                              rule.rule_type === 'response_cost'
+                                ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                                : "border-border/60 bg-secondary text-foreground hover:bg-destructive/10 hover:text-destructive"
+                            )}
+                          >
+                            {rule.behavior_name.slice(0, 5)}
+                          </button>
+                        ))}
+                        {studentBehaviors[client.id].length > 3 && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button className="rounded-xl border border-border/60 bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 active:scale-90 transition-colors">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-52 p-2 space-y-1" align="start" side="top">
+                              {studentBehaviors[client.id].slice(3).map((rule, idx) => (
+                                <button
+                                  key={`${rule.behavior_name}-overflow-${idx}`}
+                                  onClick={() => logBehavior(client.id, rule.behavior_name)}
+                                  className="flex items-center justify-between w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-destructive/10 transition-colors text-left"
+                                >
+                                  <span>{rule.behavior_name}</span>
+                                  <Badge variant={rule.rule_type === 'response_cost' ? 'destructive' : 'secondary'} className="text-[9px] h-4 px-1.5">
+                                    {rule.rule_type === 'response_cost' ? `-${rule.points}` : `+${rule.points}`}
+                                  </Badge>
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </>
+                    ) : behaviorActions.length > 0 ? (
                       <>
                         {behaviorActions.slice(0, 3).map(action => (
                           <button
