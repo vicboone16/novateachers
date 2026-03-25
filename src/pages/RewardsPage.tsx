@@ -3,7 +3,6 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { RewardEconomySettings } from '@/components/RewardEconomySettings';
-import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -82,14 +81,14 @@ const RewardsPage = () => {
       const { data: histData } = await cloudSupabase.from('beacon_points_ledger').select('*').eq('staff_id', user.id).order('created_at', { ascending: false }).limit(50);
       setHistory((histData || []) as any as PointHistory[]);
 
-      // Load redemptions with reward info (Core schema: redeemed_at not created_at)
-      const { data: redeemData } = await supabase.from('beacon_reward_redemptions' as any).select('*').eq('agency_id', effectiveAgencyId).order('redeemed_at', { ascending: false }).limit(30);
+      // Load redemptions from Cloud
+      const { data: redeemData } = await cloudSupabase.from('beacon_reward_redemptions').select('*').eq('agency_id', effectiveAgencyId).order('redeemed_at', { ascending: false }).limit(30);
       const recs = (redeemData || []) as any as RedemptionRecord[];
 
-      // Enrich with reward names (Core beacon_rewards uses scope_type/scope_id, not agency_id)
+      // Enrich with reward names from Cloud
       if (recs.length > 0) {
         const rewardIds = [...new Set(recs.map(r => r.reward_id))];
-        const { data: rwds } = await supabase.from('beacon_rewards' as any).select('id, name').in('id', rewardIds);
+        const { data: rwds } = await cloudSupabase.from('beacon_rewards').select('id, name').in('id', rewardIds);
         const rewardMap = new Map((rwds || []).map((r: any) => [r.id, r]));
         for (const rec of recs) {
           const rwd = rewardMap.get(rec.reward_id) as any;
