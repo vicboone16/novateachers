@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { displayInitials, displayName as getStudentDisplayName } from '@/lib/student-utils';
 import { Star, Award, Target, Trophy, Sparkles, Flag, Users, Gift } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -238,9 +239,16 @@ export default function ClassroomBoard() {
 
     const cards: StudentCard[] = studentIds.map(sid => {
       const names = nameMap.get(sid);
+      const safeDisplayName = getStudentDisplayName({
+        id: sid,
+        client_id: sid,
+        first_name: names?.first_name || '',
+        last_name: names?.last_name || '',
+      });
+
       return {
         student_id: sid,
-        display_name: names ? `${names.first_name} ${names.last_name}`.trim() : sid.slice(0, 6),
+        display_name: safeDisplayName,
         first_name: names?.first_name || '',
         last_name: names?.last_name || '',
         avatar_emoji: avatarMap.get(sid) || '👤',
@@ -316,8 +324,8 @@ export default function ClassroomBoard() {
   const getDisplayName = (s: StudentCard) => {
     const mode = settings.privacy_mode;
     if (mode === 'avatars_only') return '';
-    if (mode === 'initials') return `${s.first_name[0] || ''}${s.last_name[0] || ''}`;
-    if (mode === 'first_names') return s.first_name || s.display_name.split(' ')[0];
+    if (mode === 'initials') return displayInitials(s);
+    if (mode === 'first_names') return s.first_name || s.display_name;
     return s.display_name;
   };
 
