@@ -78,12 +78,16 @@ const REWARD_TYPES = [
   { value: 'class', label: 'Class-wide' },
 ];
 
+type VisibilityFilter = 'active' | 'hidden' | 'archived' | 'all';
+
 interface Props {
   agencyId: string;
   classroomId?: string;
   students: StudentOption[];
   onRedemption?: () => void;
   showInactive?: boolean;
+  /** When true, shows admin management UI (hide/archive/delete). Default false for student views. */
+  adminMode?: boolean;
 }
 
 export function ReinforcerStore({ agencyId, classroomId, students, onRedemption, showInactive }: Props) {
