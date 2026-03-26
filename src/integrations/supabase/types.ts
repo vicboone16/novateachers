@@ -362,15 +362,18 @@ export type Database = {
         Row: {
           active: boolean
           agency_id: string | null
+          archived: boolean
           base_cost: number | null
           category: string
           cost: number
           created_at: string
           created_by: string | null
           current_dynamic_price: number | null
+          deleted_at: string | null
           description: string | null
           dynamic_pricing_enabled: boolean
           emoji: string
+          hidden: boolean
           id: string
           image_url: string | null
           inventory_enabled: boolean
@@ -392,15 +395,18 @@ export type Database = {
         Insert: {
           active?: boolean
           agency_id?: string | null
+          archived?: boolean
           base_cost?: number | null
           category?: string
           cost?: number
           created_at?: string
           created_by?: string | null
           current_dynamic_price?: number | null
+          deleted_at?: string | null
           description?: string | null
           dynamic_pricing_enabled?: boolean
           emoji?: string
+          hidden?: boolean
           id?: string
           image_url?: string | null
           inventory_enabled?: boolean
@@ -422,15 +428,18 @@ export type Database = {
         Update: {
           active?: boolean
           agency_id?: string | null
+          archived?: boolean
           base_cost?: number | null
           category?: string
           cost?: number
           created_at?: string
           created_by?: string | null
           current_dynamic_price?: number | null
+          deleted_at?: string | null
           description?: string | null
           dynamic_pricing_enabled?: boolean
           emoji?: string
+          hidden?: boolean
           id?: string
           image_url?: string | null
           inventory_enabled?: boolean
