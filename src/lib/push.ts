@@ -40,7 +40,7 @@ function getPluginReady(): Promise<void> {
  * Stores token in push_tokens table.
  */
 export async function registerPush(userId: string): Promise<string | null> {
-  await pluginReady;
+  await getPluginReady();
   if (!PushNotifications || !isNative) {
     console.log('[Push] Not on native platform, skipping registration');
     return null;
@@ -100,7 +100,7 @@ export async function scheduleLocalNotification(opts: {
   body: string;
   scheduleAt: Date;
 }): Promise<void> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return;
 
   try {
@@ -127,7 +127,7 @@ export async function scheduleLocalNotification(opts: {
  * Cancel a scheduled local notification by ID.
  */
 export async function cancelLocalNotification(id: number): Promise<void> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return;
 
   try {
@@ -141,7 +141,7 @@ export async function cancelLocalNotification(id: number): Promise<void> {
  * Get pending local notifications count.
  */
 export async function getPendingLocalNotifications(): Promise<any[]> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return [];
   try {
     const result = await LocalNotifications.getPending();
@@ -155,7 +155,7 @@ export async function getPendingLocalNotifications(): Promise<any[]> {
  * Cancel all pending local notifications.
  */
 export async function cancelAllLocalNotifications(): Promise<void> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return;
   try {
     const pending = await getPendingLocalNotifications();
