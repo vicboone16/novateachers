@@ -58,16 +58,31 @@ export const useStaffOnboarding = () => {
       .maybeSingle();
 
     if (!data && !error) {
-      // First login — create record
+      // Check if user has completed onboarding in ANY agency (cross-agency awareness)
+      const { data: anyRecord } = await supabase
+        .from('staff_onboarding' as any)
+        .select('welcome_dismissed, walkthrough_completed')
+        .eq('user_id', user.id)
+        .eq('welcome_dismissed', true)
+        .maybeSingle();
+
+      const alreadyOnboarded = !!(anyRecord as any)?.welcome_dismissed;
+
+      // Create record for this agency
       await supabase
         .from('staff_onboarding' as any)
-        .insert({ user_id: user.id, agency_id: agencyId } as any);
+        .insert({
+          user_id: user.id,
+          agency_id: agencyId,
+          welcome_dismissed: alreadyOnboarded,
+          walkthrough_completed: alreadyOnboarded,
+        } as any);
 
       setState({
         loading: false,
-        isFirstLogin: true,
-        welcomeDismissed: false,
-        walkthroughCompleted: false,
+        isFirstLogin: !alreadyOnboarded,
+        welcomeDismissed: alreadyOnboarded,
+        walkthroughCompleted: alreadyOnboarded,
         firstActionCompleted: false,
         onboardingDay: 1,
         totalActions: 0,

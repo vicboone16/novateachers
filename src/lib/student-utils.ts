@@ -33,10 +33,24 @@ export function normalizeClients(records: any[]): Client[] {
 /** Display name from a possibly-mixed record */
 export function displayName(record: any): string {
   if (!record) return '';
-  if (record.first_name || record.last_name) {
-    return `${record.first_name || ''} ${record.last_name || ''}`.trim();
+  const first = (record.first_name || '').trim();
+  const last = (record.last_name || '').trim();
+  if (first || last) {
+    const full = `${first} ${last}`.trim();
+    // Guard against UUID fragments being stored as names
+    if (full && !/^[0-9a-f]{6,}$/i.test(full.replace(/[-\s]/g, ''))) {
+      return full;
+    }
   }
-  return record.name || '';
+  if (record.name) {
+    const name = record.name.trim();
+    if (name && !/^[0-9a-f]{6,}$/i.test(name.replace(/[-\s]/g, ''))) {
+      return name;
+    }
+  }
+  // Fallback: "Student" with short suffix for differentiation
+  const id = record.id || record.client_id || '';
+  return id ? `Student ${id.slice(-4).toUpperCase()}` : 'Student';
 }
 
 /** Initials from a possibly-mixed record */

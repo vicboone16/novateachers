@@ -103,10 +103,26 @@ export function useGameTrack(groupId: string | null) {
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
-    if (!groupId) return;
     setLoading(true);
     try {
-      // 1) Try v_classroom_active_track for resolved track + movement_style
+      // 1) Always load all tracks (independent of groupId)
+      const { data: allTrackRows } = await cloudSupabase
+        .from('game_tracks')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+
+      const parsed = (allTrackRows || []).map((row: any) => buildTrack(row));
+      setAllTracks(parsed);
+
+      if (!groupId) {
+        // No group yet — just set first track as active and return
+        if (parsed.length > 0) setTrack(parsed[0]);
+        setLoading(false);
+        return;
+      }
+
+      // 2) Try v_classroom_active_track for resolved track + movement_style
       const { data: resolved } = await cloudSupabase
         .from('v_classroom_active_track' as any)
         .select('*')
@@ -116,16 +132,6 @@ export function useGameTrack(groupId: string | null) {
       if (resolved) {
         setMovementStyle((resolved as any).movement_style || 'glide');
       }
-
-      // 2) Load all tracks for the selector
-      const { data: allTrackRows } = await cloudSupabase
-        .from('game_tracks')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true });
-
-      const parsed = (allTrackRows || []).map((row: any) => buildTrack(row));
-      setAllTracks(parsed);
 
       // 3) Resolve active track: use view result, then fallback
       let active: GameTrack | null = null;
