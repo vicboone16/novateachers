@@ -195,10 +195,18 @@ const GameBoard = () => {
         const { data: grpData } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', activeGroupId).maybeSingle();
         const aid = (grpData as any)?.agency_id;
         if (aid) {
-          const { data: allClients } = await supabase.from('clients' as any).select('client_id, first_name, last_name').eq('agency_id', aid);
+          const { data: allClients } = await supabase.from('clients' as any).select('client_id, id, first_name, last_name').eq('agency_id', aid);
           for (const c of (allClients || []) as any[]) {
             const cid = c.client_id || c.id;
-            if (sids.includes(cid)) nameMap[cid] = { first_name: c.first_name || '', last_name: c.last_name || '' };
+            if (sids.includes(cid)) {
+              nameMap[cid] = { first_name: c.first_name || '', last_name: c.last_name || '' };
+              // Write back to Cloud for public board access
+              if (c.first_name || c.last_name) {
+                cloudSupabase.from('classroom_group_students')
+                  .update({ first_name: c.first_name || null, last_name: c.last_name || null } as any)
+                  .eq('group_id', activeGroupId).eq('client_id', cid).then(() => {});
+              }
+            }
           }
         }
       } catch { /* silent */ }
