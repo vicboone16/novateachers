@@ -30,6 +30,7 @@ export async function upsertClassroomGameSettings(
   if (settings.show_leaderboard !== undefined) payload.show_leaderboard = settings.show_leaderboard;
   if (settings.allow_team_mode !== undefined) payload.allow_team_mode = settings.allow_team_mode;
   if (settings.total_steps !== undefined) payload.total_steps = settings.total_steps;
+  if (settings.movement_style !== undefined) payload.movement_style = settings.movement_style;
 
   const { error } = await cloudSupabase
     .from('classroom_game_settings')
