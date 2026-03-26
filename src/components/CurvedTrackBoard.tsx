@@ -373,9 +373,9 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
   // Zone overlays
   const zoneOverlays = useMemo(() => {
     return zones.map(z => {
-      const startPos = interpolateOnTrack(z.start_pct, nodes);
-      const endPos = interpolateOnTrack(z.end_pct, nodes);
-      const midPos = interpolateOnTrack((z.start_pct + z.end_pct) / 2, nodes);
+      const startPos = interpolateOnTrack(z.start_pct, safeNodes);
+      const endPos = interpolateOnTrack(z.end_pct, safeNodes);
+      const midPos = interpolateOnTrack((z.start_pct + z.end_pct) / 2, safeNodes);
       return {
         ...z,
         sx: (startPos.x / 100) * w,
@@ -386,41 +386,43 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
         my: (midPos.y / 100) * h,
       };
     });
-  }, [zones, nodes, w, h]);
+  }, [zones, safeNodes, w, h]);
 
   // Checkpoint positions
   const checkpointMarkers = useMemo(() => {
     return checkpoints.map(cp => {
-      const pos = interpolateOnTrack(cp.progress_pct, nodes);
+      const pos = interpolateOnTrack(cp.progress_pct, safeNodes);
       return { ...cp, x: (pos.x / 100) * w, y: (pos.y / 100) * h };
     });
-  }, [checkpoints, nodes, w, h]);
+  }, [checkpoints, safeNodes, w, h]);
 
   const startPos = useMemo(() => {
-    const p = interpolateOnTrack(0, nodes);
+    const p = interpolateOnTrack(0, safeNodes);
     return { x: (p.x / 100) * w, y: (p.y / 100) * h };
-  }, [nodes, w, h]);
+  }, [safeNodes, w, h]);
 
   const finishPos = useMemo(() => {
-    const p = interpolateOnTrack(1, nodes);
+    const p = interpolateOnTrack(1, safeNodes);
     return { x: (p.x / 100) * w, y: (p.y / 100) * h };
-  }, [nodes, w, h]);
+  }, [safeNodes, w, h]);
 
   const studentPositions = useMemo(() => {
     return students.map((s, i) => {
-      const pos = interpolateOnTrack(s.progress, nodes);
+      const pos = interpolateOnTrack(s.progress, safeNodes);
       const { dx, dy } = jitter(s.student_id, i);
       const hasOverlap = students.some((other, j) =>
         j !== i && Math.abs(other.progress - s.progress) < 0.03
       );
+      const dScale = getDepthScale(s.progress, trackType);
       return {
         ...s,
         cx: (pos.x / 100) * w + (hasOverlap ? dx * 0.5 : 0),
         cy: (pos.y / 100) * h + (hasOverlap ? dy * 0.5 : 0),
         distanceToFinish: Math.max(0, totalSteps - s.balance),
+        depthScale: dScale,
       };
     });
-  }, [students, nodes, w, h, totalSteps]);
+  }, [students, safeNodes, w, h, totalSteps, trackType]);
 
   // Feedback position map
   const feedbackPositions = useMemo(() => {
