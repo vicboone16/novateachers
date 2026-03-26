@@ -9,9 +9,15 @@ let PushNotifications: any = null;
 let LocalNotifications: any = null;
 let isNative = false;
 
+let _pluginPromise: Promise<void> | null = null;
+
 async function loadPlugins() {
   try {
-    // Use string variable to prevent TS from resolving the module at compile time
+    // Only attempt on native platforms (Capacitor sets this on window)
+    if (typeof window === 'undefined' || !(window as any).Capacitor) {
+      isNative = false;
+      return;
+    }
     const pushMod = '@capac' + 'itor/push-notifications';
     const localMod = '@capac' + 'itor/local-notifications';
     const cap = await (Function('m', 'return import(m)') as (m: string) => Promise<any>)(pushMod);
@@ -24,14 +30,17 @@ async function loadPlugins() {
   }
 }
 
-const pluginReady = loadPlugins();
+function getPluginReady(): Promise<void> {
+  if (!_pluginPromise) _pluginPromise = loadPlugins();
+  return _pluginPromise;
+}
 
 /**
  * Request push permission & register for APNs token.
  * Stores token in push_tokens table.
  */
 export async function registerPush(userId: string): Promise<string | null> {
-  await pluginReady;
+  await getPluginReady();
   if (!PushNotifications || !isNative) {
     console.log('[Push] Not on native platform, skipping registration');
     return null;
@@ -91,7 +100,7 @@ export async function scheduleLocalNotification(opts: {
   body: string;
   scheduleAt: Date;
 }): Promise<void> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return;
 
   try {
@@ -118,7 +127,7 @@ export async function scheduleLocalNotification(opts: {
  * Cancel a scheduled local notification by ID.
  */
 export async function cancelLocalNotification(id: number): Promise<void> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return;
 
   try {
@@ -132,7 +141,7 @@ export async function cancelLocalNotification(id: number): Promise<void> {
  * Get pending local notifications count.
  */
 export async function getPendingLocalNotifications(): Promise<any[]> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return [];
   try {
     const result = await LocalNotifications.getPending();
@@ -146,7 +155,7 @@ export async function getPendingLocalNotifications(): Promise<any[]> {
  * Cancel all pending local notifications.
  */
 export async function cancelAllLocalNotifications(): Promise<void> {
-  await pluginReady;
+  await getPluginReady();
   if (!LocalNotifications || !isNative) return;
   try {
     const pending = await getPendingLocalNotifications();
