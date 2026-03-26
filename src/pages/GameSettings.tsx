@@ -27,7 +27,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Settings, Users, Link2, Gamepad2, Palette, Trash2, Plus, Copy, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Settings, Users, Link2, Gamepad2, Palette, Trash2, Plus, Copy, ExternalLink, Map, Zap } from 'lucide-react';
+import { useGameTrack } from '@/hooks/useGameTrack';
 
 const TEAM_COLORS = ['#EF4444', '#3B82F6', '#22C55E', '#F59E0B', '#8B5CF6', '#EC4899'];
 const TEAM_ICONS = ['🔴', '🔵', '🟢', '🟡', '🟣', '🩷'];
