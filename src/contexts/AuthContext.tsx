@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { clearResolvedUserCache } from '@/hooks/useResolvedUser';
 import { registerPush, deactivatePushTokens, isPushAvailable } from '@/lib/push';
+import { clearCloudAuthStorage } from '@/lib/cloud-auth-session';
 
 interface AuthContextType {
   session: Session | null;
@@ -31,8 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
+    clearCloudAuthStorage();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
+
+      clearCloudAuthStorage();
 
       setSession(session);
       setUser(session?.user ?? null);
@@ -64,13 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    clearCloudAuthStorage();
     clearResolvedUserCache();
     const normalizedEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    clearCloudAuthStorage();
     return { error: error as Error | null };
   };
 
   const signUp = async (email: string, password: string) => {
+    clearCloudAuthStorage();
     const normalizedEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.signUp({
       email: normalizedEmail,
@@ -79,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailRedirectTo: window.location.origin,
       },
     });
+    clearCloudAuthStorage();
     return { error: error as Error | null };
   };
 
@@ -89,7 +98,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     pushRegisteredRef.current = false;
     clearResolvedUserCache();
+    clearCloudAuthStorage();
     await supabase.auth.signOut();
+    clearCloudAuthStorage();
   };
 
   return (

@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.pingram-webhook]
 verify_jwt = false
+
+[functions.sync-student-names]
+verify_jwt = false
