@@ -218,14 +218,37 @@ export default function ClassroomBoard() {
     }
 
     // Fallback: try Core clients table for any missing names (only works when authenticated)
+    // Also write them back to Cloud so the public board has them next time
     const missingNameIds = studentIds.filter(id => !nameMap.has(id));
     if (missingNameIds.length > 0) {
       try {
-        const { data: clients } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', missingNameIds);
+        const { data: clients } = await supabase.from('clients' as any).select('client_id, id, first_name, last_name').in('client_id', missingNameIds);
         for (const c of (clients || []) as any[]) {
-          nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+          const cid = c.client_id || c.id;
+          if (c.first_name || c.last_name) {
+            nameMap.set(cid, { first_name: c.first_name || '', last_name: c.last_name || '' });
+            // Write back to Cloud for future public board access
+            cloudSupabase.from('classroom_group_students')
+              .update({ first_name: c.first_name || null, last_name: c.last_name || null } as any)
+              .eq('group_id', classroomId).eq('client_id', cid).then(() => {});
+          }
         }
       } catch { /* silent — expected on public boards */ }
+      // Also try by id column
+      const stillMissing = missingNameIds.filter(id => !nameMap.has(id));
+      if (stillMissing.length > 0) {
+        try {
+          const { data: clients2 } = await supabase.from('clients' as any).select('id, first_name, last_name').in('id', stillMissing);
+          for (const c of (clients2 || []) as any[]) {
+            if (c.first_name || c.last_name) {
+              nameMap.set(c.id, { first_name: c.first_name || '', last_name: c.last_name || '' });
+              cloudSupabase.from('classroom_group_students')
+                .update({ first_name: c.first_name || null, last_name: c.last_name || null } as any)
+                .eq('group_id', classroomId).eq('client_id', c.id).then(() => {});
+            }
+          }
+        } catch { /* silent */ }
+      }
     }
 
     // Load game profiles for avatars
