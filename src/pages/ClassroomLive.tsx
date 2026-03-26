@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { POINT_SKINS } from '@/lib/game-types';
+import { displayName as getStudentDisplayName, displayInitials } from '@/lib/student-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Flag, Lock, Sparkles } from 'lucide-react';
@@ -185,10 +186,16 @@ export default function ClassroomLive() {
 
   const getDisplayName = (s: LiveStudent) => {
     const mode = settings?.privacy_mode || 'first_names';
+    const safeDisplayName = getStudentDisplayName({
+      id: s.student_id,
+      client_id: s.student_id,
+      first_name: s.first_name || '',
+      last_name: s.last_name || '',
+    });
     if (mode === 'avatars_only') return '';
-    if (mode === 'initials') return `${(s.first_name || '')[0] || ''}${(s.last_name || '')[0] || ''}`;
-    if (mode === 'first_names') return s.first_name || s.student_id.slice(0, 6);
-    return `${s.first_name} ${s.last_name}`.trim() || s.student_id.slice(0, 6);
+    if (mode === 'initials') return displayInitials({ first_name: s.first_name, last_name: s.last_name, id: s.student_id });
+    if (mode === 'first_names') return s.first_name || safeDisplayName;
+    return safeDisplayName;
   };
 
   const checkpoints = Array.from({ length: TRACK_LENGTH / CHECKPOINT_INTERVAL }, (_, i) => (i + 1) * CHECKPOINT_INTERVAL);

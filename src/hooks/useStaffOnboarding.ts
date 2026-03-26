@@ -7,6 +7,30 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
+function getDismissedKey(userId: string) {
+  return `beacon_onboarding_dismissed:${userId}`;
+}
+
+function getWalkthroughKey(userId: string) {
+  return `beacon_onboarding_walkthrough:${userId}`;
+}
+
+function readLocalBoolean(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeLocalBoolean(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    // ignore
+  }
+}
+
 export interface OnboardingState {
   loading: boolean;
   isFirstLogin: boolean;
@@ -43,13 +67,19 @@ export const useStaffOnboarding = () => {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || !agencyId) return;
+    if (!user || !agencyId) {
+      setState((s) => ({ ...s, loading: false }));
+      return;
+    }
     loadOnboarding();
   }, [authLoading, user?.id, agencyId]);
 
   const loadOnboarding = async () => {
     if (authLoading) return;
     if (!user || !agencyId) return;
+
+    const locallyDismissed = readLocalBoolean(getDismissedKey(user.id));
+    const locallyWalkthroughDone = readLocalBoolean(getWalkthroughKey(user.id));
 
     // Use raw fetch to avoid type issues with new tables
     const { data, error } = await supabase
@@ -61,14 +91,14 @@ export const useStaffOnboarding = () => {
 
     if (!data && !error) {
       // Check if user has completed onboarding in ANY agency (cross-agency awareness)
-      const { data: anyRecord } = await supabase
+      const { data: anyRecords } = await supabase
         .from('staff_onboarding' as any)
         .select('welcome_dismissed, walkthrough_completed')
         .eq('user_id', user.id)
-        .eq('welcome_dismissed', true)
-        .maybeSingle();
+        .or('welcome_dismissed.eq.true,walkthrough_completed.eq.true')
+        .limit(1);
 
-      const alreadyOnboarded = !!(anyRecord as any)?.welcome_dismissed;
+      const alreadyOnboarded = locallyDismissed || locallyWalkthroughDone || !!(anyRecords as any[])?.[0];
 
       // Create record for this agency
       await supabase
@@ -99,12 +129,14 @@ export const useStaffOnboarding = () => {
         ? Math.max(1, Math.ceil((Date.now() - new Date(row.first_login_at).getTime()) / 86400000))
         : 1;
 
-      const permanentlyDone = (row.welcome_dismissed && row.walkthrough_completed) ?? false;
+      const welcomeDismissed = locallyDismissed || row.welcome_dismissed || false;
+      const walkthroughCompleted = locallyWalkthroughDone || row.walkthrough_completed || false;
+
       setState({
         loading: false,
-        isFirstLogin: !row.welcome_dismissed && !row.walkthrough_completed,
-        welcomeDismissed: row.welcome_dismissed ?? false,
-        walkthroughCompleted: row.walkthrough_completed ?? false,
+        isFirstLogin: !welcomeDismissed && !walkthroughCompleted,
+        welcomeDismissed,
+        walkthroughCompleted,
         firstActionCompleted: row.first_action_completed ?? false,
         onboardingDay: daysSinceFirst,
         totalActions: row.total_actions ?? 0,
@@ -125,6 +157,7 @@ export const useStaffOnboarding = () => {
 
   const dismissWelcome = useCallback(async () => {
     if (!user || !agencyId) return;
+    writeLocalBoolean(getDismissedKey(user.id), true);
     setState((s) => ({ ...s, welcomeDismissed: true, isFirstLogin: false }));
     await supabase
       .from('staff_onboarding' as any)
@@ -135,6 +168,7 @@ export const useStaffOnboarding = () => {
 
   const completeWalkthrough = useCallback(async () => {
     if (!user || !agencyId) return;
+    writeLocalBoolean(getWalkthroughKey(user.id), true);
     setState((s) => ({ ...s, walkthroughCompleted: true }));
     await supabase
       .from('staff_onboarding' as any)

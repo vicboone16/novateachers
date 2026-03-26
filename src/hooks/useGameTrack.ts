@@ -102,10 +102,13 @@ export function useGameTrack(groupId: string | null) {
   const [track, setTrack] = useState<GameTrack | null>(null);
   const [allTracks, setAllTracks] = useState<GameTrack[]>([]);
   const [movementStyle, setMovementStyle] = useState<string>('glide');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (authLoading) return;
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -122,18 +125,33 @@ export function useGameTrack(groupId: string | null) {
       }
 
       // 1) Always load all tracks (independent of groupId)
-      const { data: allTrackRows } = await cloudSupabase
+      const { data: allTrackRows, error: allTracksError } = await cloudSupabase
         .from('game_tracks')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: true });
+
+      if (allTracksError) throw allTracksError;
 
       const parsed = (allTrackRows || []).map((row: any) => buildTrack(row));
       setAllTracks(parsed);
 
       if (!groupId) {
         // No group yet — just set first track as active and return
-        if (parsed.length > 0) setTrack(parsed[0]);
+        if (parsed.length > 0) {
+          setTrack(parsed[0]);
+        } else {
+          setTrack({
+            id: 'default', name: 'Default Track', description: null,
+            total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
+            zones: [], checkpoints: [], theme_slug: null, theme: null,
+          });
+          setAllTracks([{
+            id: 'default', name: 'Default Track', description: null,
+            total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
+            zones: [], checkpoints: [], theme_slug: null, theme: null,
+          }]);
+        }
         setLoading(false);
         return;
       }
@@ -204,11 +222,14 @@ export function useGameTrack(groupId: string | null) {
       setTrack(active);
     } catch (err) {
       console.warn('[useGameTrack] Failed:', err);
-      setTrack({
+      const fallbackTrack = {
         id: 'default', name: 'Default Track', description: null,
         total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
         zones: [], checkpoints: [], theme_slug: null, theme: null,
-      });
+      };
+      setTrack(fallbackTrack);
+      setAllTracks([fallbackTrack]);
+      setMovementStyle('glide');
     }
     setLoading(false);
   }, [authLoading, groupId, user]);
