@@ -22,6 +22,7 @@ import {
 import {
   Gift, Star, Plus, ShoppingBag, Check, AlertCircle, Package, Trophy, Loader2,
   Pencil, Power, Lock, CheckCircle, History, Flame, TrendingDown, Zap, Tag,
+  EyeOff, Eye, Archive, ArchiveRestore, Trash2, Building2, School,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
