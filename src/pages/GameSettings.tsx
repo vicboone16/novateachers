@@ -98,7 +98,7 @@ function TrackSelectSection({ groupId, trackId, onTrackChange }: { groupId: stri
   );
 }
 
-  const navigate = useNavigate();
+const GameSettings = () => {
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { agencyId } = useAppAccess();
