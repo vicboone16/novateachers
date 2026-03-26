@@ -262,8 +262,15 @@ export default function ClassroomBoard() {
 
     // Load top rewards preview
     try {
-      const { data: rws } = await supabase.from('v_beacon_rewards_by_classroom' as any).select('name, image_url, cost').order('cost', { ascending: true }).limit(4);
-      setTopRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost })));
+      let q = cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, emoji, cost').order('cost', { ascending: true }).limit(4);
+      if (classroomId) {
+        // Show agency-wide + classroom-specific rewards
+        const { data: grp } = await cloudSupabase.from('classroom_groups').select('agency_id').eq('group_id', classroomId).maybeSingle();
+        const aid = (grp as any)?.agency_id;
+        if (aid) q = q.or(`and(scope_type.eq.agency,scope_id.eq.${aid}),and(scope_type.eq.classroom,scope_id.eq.${classroomId})`);
+      }
+      const { data: rws } = await q;
+      setTopRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
     } catch { /* silent */ }
   }, [classroomId, user]);
 
