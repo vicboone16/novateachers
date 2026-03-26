@@ -1,9 +1,10 @@
 /**
- * CurvedTrackBoard — SVG curved race track with zones, checkpoints,
- * smooth avatar movement, and visual polish.
+ * CurvedTrackBoard — Multi-track SVG board with zones, checkpoints,
+ * smooth avatar movement, depth effects, and multiple track types.
  */
 import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { interpolateOnTrack, generateSmoothPath, type TrackNode, type TrackZone, type TrackCheckpoint, type GameTheme } from '@/hooks/useGameTrack';
+import { generateTrackPath, getDepthScale, getDepthShadow, getMovementConfig, getFallbackNodes, type TrackType, type MovementStyle } from '@/components/TrackRenderers';
 import { FloatingFeedbackOverlay } from '@/components/FloatingFeedback';
 import type { FloatingFeedback } from '@/hooks/useGameEngine';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,8 @@ interface Props {
   theme?: GameTheme | null;
   feedbacks?: FloatingFeedback[];
   className?: string;
+  trackType?: TrackType;
+  movementStyle?: MovementStyle;
 }
 
 /** Deterministic offset so overlapping avatars don't stack */
@@ -52,15 +55,21 @@ function AnimatedAvatarGroup({
   targetCx,
   targetCy,
   distanceToFinish,
+  movementStyle = 'glide',
+  depthScale = 1,
 }: {
   sp: StudentPosition;
   targetCx: number;
   targetCy: number;
   distanceToFinish: number;
+  movementStyle?: MovementStyle;
+  depthScale?: number;
 }) {
   const gRef = useRef<SVGGElement>(null);
   const posRef = useRef({ x: targetCx, y: targetCy });
   const animRef = useRef<number>(0);
+
+  const moveConfig = getMovementConfig(movementStyle || 'glide');
 
   useEffect(() => {
     const startX = posRef.current.x;
@@ -69,10 +78,10 @@ function AnimatedAvatarGroup({
     const dy = targetCy - startY;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
       posRef.current = { x: targetCx, y: targetCy };
-      if (gRef.current) gRef.current.setAttribute('transform', `translate(${targetCx},${targetCy})`);
+      if (gRef.current) gRef.current.setAttribute('transform', `translate(${targetCx},${targetCy}) scale(${depthScale})`);
       return;
     }
-    const duration = 900; // ms
+    const duration = moveConfig.duration;
     let start: number | null = null;
     cancelAnimationFrame(animRef.current);
 
@@ -80,17 +89,44 @@ function AnimatedAvatarGroup({
       if (!start) start = ts;
       const elapsed = ts - start;
       const raw = Math.min(elapsed / duration, 1);
-      // ease-in-out cubic
-      const t = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
+      // Easing based on movement style
+      let t: number;
+      if (movementStyle === 'bounce') {
+        // Bounce easing
+        if (raw < 0.5) {
+          t = 4 * raw * raw * raw;
+        } else {
+          const br = raw - 0.5;
+          t = 0.5 + 0.5 * (1 - Math.pow(1 - br * 2, 3));
+          // Add vertical bounce
+        }
+      } else if (movementStyle === 'dash') {
+        // Quick ease-out
+        t = 1 - Math.pow(1 - raw, 4);
+      } else if (movementStyle === 'float') {
+        // Sine ease
+        t = (1 - Math.cos(raw * Math.PI)) / 2;
+      } else {
+        // Glide: ease-in-out cubic
+        t = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
+      }
       const cx = startX + dx * t;
-      const cy = startY + dy * t;
+      let cy = startY + dy * t;
+      // Bounce Y offset
+      if (movementStyle === 'bounce' && raw > 0.4 && raw < 0.9) {
+        cy += moveConfig.yOffset * Math.sin((raw - 0.4) / 0.5 * Math.PI);
+      }
+      // Float Y wobble
+      if (movementStyle === 'float') {
+        cy += Math.sin(raw * Math.PI * 3) * 2;
+      }
       posRef.current = { x: cx, y: cy };
-      if (gRef.current) gRef.current.setAttribute('transform', `translate(${cx},${cy})`);
+      if (gRef.current) gRef.current.setAttribute('transform', `translate(${cx},${cy}) scale(${depthScale})`);
       if (raw < 1) animRef.current = requestAnimationFrame(step);
     };
     animRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animRef.current);
-  }, [targetCx, targetCy]);
+  }, [targetCx, targetCy, depthScale]);
 
   const nearFinish = sp.progress > 0.85;
   const eff = sp.activeEffect;
@@ -302,20 +338,29 @@ function AnimatedAvatarGroup({
   );
 }
 
-export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], checkpoints = [], theme, feedbacks = [], className }: Props) {
+export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], checkpoints = [], theme, feedbacks = [], className, trackType = 'curved', movementStyle = 'glide' }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 300 });
+
+  // Use fallback nodes if provided nodes are invalid
+  const safeNodes = useMemo(() => {
+    if (!nodes || nodes.length < 2 || nodes.some(n => typeof n.x !== 'number' || typeof n.y !== 'number')) {
+      return getFallbackNodes(trackType);
+    }
+    return nodes;
+  }, [nodes, trackType]);
 
   useEffect(() => {
     const el = svgRef.current?.parentElement;
     if (!el) return;
     const obs = new ResizeObserver(entries => {
       const { width } = entries[0].contentRect;
-      setDims({ w: width, h: Math.max(260, width * 0.42) });
+      const heightRatio = trackType === 'depth_track' ? 0.55 : trackType === 'board_nodes' ? 0.65 : 0.42;
+      setDims({ w: width, h: Math.max(260, width * heightRatio) });
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [trackType]);
 
   const { w, h } = dims;
   const tc = theme?.colors || {};
@@ -323,14 +368,14 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
   const bgColor = tc.bg || undefined;
   const glowColor = tc.glow || trackColor;
 
-  const pathD = useMemo(() => generateSmoothPath(nodes, w, h), [nodes, w, h]);
+  const pathD = useMemo(() => generateTrackPath(trackType, safeNodes, w, h), [trackType, safeNodes, w, h]);
 
   // Zone overlays
   const zoneOverlays = useMemo(() => {
     return zones.map(z => {
-      const startPos = interpolateOnTrack(z.start_pct, nodes);
-      const endPos = interpolateOnTrack(z.end_pct, nodes);
-      const midPos = interpolateOnTrack((z.start_pct + z.end_pct) / 2, nodes);
+      const startPos = interpolateOnTrack(z.start_pct, safeNodes);
+      const endPos = interpolateOnTrack(z.end_pct, safeNodes);
+      const midPos = interpolateOnTrack((z.start_pct + z.end_pct) / 2, safeNodes);
       return {
         ...z,
         sx: (startPos.x / 100) * w,
@@ -341,41 +386,43 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
         my: (midPos.y / 100) * h,
       };
     });
-  }, [zones, nodes, w, h]);
+  }, [zones, safeNodes, w, h]);
 
   // Checkpoint positions
   const checkpointMarkers = useMemo(() => {
     return checkpoints.map(cp => {
-      const pos = interpolateOnTrack(cp.progress_pct, nodes);
+      const pos = interpolateOnTrack(cp.progress_pct, safeNodes);
       return { ...cp, x: (pos.x / 100) * w, y: (pos.y / 100) * h };
     });
-  }, [checkpoints, nodes, w, h]);
+  }, [checkpoints, safeNodes, w, h]);
 
   const startPos = useMemo(() => {
-    const p = interpolateOnTrack(0, nodes);
+    const p = interpolateOnTrack(0, safeNodes);
     return { x: (p.x / 100) * w, y: (p.y / 100) * h };
-  }, [nodes, w, h]);
+  }, [safeNodes, w, h]);
 
   const finishPos = useMemo(() => {
-    const p = interpolateOnTrack(1, nodes);
+    const p = interpolateOnTrack(1, safeNodes);
     return { x: (p.x / 100) * w, y: (p.y / 100) * h };
-  }, [nodes, w, h]);
+  }, [safeNodes, w, h]);
 
   const studentPositions = useMemo(() => {
     return students.map((s, i) => {
-      const pos = interpolateOnTrack(s.progress, nodes);
+      const pos = interpolateOnTrack(s.progress, safeNodes);
       const { dx, dy } = jitter(s.student_id, i);
       const hasOverlap = students.some((other, j) =>
         j !== i && Math.abs(other.progress - s.progress) < 0.03
       );
+      const dScale = getDepthScale(s.progress, trackType);
       return {
         ...s,
         cx: (pos.x / 100) * w + (hasOverlap ? dx * 0.5 : 0),
         cy: (pos.y / 100) * h + (hasOverlap ? dy * 0.5 : 0),
         distanceToFinish: Math.max(0, totalSteps - s.balance),
+        depthScale: dScale,
       };
     });
-  }, [students, nodes, w, h, totalSteps]);
+  }, [students, safeNodes, w, h, totalSteps, trackType]);
 
   // Feedback position map
   const feedbackPositions = useMemo(() => {
@@ -457,19 +504,27 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
 
         {/* Track outer glow */}
         <path d={pathD} fill="none" stroke={glowColor} strokeWidth="20"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.08" filter="url(#track-glow-strong)" />
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.08" filter="url(#track-glow-strong)" />
 
         {/* Track mid glow */}
         <path d={pathD} fill="none" stroke={glowColor} strokeWidth="12"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.12" filter="url(#track-glow)" />
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.12" filter="url(#track-glow)" />
 
         {/* Track dashed guide */}
         <path d={pathD} fill="none" stroke={trackColor} strokeWidth="6"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.5" strokeDasharray="14 7" />
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.5" strokeDasharray={trackType === 'board_nodes' ? '8 4' : '14 7'} />
 
         {/* Track solid core */}
-        <path d={pathD} fill="none" stroke={trackColor} strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+        <path d={pathD} fill="none" stroke={trackColor} strokeWidth={trackType === 'depth_track' ? '3.5' : '2.5'}
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.85" />
+
+        {/* Board nodes markers */}
+        {trackType === 'board_nodes' && safeNodes.map((n, i) => (
+          <circle key={i} cx={(n.x / 100) * w} cy={(n.y / 100) * h} r={8}
+            fill="hsl(220, 14%, 96%)" stroke={trackColor} strokeWidth="1.5" opacity="0.6"
+            className="dark:fill-[hsl(222,25%,16%)]"
+          />
+        ))}
 
         {/* Checkpoint markers */}
         {checkpointMarkers.map((cp, i) => (
@@ -516,6 +571,8 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
             targetCx={sp.cx}
             targetCy={sp.cy}
             distanceToFinish={sp.distanceToFinish}
+            movementStyle={movementStyle}
+            depthScale={(sp as any).depthScale || 1}
           />
         ))}
 

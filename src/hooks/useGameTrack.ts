@@ -39,6 +39,7 @@ export interface GameTrack {
   name: string;
   description: string | null;
   total_steps: number;
+  track_type: string;
   nodes: TrackNode[];
   zones: TrackZone[];
   checkpoints: TrackCheckpoint[];
@@ -150,9 +151,9 @@ export function useGameTrack(groupId: string | null) {
         }
         setTrack(active);
       } else {
-        setTrack({
+      setTrack({
           id: 'default', name: 'Default Track', description: null,
-          total_steps: 100, nodes: DEFAULT_NODES,
+          total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
           zones: [], checkpoints: [], theme_slug: null, theme: null,
         });
       }
@@ -160,7 +161,7 @@ export function useGameTrack(groupId: string | null) {
       console.warn('[useGameTrack] Failed:', err);
       setTrack({
         id: 'default', name: 'Default Track', description: null,
-        total_steps: 100, nodes: DEFAULT_NODES,
+        total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
         zones: [], checkpoints: [], theme_slug: null, theme: null,
       });
     }
@@ -182,6 +183,7 @@ function buildTrack(row: any): GameTrack {
     name: row.name,
     description: row.description || null,
     total_steps: row.total_steps || 100,
+    track_type: row.track_type || 'curved',
     nodes,
     zones: parseJsonField(row.zones_json, []),
     checkpoints: parseJsonField(row.checkpoints_json, []),
