@@ -55,11 +55,15 @@ function AnimatedAvatarGroup({
   targetCx,
   targetCy,
   distanceToFinish,
+  movementStyle = 'glide',
+  depthScale = 1,
 }: {
   sp: StudentPosition;
   targetCx: number;
   targetCy: number;
   distanceToFinish: number;
+  movementStyle?: MovementStyle;
+  depthScale?: number;
 }) {
   const gRef = useRef<SVGGElement>(null);
   const posRef = useRef({ x: targetCx, y: targetCy });
