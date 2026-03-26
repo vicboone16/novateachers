@@ -121,6 +121,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const [formInventory, setFormInventory] = useState(false);
   const [formStock, setFormStock] = useState('');
 
+  // Scoped loading: show agency-wide + classroom-specific rewards
   const scopeType = classroomId ? 'classroom' : 'agency';
   const scopeId = classroomId || agencyId;
 
