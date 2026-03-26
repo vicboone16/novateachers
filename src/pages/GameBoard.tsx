@@ -457,7 +457,7 @@ const GameBoard = () => {
               feedbacks={feedbacks}
               className="border border-border/30"
               trackType={(track.track_type || 'curved') as any}
-              movementStyle={((settings as any)?.movement_style || 'glide') as any}
+              movementStyle={(movementStyle || 'glide') as any}
             />
           ) : null}
         </CardContent>
