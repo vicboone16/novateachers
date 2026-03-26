@@ -151,9 +151,9 @@ export function useGameTrack(groupId: string | null) {
         }
         setTrack(active);
       } else {
-        setTrack({
+      setTrack({
           id: 'default', name: 'Default Track', description: null,
-          total_steps: 100, nodes: DEFAULT_NODES,
+          total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
           zones: [], checkpoints: [], theme_slug: null, theme: null,
         });
       }
