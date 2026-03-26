@@ -85,7 +85,7 @@ export default function ParentView() {
       // Rewards
       let rewards: StudentData['rewards'] = [];
       try {
-        const { data: rws } = await cloudSupabase.from('beacon_rewards').select('name, emoji, cost').eq('active', true).eq('hidden', false).eq('archived', false).is('deleted_at', null).order('cost').limit(4);
+        const { data: rws } = await cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, emoji, cost').order('cost').limit(4);
         rewards = (rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
       } catch {}
 

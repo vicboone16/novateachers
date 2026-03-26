@@ -128,23 +128,17 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
-      // Load rewards: agency-wide OR matching classroom
+      // Use appropriate view: admin sees all (excl soft-deleted), students see only visible
+      const table = (adminMode || showInactive) ? 'v_beacon_rewards_admin' : 'v_beacon_rewards_by_classroom';
       let q = cloudSupabase
-        .from('beacon_rewards')
+        .from(table as any)
         .select('*')
-        .is('deleted_at', null)
         .order('sort_order', { ascending: true });
 
       if (classroomId) {
-        // Show both agency-wide and classroom-specific rewards
         q = q.or(`and(scope_type.eq.agency,scope_id.eq.${agencyId}),and(scope_type.eq.classroom,scope_id.eq.${classroomId})`);
       } else {
         q = q.eq('scope_type', 'agency').eq('scope_id', agencyId);
-      }
-
-      // For student-facing (non-admin): only active, non-hidden, non-archived
-      if (!adminMode && !showInactive) {
-        q = q.eq('active', true).eq('hidden', false).eq('archived', false);
       }
 
       const { data } = await q;
