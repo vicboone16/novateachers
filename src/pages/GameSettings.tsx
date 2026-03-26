@@ -74,6 +74,7 @@ const GameSettings = () => {
     show_leaderboard: true,
     allow_team_mode: false,
     total_steps: 20,
+    movement_style: 'glide',
   });
   const [modes, setModes] = useState<any[]>([]);
   const [themes, setThemes] = useState<any[]>([]);
