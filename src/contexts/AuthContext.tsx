@@ -65,13 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     clearResolvedUserCache();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     return { error: error as Error | null };
   };
 
   const signUp = async (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
     const { error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: window.location.origin,
