@@ -802,6 +802,13 @@ export type Database = {
             referencedRelation: "game_tracks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "classroom_game_settings_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "v_default_game_track"
+            referencedColumns: ["id"]
+          },
         ]
       }
       classroom_group_students: {
@@ -5093,6 +5100,24 @@ export type Database = {
         }
         Relationships: []
       }
+      v_classroom_active_track: {
+        Row: {
+          checkpoints_json: Json | null
+          description: string | null
+          group_id: string | null
+          is_active: boolean | null
+          movement_style: string | null
+          name: string | null
+          nodes_json: Json | null
+          theme_id: string | null
+          theme_slug: string | null
+          total_steps: number | null
+          track_id: string | null
+          track_type: string | null
+          zones_json: Json | null
+        }
+        Relationships: []
+      }
       v_classroom_staff_presence: {
         Row: {
           agency_id: string | null
@@ -5187,6 +5212,27 @@ export type Database = {
             referencedColumns: ["group_id"]
           },
         ]
+      }
+      v_default_game_track: {
+        Row: {
+          agency_id: string | null
+          checkpoints_json: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          is_preset: boolean | null
+          name: string | null
+          nodes_json: Json | null
+          theme_id: string | null
+          theme_slug: string | null
+          total_steps: number | null
+          track_type: string | null
+          updated_at: string | null
+          zones_json: Json | null
+        }
+        Relationships: []
       }
       v_help_progress: {
         Row: {
