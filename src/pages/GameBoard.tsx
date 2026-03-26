@@ -71,7 +71,7 @@ const GameBoard = () => {
 
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
-  const { track, allTracks, refetch: refetchTrack } = useGameTrack(activeGroupId);
+  const { track, allTracks, movementStyle, refetch: refetchTrack } = useGameTrack(activeGroupId);
   const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
   const { triggerFromEvent, getAnimState } = useAvatarAnimations();
 
