@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { BeaconThreadView } from '@/components/BeaconThreadView';
 
 const THREAD_TYPE_ICONS: Record<string, typeof Hash> = {
   agency: Hash, classroom: Hash, dm: User, group: Hash, parent: Heart, team: Hash, channel: Hash,
