@@ -69,6 +69,8 @@ function AnimatedAvatarGroup({
   const posRef = useRef({ x: targetCx, y: targetCy });
   const animRef = useRef<number>(0);
 
+  const moveConfig = getMovementConfig(movementStyle || 'glide');
+
   useEffect(() => {
     const startX = posRef.current.x;
     const startY = posRef.current.y;
@@ -76,10 +78,10 @@ function AnimatedAvatarGroup({
     const dy = targetCy - startY;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
       posRef.current = { x: targetCx, y: targetCy };
-      if (gRef.current) gRef.current.setAttribute('transform', `translate(${targetCx},${targetCy})`);
+      if (gRef.current) gRef.current.setAttribute('transform', `translate(${targetCx},${targetCy}) scale(${depthScale})`);
       return;
     }
-    const duration = 900; // ms
+    const duration = moveConfig.duration;
     let start: number | null = null;
     cancelAnimationFrame(animRef.current);
 
@@ -87,17 +89,44 @@ function AnimatedAvatarGroup({
       if (!start) start = ts;
       const elapsed = ts - start;
       const raw = Math.min(elapsed / duration, 1);
-      // ease-in-out cubic
-      const t = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
+      // Easing based on movement style
+      let t: number;
+      if (movementStyle === 'bounce') {
+        // Bounce easing
+        if (raw < 0.5) {
+          t = 4 * raw * raw * raw;
+        } else {
+          const br = raw - 0.5;
+          t = 0.5 + 0.5 * (1 - Math.pow(1 - br * 2, 3));
+          // Add vertical bounce
+        }
+      } else if (movementStyle === 'dash') {
+        // Quick ease-out
+        t = 1 - Math.pow(1 - raw, 4);
+      } else if (movementStyle === 'float') {
+        // Sine ease
+        t = (1 - Math.cos(raw * Math.PI)) / 2;
+      } else {
+        // Glide: ease-in-out cubic
+        t = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
+      }
       const cx = startX + dx * t;
-      const cy = startY + dy * t;
+      let cy = startY + dy * t;
+      // Bounce Y offset
+      if (movementStyle === 'bounce' && raw > 0.4 && raw < 0.9) {
+        cy += moveConfig.yOffset * Math.sin((raw - 0.4) / 0.5 * Math.PI);
+      }
+      // Float Y wobble
+      if (movementStyle === 'float') {
+        cy += Math.sin(raw * Math.PI * 3) * 2;
+      }
       posRef.current = { x: cx, y: cy };
-      if (gRef.current) gRef.current.setAttribute('transform', `translate(${cx},${cy})`);
+      if (gRef.current) gRef.current.setAttribute('transform', `translate(${cx},${cy}) scale(${depthScale})`);
       if (raw < 1) animRef.current = requestAnimationFrame(step);
     };
     animRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(animRef.current);
-  }, [targetCx, targetCy]);
+  }, [targetCx, targetCy, depthScale]);
 
   const nearFinish = sp.progress > 0.85;
   const eff = sp.activeEffect;
