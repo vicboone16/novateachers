@@ -113,6 +113,7 @@ const GameSettings = () => {
         show_leaderboard: s.show_leaderboard ?? true,
         allow_team_mode: s.allow_team_mode ?? false,
         total_steps: s.total_steps || 20,
+        movement_style: (s as any).movement_style || 'glide',
       });
     } else {
       setSettings(prev => ({ ...prev, group_id: groupId, agency_id: effectiveAgencyId }));
