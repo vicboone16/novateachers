@@ -1,9 +1,10 @@
 /**
- * CurvedTrackBoard — SVG curved race track with zones, checkpoints,
- * smooth avatar movement, and visual polish.
+ * CurvedTrackBoard — Multi-track SVG board with zones, checkpoints,
+ * smooth avatar movement, depth effects, and multiple track types.
  */
 import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { interpolateOnTrack, generateSmoothPath, type TrackNode, type TrackZone, type TrackCheckpoint, type GameTheme } from '@/hooks/useGameTrack';
+import { generateTrackPath, getDepthScale, getDepthShadow, getMovementConfig, getFallbackNodes, type TrackType, type MovementStyle } from '@/components/TrackRenderers';
 import { FloatingFeedbackOverlay } from '@/components/FloatingFeedback';
 import type { FloatingFeedback } from '@/hooks/useGameEngine';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,8 @@ interface Props {
   theme?: GameTheme | null;
   feedbacks?: FloatingFeedback[];
   className?: string;
+  trackType?: TrackType;
+  movementStyle?: MovementStyle;
 }
 
 /** Deterministic offset so overlapping avatars don't stack */
