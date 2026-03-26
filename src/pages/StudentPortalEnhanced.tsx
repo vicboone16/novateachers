@@ -122,11 +122,10 @@ export default function StudentPortalEnhanced() {
         .maybeSingle();
       setBalance(Number(balanceData?.balance) || 0);
 
-      // Rewards from Cloud table
+      // Rewards from Cloud view (only active, visible, non-archived)
       const { data: rewardData } = await cloudSupabase
-        .from('beacon_rewards')
+        .from('v_beacon_rewards_by_classroom' as any)
         .select('id, name, emoji, cost')
-        .eq('active', true)
         .order('cost');
       setRewards((rewardData || []).map((r: any) => ({ ...r, point_cost: r.cost })) as any[]);
 
