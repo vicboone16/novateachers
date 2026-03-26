@@ -39,6 +39,7 @@ export interface GameTrack {
   name: string;
   description: string | null;
   total_steps: number;
+  track_type: string;
   nodes: TrackNode[];
   zones: TrackZone[];
   checkpoints: TrackCheckpoint[];
