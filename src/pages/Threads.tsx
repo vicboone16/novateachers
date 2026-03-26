@@ -3,7 +3,7 @@
  * Thread types: Channel (public/private), DM, Parent.
  * Who's Here panel pinned at top. Status update available.
  */
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
