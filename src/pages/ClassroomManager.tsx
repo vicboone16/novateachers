@@ -202,6 +202,29 @@ const ClassroomManager = () => {
       }
       const clientMap = new Map(normalizeClients(clientsRes.data || []).map(c => [c.id, c]));
 
+      // Background: sync Core student names into Cloud classroom_group_students
+      // so the public board always has names available
+      if (studentRows.length > 0 && clientMap.size > 0) {
+        (async () => {
+          try {
+            for (const s of studentRows) {
+              const client = clientMap.get(s.client_id);
+              if (client && (client.first_name || client.last_name)) {
+                await cloudSupabase
+                  .from('classroom_group_students')
+                  .update({
+                    first_name: client.first_name || null,
+                    last_name: client.last_name || null,
+                  } as any)
+                  .eq('group_id', s.group_id)
+                  .eq('client_id', s.client_id);
+              }
+            }
+            console.log('[Classroom] Background name sync complete');
+          } catch { /* silent */ }
+        })();
+      }
+
       // Load guest codes for all groups
       let guestCodeRows: GuestCode[] = [];
       try {
