@@ -445,6 +445,25 @@ const Threads = () => {
       );
     }
 
+    // Use BeaconThreadView for parent threads with SMS capability
+    if (activeThread.thread_type === 'parent') {
+      const threadInfo = {
+        id: activeThread.id,
+        title: activeThread.title,
+        severity: (activeThread as any).severity || null,
+        sms_enabled: (activeThread as any).sms_enabled || false,
+        parent_phone: (activeThread as any).parent_phone || null,
+        parent_sms_opted_in: (activeThread as any).parent_sms_opted_in || false,
+      };
+      return (
+        <BeaconThreadView
+          thread={threadInfo}
+          onBack={isMobile ? () => setActiveThread(null) : undefined}
+          className="flex-1"
+        />
+      );
+    }
+
     const TypeIcon = THREAD_TYPE_ICONS[activeThread.thread_type] || Hash;
     const category = getThreadCategory(activeThread);
     const canManage = activeThread.thread_type !== 'agency'; // Staff Feed can't be renamed
