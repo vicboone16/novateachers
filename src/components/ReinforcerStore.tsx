@@ -264,6 +264,56 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
     } catch { /* silent */ }
   };
 
+  const toggleHidden = async (reward: Reward) => {
+    try {
+      await cloudSupabase.from('beacon_rewards')
+        .update({ hidden: !reward.hidden, updated_at: new Date().toISOString() } as any)
+        .eq('id', reward.id);
+      loadRewards();
+      toast({ title: reward.hidden ? 'Reward visible to students' : 'Reward hidden from students' });
+    } catch { /* silent */ }
+  };
+
+  const toggleArchived = async (reward: Reward) => {
+    try {
+      await cloudSupabase.from('beacon_rewards')
+        .update({ archived: !reward.archived, active: reward.archived ? true : false, updated_at: new Date().toISOString() } as any)
+        .eq('id', reward.id);
+      loadRewards();
+      toast({ title: reward.archived ? 'Reward restored' : 'Reward archived' });
+    } catch { /* silent */ }
+  };
+
+  const softDeleteReward = async (reward: Reward) => {
+    try {
+      await cloudSupabase.from('beacon_rewards')
+        .update({ deleted_at: new Date().toISOString(), active: false, updated_at: new Date().toISOString() } as any)
+        .eq('id', reward.id);
+      loadRewards();
+      toast({ title: 'Reward soft-deleted' });
+    } catch { /* silent */ }
+  };
+
+  const hardDeleteReward = async (reward: Reward) => {
+    // Check for redemption history first
+    const { count } = await cloudSupabase.from('beacon_reward_redemptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('reward_id', reward.id);
+    if ((count || 0) > 0) {
+      toast({ title: 'Cannot permanently delete', description: 'This reward has redemption history. Archiving instead.', variant: 'destructive' });
+      await toggleArchived(reward);
+      return;
+    }
+    if (!confirm(`Permanently delete "${reward.name}"? This cannot be undone.`)) return;
+    try {
+      await cloudSupabase.from('beacon_rewards').delete().eq('id', reward.id);
+      loadRewards();
+      toast({ title: 'Reward permanently deleted' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const startRedeem = (reward: Reward) => {
     setSelectedReward(reward); setSelectedStudentId(''); setRedeemSuccess(false);
     setRedeemResult(null); setRedeemOpen(true);
