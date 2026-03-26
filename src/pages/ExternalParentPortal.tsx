@@ -63,7 +63,7 @@ export default function ExternalParentPortal() {
         cloudSupabase.from('classroom_group_students').select('first_name, last_name').eq('client_id', studentId).limit(1),
         cloudSupabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle(),
         cloudSupabase.from('beacon_points_ledger').select('points').eq('student_id', studentId),
-        cloudSupabase.from('beacon_rewards' as any).select('name, image_url, cost, emoji').eq('active', true).eq('hidden', false).eq('archived', false).is('deleted_at', null).order('cost', { ascending: true }).limit(6),
+        cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, image_url, cost, emoji').order('cost', { ascending: true }).limit(6),
         (async () => {
           const { data: groupData } = await cloudSupabase.from('classroom_group_students').select('group_id').eq('client_id', studentId).limit(1);
           const groupId = groupData?.[0]?.group_id;
