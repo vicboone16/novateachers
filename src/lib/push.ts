@@ -13,7 +13,6 @@ let _pluginPromise: Promise<void> | null = null;
 
 async function loadPlugins() {
   try {
-    // Only attempt on native platforms (Capacitor sets this on window)
     if (typeof window === 'undefined' || !(window as any).Capacitor) {
       isNative = false;
       return;
