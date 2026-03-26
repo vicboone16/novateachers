@@ -11,11 +11,23 @@ function hasName(row: CloudStudentNameRow) {
   return Boolean(row.first_name?.trim() || row.last_name?.trim());
 }
 
+function withSafeBoardFallbackNames(rows: CloudStudentNameRow[]): CloudStudentNameRow[] {
+  return rows.map((row, index) => {
+    if (hasName(row)) return row;
+    return {
+      ...row,
+      first_name: `Student ${index + 1}`,
+      last_name: null,
+    };
+  });
+}
+
 async function fetchGroupStudentNames(groupId: string): Promise<CloudStudentNameRow[]> {
   const { data } = await cloudSupabase
     .from('classroom_group_students')
     .select('client_id, first_name, last_name')
-    .eq('group_id', groupId);
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: true });
 
   return (data || []) as CloudStudentNameRow[];
 }
@@ -23,17 +35,19 @@ async function fetchGroupStudentNames(groupId: string): Promise<CloudStudentName
 export async function getGroupStudentsWithSyncedNames(groupId: string): Promise<CloudStudentNameRow[]> {
   let rows = await fetchGroupStudentNames(groupId);
 
-  if (rows.length === 0 || rows.every(hasName)) {
+  if (rows.length === 0) {
     return rows;
   }
 
-  const { error } = await invokeCloudFunction<{ ok: boolean; synced: number }>('sync-student-names', {
-    group_id: groupId,
-  });
+  if (!rows.every(hasName)) {
+    const { error } = await invokeCloudFunction<{ ok: boolean; synced: number }>('sync-student-names', {
+      group_id: groupId,
+    });
 
-  if (!error) {
-    rows = await fetchGroupStudentNames(groupId);
+    if (!error) {
+      rows = await fetchGroupStudentNames(groupId);
+    }
   }
 
-  return rows;
+  return withSafeBoardFallbackNames(rows);
 }
