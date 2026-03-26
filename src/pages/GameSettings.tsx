@@ -45,7 +45,15 @@ interface SettingsState {
   show_leaderboard: boolean;
   allow_team_mode: boolean;
   total_steps: number;
+  movement_style: string;
 }
+
+const MOVEMENT_STYLES = [
+  { value: 'glide', label: '🌊 Glide', desc: 'Smooth ease-in-out movement' },
+  { value: 'bounce', label: '🏀 Bounce', desc: 'Bouncy hop between positions' },
+  { value: 'dash', label: '⚡ Dash', desc: 'Quick snap movement' },
+  { value: 'float', label: '🎈 Float', desc: 'Gentle floating with wobble' },
+];
 
 const GameSettings = () => {
   const navigate = useNavigate();
