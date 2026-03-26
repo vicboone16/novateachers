@@ -232,6 +232,52 @@ const GameSettings = () => {
         </CardContent>
       </Card>
 
+      {/* Track Selection */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><Map className="h-4 w-4" /> Track</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <TrackSelectSection groupId={groupId} trackId={settings.track_id} onTrackChange={(tid) => setSettings(prev => ({ ...prev, track_id: tid }))} />
+          <div className="space-y-2">
+            <Label className="text-xs">Total Track Steps</Label>
+            <Input
+              type="number"
+              min={5}
+              max={100}
+              value={settings.total_steps}
+              onChange={e => setSettings(prev => ({ ...prev, total_steps: parseInt(e.target.value) || 20 }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Movement Style */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><Zap className="h-4 w-4" /> Movement Style</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2">
+            {MOVEMENT_STYLES.map(ms => (
+              <button
+                key={ms.value}
+                onClick={() => setSettings(prev => ({ ...prev, movement_style: ms.value }))}
+                className={cn(
+                  "rounded-xl p-3 text-left border-2 transition-all",
+                  settings.movement_style === ms.value
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                    : "border-border/40 hover:border-primary/30"
+                )}
+              >
+                <p className="text-sm font-semibold">{ms.label}</p>
+                <p className="text-[10px] text-muted-foreground">{ms.desc}</p>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Theme */}
       <Card>
         <CardHeader className="pb-2">
@@ -250,17 +296,6 @@ const GameSettings = () => {
               {themes.length === 0 && <SelectItem value="_none" disabled>No themes yet</SelectItem>}
             </SelectContent>
           </Select>
-
-          <div className="space-y-2">
-            <Label className="text-xs">Total Track Steps</Label>
-            <Input
-              type="number"
-              min={5}
-              max={100}
-              value={settings.total_steps}
-              onChange={e => setSettings(prev => ({ ...prev, total_steps: parseInt(e.target.value) || 20 }))}
-            />
-          </div>
         </CardContent>
       </Card>
 
