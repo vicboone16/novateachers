@@ -25,15 +25,25 @@ export const SmartHelpBanner = () => {
   const { startFlow, isActive: walkthroughActive } = useWalkthrough();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [dismissed, setDismissed] = useState<Set<string>>(() => {
-    try {
-      const stored = sessionStorage.getItem('beacon_help_dismissed');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch { return new Set(); }
-  });
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [suggestion, setSuggestion] = useState<HelpSuggestion | null>(null);
 
   const agencyId = currentWorkspace?.agency_id;
+  const storageKey = user && agencyId ? `beacon_help_dismissed:${user.id}:${agencyId}` : null;
+
+  useEffect(() => {
+    if (!storageKey) {
+      setDismissed(new Set());
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem(storageKey);
+      setDismissed(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch {
+      setDismissed(new Set());
+    }
+  }, [storageKey]);
 
   useEffect(() => {
     if (!user || !agencyId) return;
@@ -162,7 +172,9 @@ export const SmartHelpBanner = () => {
   const dismiss = (id: string) => {
     const next = new Set(dismissed).add(id);
     setDismissed(next);
-    sessionStorage.setItem('beacon_help_dismissed', JSON.stringify([...next]));
+    if (storageKey) {
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
+    }
     setSuggestion(null);
   };
 

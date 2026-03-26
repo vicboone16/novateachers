@@ -26,7 +26,7 @@ const MILESTONES = [
 ] as const;
 
 export const useStaffOnboarding = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const agencyId = currentWorkspace?.agency_id;
 
@@ -42,11 +42,13 @@ export const useStaffOnboarding = () => {
   });
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user || !agencyId) return;
     loadOnboarding();
-  }, [user?.id, agencyId]);
+  }, [authLoading, user?.id, agencyId]);
 
   const loadOnboarding = async () => {
+    if (authLoading) return;
     if (!user || !agencyId) return;
 
     // Use raw fetch to avoid type issues with new tables

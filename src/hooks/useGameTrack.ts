@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface TrackNode {
   x: number;
@@ -97,14 +98,29 @@ function parseJsonField<T>(raw: unknown, fallback: T): T {
 }
 
 export function useGameTrack(groupId: string | null) {
+  const { user, loading: authLoading } = useAuth();
   const [track, setTrack] = useState<GameTrack | null>(null);
   const [allTracks, setAllTracks] = useState<GameTrack[]>([]);
   const [movementStyle, setMovementStyle] = useState<string>('glide');
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
+    if (authLoading) return;
+
     setLoading(true);
     try {
+      if (!user) {
+        setAllTracks([]);
+        setTrack({
+          id: 'default', name: 'Default Track', description: null,
+          total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
+          zones: [], checkpoints: [], theme_slug: null, theme: null,
+        });
+        setMovementStyle('glide');
+        setLoading(false);
+        return;
+      }
+
       // 1) Always load all tracks (independent of groupId)
       const { data: allTrackRows } = await cloudSupabase
         .from('game_tracks')
@@ -195,9 +211,12 @@ export function useGameTrack(groupId: string | null) {
       });
     }
     setLoading(false);
-  }, [groupId]);
+  }, [authLoading, groupId, user]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (authLoading) return;
+    load();
+  }, [authLoading, load]);
 
   return { track, allTracks, movementStyle, loading, refetch: load };
 }

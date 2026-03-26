@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCcw, Settings, AlertTriangle, Map, Flame, Scroll, Gamepad2 } from 'lucide-react';
 import { GameModeSelector } from '@/components/GameModeSelector';
 import { cn } from '@/lib/utils';
+import { displayInitials, displayName as getStudentDisplayName } from '@/lib/student-utils';
 
 const CHECKPOINT_INTERVAL = 10;
 
@@ -290,10 +291,16 @@ const GameBoard = () => {
   const getDisplayName = (s: StudentGameProgress) => {
     const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
+    const safeDisplayName = getStudentDisplayName({
+      id: s.student_id,
+      client_id: s.student_id,
+      first_name: s.first_name || '',
+      last_name: s.last_name || '',
+    });
     const first = s.first_name || '';
-    const last = s.last_name || '';
-    if (mode === 'initials') return `${first[0] || ''}${last[0] || ''}`.toUpperCase() || s.student_id.slice(0, 4);
-    return first || last || s.student_id.slice(0, 6);
+    if (mode === 'initials') return displayInitials({ first_name: s.first_name, last_name: s.last_name, id: s.student_id });
+    if (mode === 'first_names') return first || safeDisplayName;
+    return safeDisplayName;
   };
 
   // Build track students with engine data
