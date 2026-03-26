@@ -338,20 +338,29 @@ function AnimatedAvatarGroup({
   );
 }
 
-export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], checkpoints = [], theme, feedbacks = [], className }: Props) {
+export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], checkpoints = [], theme, feedbacks = [], className, trackType = 'curved', movementStyle = 'glide' }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 300 });
+
+  // Use fallback nodes if provided nodes are invalid
+  const safeNodes = useMemo(() => {
+    if (!nodes || nodes.length < 2 || nodes.some(n => typeof n.x !== 'number' || typeof n.y !== 'number')) {
+      return getFallbackNodes(trackType);
+    }
+    return nodes;
+  }, [nodes, trackType]);
 
   useEffect(() => {
     const el = svgRef.current?.parentElement;
     if (!el) return;
     const obs = new ResizeObserver(entries => {
       const { width } = entries[0].contentRect;
-      setDims({ w: width, h: Math.max(260, width * 0.42) });
+      const heightRatio = trackType === 'depth_track' ? 0.55 : trackType === 'board_nodes' ? 0.65 : 0.42;
+      setDims({ w: width, h: Math.max(260, width * heightRatio) });
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [trackType]);
 
   const { w, h } = dims;
   const tc = theme?.colors || {};
@@ -359,7 +368,7 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
   const bgColor = tc.bg || undefined;
   const glowColor = tc.glow || trackColor;
 
-  const pathD = useMemo(() => generateSmoothPath(nodes, w, h), [nodes, w, h]);
+  const pathD = useMemo(() => generateTrackPath(trackType, safeNodes, w, h), [trackType, safeNodes, w, h]);
 
   // Zone overlays
   const zoneOverlays = useMemo(() => {
