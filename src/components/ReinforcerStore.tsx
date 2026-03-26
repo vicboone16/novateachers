@@ -128,13 +128,25 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const loadRewards = useCallback(async () => {
     setLoading(true);
     try {
+      // Load rewards: agency-wide OR matching classroom
       let q = cloudSupabase
         .from('beacon_rewards')
         .select('*')
-        .eq('scope_type', scopeType)
-        .eq('scope_id', scopeId)
+        .is('deleted_at', null)
         .order('sort_order', { ascending: true });
-      if (!showInactive) q = q.eq('active', true);
+
+      if (classroomId) {
+        // Show both agency-wide and classroom-specific rewards
+        q = q.or(`and(scope_type.eq.agency,scope_id.eq.${agencyId}),and(scope_type.eq.classroom,scope_id.eq.${classroomId})`);
+      } else {
+        q = q.eq('scope_type', 'agency').eq('scope_id', agencyId);
+      }
+
+      // For student-facing (non-admin): only active, non-hidden, non-archived
+      if (!adminMode && !showInactive) {
+        q = q.eq('active', true).eq('hidden', false).eq('archived', false);
+      }
+
       const { data } = await q;
       setRewards((data || []) as any as Reward[]);
 
@@ -148,7 +160,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
       setRewards([]);
     }
     setLoading(false);
-  }, [agencyId, classroomId, showInactive]);
+  }, [agencyId, classroomId, showInactive, adminMode]);
 
   useEffect(() => { loadRewards(); }, [loadRewards]);
 
