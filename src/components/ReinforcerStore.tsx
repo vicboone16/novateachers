@@ -46,6 +46,9 @@ interface Reward {
   redemption_count_24h: number;
   scope_type?: string;
   scope_id?: string;
+  hidden?: boolean;
+  archived?: boolean;
+  deleted_at?: string | null;
 }
 
 interface StudentOption {
