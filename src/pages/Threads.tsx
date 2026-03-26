@@ -3,7 +3,7 @@
  * Thread types: Channel (public/private), DM, Parent.
  * Who's Here panel pinned at top. Status update available.
  */
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { BeaconThreadView } from '@/components/BeaconThreadView';
 
 const THREAD_TYPE_ICONS: Record<string, typeof Hash> = {
   agency: Hash, classroom: Hash, dm: User, group: Hash, parent: Heart, team: Hash, channel: Hash,
@@ -444,6 +445,25 @@ const Threads = () => {
       );
     }
 
+    // Use BeaconThreadView for parent threads with SMS capability
+    if (activeThread.thread_type === 'parent') {
+      const threadInfo = {
+        id: activeThread.id,
+        title: activeThread.title,
+        severity: (activeThread as any).severity || null,
+        sms_enabled: (activeThread as any).sms_enabled || false,
+        parent_phone: (activeThread as any).parent_phone || null,
+        parent_sms_opted_in: (activeThread as any).parent_sms_opted_in || false,
+      };
+      return (
+        <BeaconThreadView
+          thread={threadInfo}
+          onBack={isMobile ? () => setActiveThread(null) : undefined}
+          className="flex-1"
+        />
+      );
+    }
+
     const TypeIcon = THREAD_TYPE_ICONS[activeThread.thread_type] || Hash;
     const category = getThreadCategory(activeThread);
     const canManage = activeThread.thread_type !== 'agency'; // Staff Feed can't be renamed
@@ -790,6 +810,12 @@ function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken
           toast({ title: 'DM opened' });
         }
       } else if (threadCategory === 'parent') {
+        // Normalize phone
+        const rawPhone = parentContact.phone.trim();
+        const normalizedPhone = rawPhone
+          ? (rawPhone.startsWith('+') ? rawPhone : `+1${rawPhone.replace(/\D/g, '')}`)
+          : null;
+
         const { data, error } = await cloudSupabase
           .from('threads')
           .insert({
@@ -798,22 +824,27 @@ function CreateThreadDialog({ open, onOpenChange, agencyId, userId, sessionToken
             title: parentContact.name || title || 'Parent',
             is_private: true,
             created_by: userId,
+            sms_enabled: !!normalizedPhone,
+            parent_phone: normalizedPhone,
+            parent_sms_opted_in: !!normalizedPhone,
           })
           .select()
           .single();
         if (error) throw error;
         if (data) {
           await cloudSupabase.from('thread_members').insert({ thread_id: data.id, user_id: userId, role: 'admin' });
-          const contactInfo = [parentContact.email, parentContact.phone].filter(Boolean).join(', ');
+          const contactInfo = [parentContact.email, normalizedPhone].filter(Boolean).join(', ');
           if (contactInfo) {
             await cloudSupabase.from('thread_messages').insert({
               thread_id: data.id, sender_id: userId,
               body: `Parent contact: ${contactInfo}`,
               message_type: 'system',
+              channel: 'in_app',
+              direction: 'outbound',
             });
           }
           onCreated(data as ThreadRow);
-          toast({ title: 'Parent thread created' });
+          toast({ title: 'Parent thread created' + (normalizedPhone ? ' with SMS' : '') });
         }
       } else {
         // Channel / Group

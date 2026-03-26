@@ -4224,35 +4224,65 @@ export type Database = {
       thread_messages: {
         Row: {
           body: string
+          channel: string
           created_at: string
+          delivery_status: string | null
+          direction: string
+          external_metadata: Json
           id: string
           is_deleted: boolean
           message_type: string
           metadata: Json | null
           parent_id: string | null
+          pingram_notification_type: string | null
+          pingram_tracking_id: string | null
+          pingram_user_id: string | null
           sender_id: string
+          severity: string | null
+          sms_from_number: string | null
+          sms_to_number: string | null
           thread_id: string
         }
         Insert: {
           body: string
+          channel?: string
           created_at?: string
+          delivery_status?: string | null
+          direction?: string
+          external_metadata?: Json
           id?: string
           is_deleted?: boolean
           message_type?: string
           metadata?: Json | null
           parent_id?: string | null
+          pingram_notification_type?: string | null
+          pingram_tracking_id?: string | null
+          pingram_user_id?: string | null
           sender_id: string
+          severity?: string | null
+          sms_from_number?: string | null
+          sms_to_number?: string | null
           thread_id: string
         }
         Update: {
           body?: string
+          channel?: string
           created_at?: string
+          delivery_status?: string | null
+          direction?: string
+          external_metadata?: Json
           id?: string
           is_deleted?: boolean
           message_type?: string
           metadata?: Json | null
           parent_id?: string | null
+          pingram_notification_type?: string | null
+          pingram_tracking_id?: string | null
+          pingram_user_id?: string | null
           sender_id?: string
+          severity?: string | null
+          sms_from_number?: string | null
+          sms_to_number?: string | null
           thread_id?: string
         }
         Relationships: [
@@ -4354,6 +4384,10 @@ export type Database = {
           is_private: boolean
           last_message_at: string | null
           last_message_preview: string | null
+          parent_phone: string | null
+          parent_sms_opted_in: boolean
+          severity: string | null
+          sms_enabled: boolean
           thread_type: string
           title: string | null
           updated_at: string
@@ -4368,6 +4402,10 @@ export type Database = {
           is_private?: boolean
           last_message_at?: string | null
           last_message_preview?: string | null
+          parent_phone?: string | null
+          parent_sms_opted_in?: boolean
+          severity?: string | null
+          sms_enabled?: boolean
           thread_type?: string
           title?: string | null
           updated_at?: string
@@ -4382,6 +4420,10 @@ export type Database = {
           is_private?: boolean
           last_message_at?: string | null
           last_message_preview?: string | null
+          parent_phone?: string | null
+          parent_sms_opted_in?: boolean
+          severity?: string | null
+          sms_enabled?: boolean
           thread_type?: string
           title?: string | null
           updated_at?: string
