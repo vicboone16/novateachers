@@ -183,6 +183,7 @@ function buildTrack(row: any): GameTrack {
     name: row.name,
     description: row.description || null,
     total_steps: row.total_steps || 100,
+    track_type: row.track_type || 'curved',
     nodes,
     zones: parseJsonField(row.zones_json, []),
     checkpoints: parseJsonField(row.checkpoints_json, []),
