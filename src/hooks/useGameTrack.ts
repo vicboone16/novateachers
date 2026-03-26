@@ -99,21 +99,25 @@ function parseJsonField<T>(raw: unknown, fallback: T): T {
 export function useGameTrack(groupId: string | null) {
   const [track, setTrack] = useState<GameTrack | null>(null);
   const [allTracks, setAllTracks] = useState<GameTrack[]>([]);
+  const [movementStyle, setMovementStyle] = useState<string>('glide');
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!groupId) return;
     setLoading(true);
     try {
-      const { data: settings } = await cloudSupabase
-        .from('classroom_game_settings')
-        .select('track_id')
+      // 1) Try v_classroom_active_track for resolved track + movement_style
+      const { data: resolved } = await cloudSupabase
+        .from('v_classroom_active_track' as any)
+        .select('*')
         .eq('group_id', groupId)
         .maybeSingle();
 
-      const trackId = (settings as any)?.track_id;
+      if (resolved) {
+        setMovementStyle((resolved as any).movement_style || 'glide');
+      }
 
-      // Load all tracks for selector
+      // 2) Load all tracks for the selector
       const { data: allTrackRows } = await cloudSupabase
         .from('game_tracks')
         .select('*')
@@ -123,40 +127,59 @@ export function useGameTrack(groupId: string | null) {
       const parsed = (allTrackRows || []).map((row: any) => buildTrack(row));
       setAllTracks(parsed);
 
-      // Pick active track
-      let active = trackId ? parsed.find(t => t.id === trackId) : null;
-      if (!active && parsed.length > 0) active = parsed[0];
-
-      if (active) {
-        // Load theme if theme_slug set
-        if (active.theme_slug) {
-          const { data: themeRow } = await cloudSupabase
-            .from('game_themes' as any)
-            .select('*')
-            .eq('slug', active.theme_slug)
-            .maybeSingle();
-          if (themeRow) {
-            active = {
-              ...active,
-              theme: {
-                id: (themeRow as any).id,
-                name: (themeRow as any).name,
-                slug: (themeRow as any).slug,
-                colors: parseJsonField((themeRow as any).colors_json, {}),
-                assets: parseJsonField((themeRow as any).assets_json, {}),
-                avatar_style: (themeRow as any).avatar_style || 'emoji',
-              },
-            };
-          }
+      // 3) Resolve active track: use view result, then fallback
+      let active: GameTrack | null = null;
+      if (resolved && (resolved as any).track_id) {
+        active = parsed.find(t => t.id === (resolved as any).track_id) || null;
+        // If track_id from view isn't in parsed list, build from view data
+        if (!active) {
+          active = buildTrack(resolved);
         }
-        setTrack(active);
-      } else {
-      setTrack({
+      }
+
+      // Fallback: v_default_game_track
+      if (!active) {
+        const { data: defaultRow } = await cloudSupabase
+          .from('v_default_game_track' as any)
+          .select('*')
+          .maybeSingle();
+        if (defaultRow) {
+          active = buildTrack(defaultRow);
+        }
+      }
+
+      // Ultimate fallback: first parsed track or hardcoded
+      if (!active && parsed.length > 0) active = parsed[0];
+      if (!active) {
+        active = {
           id: 'default', name: 'Default Track', description: null,
           total_steps: 100, track_type: 'curved', nodes: DEFAULT_NODES,
           zones: [], checkpoints: [], theme_slug: null, theme: null,
-        });
+        };
       }
+
+      // Load theme if needed
+      if (active.theme_slug) {
+        const { data: themeRow } = await cloudSupabase
+          .from('game_themes' as any)
+          .select('*')
+          .eq('slug', active.theme_slug)
+          .maybeSingle();
+        if (themeRow) {
+          active = {
+            ...active,
+            theme: {
+              id: (themeRow as any).id,
+              name: (themeRow as any).name,
+              slug: (themeRow as any).slug,
+              colors: parseJsonField((themeRow as any).colors_json, {}),
+              assets: parseJsonField((themeRow as any).assets_json, {}),
+              avatar_style: (themeRow as any).avatar_style || 'emoji',
+            },
+          };
+        }
+      }
+      setTrack(active);
     } catch (err) {
       console.warn('[useGameTrack] Failed:', err);
       setTrack({
@@ -170,7 +193,7 @@ export function useGameTrack(groupId: string | null) {
 
   useEffect(() => { load(); }, [load]);
 
-  return { track, allTracks, loading, refetch: load };
+  return { track, allTracks, movementStyle, loading, refetch: load };
 }
 
 function buildTrack(row: any): GameTrack {

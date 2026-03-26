@@ -71,7 +71,7 @@ const GameBoard = () => {
 
   const studentIds = students.map(s => s.student_id);
   const { profiles: gameProfiles } = useStudentGameProfiles(studentIds);
-  const { track, allTracks, refetch: refetchTrack } = useGameTrack(activeGroupId);
+  const { track, allTracks, movementStyle, refetch: refetchTrack } = useGameTrack(activeGroupId);
   const { getEffect } = useGameEvents({ classroomId: activeGroupId, agencyId: effectiveAgencyId, enabled: !!activeGroupId });
   const { triggerFromEvent, getAnimState } = useAvatarAnimations();
 
@@ -457,7 +457,7 @@ const GameBoard = () => {
               feedbacks={feedbacks}
               className="border border-border/30"
               trackType={(track.track_type || 'curved') as any}
-              movementStyle={((settings as any)?.movement_style || 'glide') as any}
+              movementStyle={(movementStyle || 'glide') as any}
             />
           ) : null}
         </CardContent>
