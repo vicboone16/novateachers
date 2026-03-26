@@ -9,9 +9,15 @@ let PushNotifications: any = null;
 let LocalNotifications: any = null;
 let isNative = false;
 
+let _pluginPromise: Promise<void> | null = null;
+
 async function loadPlugins() {
   try {
-    // Use string variable to prevent TS from resolving the module at compile time
+    // Only attempt on native platforms (Capacitor sets this on window)
+    if (typeof window === 'undefined' || !(window as any).Capacitor) {
+      isNative = false;
+      return;
+    }
     const pushMod = '@capac' + 'itor/push-notifications';
     const localMod = '@capac' + 'itor/local-notifications';
     const cap = await (Function('m', 'return import(m)') as (m: string) => Promise<any>)(pushMod);
@@ -24,7 +30,10 @@ async function loadPlugins() {
   }
 }
 
-const pluginReady = loadPlugins();
+function getPluginReady(): Promise<void> {
+  if (!_pluginPromise) _pluginPromise = loadPlugins();
+  return _pluginPromise;
+}
 
 /**
  * Request push permission & register for APNs token.
