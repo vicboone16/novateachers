@@ -717,6 +717,7 @@ export type Database = {
           group_id: string
           id: string
           mode_id: string | null
+          movement_style: string
           show_avatars: boolean
           show_leaderboard: boolean
           theme_id: string | null
@@ -732,6 +733,7 @@ export type Database = {
           group_id: string
           id?: string
           mode_id?: string | null
+          movement_style?: string
           show_avatars?: boolean
           show_leaderboard?: boolean
           theme_id?: string | null
@@ -747,6 +749,7 @@ export type Database = {
           group_id?: string
           id?: string
           mode_id?: string | null
+          movement_style?: string
           show_avatars?: boolean
           show_leaderboard?: boolean
           theme_id?: string | null
@@ -1457,6 +1460,7 @@ export type Database = {
           theme_id: string | null
           theme_slug: string | null
           total_steps: number
+          track_type: string
           updated_at: string
           zones_json: Json
         }
@@ -1474,6 +1478,7 @@ export type Database = {
           theme_id?: string | null
           theme_slug?: string | null
           total_steps?: number
+          track_type?: string
           updated_at?: string
           zones_json?: Json
         }
@@ -1491,6 +1496,7 @@ export type Database = {
           theme_id?: string | null
           theme_slug?: string | null
           total_steps?: number
+          track_type?: string
           updated_at?: string
           zones_json?: Json
         }
