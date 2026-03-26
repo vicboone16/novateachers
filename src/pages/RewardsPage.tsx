@@ -255,7 +255,7 @@ const RewardsPage = () => {
         </TabsList>
 
         <TabsContent value="store">
-          <ReinforcerStore agencyId={effectiveAgencyId} classroomId={activeGroupId || undefined} students={studentOptions} onRedemption={loadData} showInactive />
+          <ReinforcerStore agencyId={effectiveAgencyId} classroomId={activeGroupId || undefined} students={studentOptions} onRedemption={loadData} showInactive adminMode />
         </TabsContent>
 
         <TabsContent value="balances">
