@@ -504,19 +504,27 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
 
         {/* Track outer glow */}
         <path d={pathD} fill="none" stroke={glowColor} strokeWidth="20"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.08" filter="url(#track-glow-strong)" />
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.08" filter="url(#track-glow-strong)" />
 
         {/* Track mid glow */}
         <path d={pathD} fill="none" stroke={glowColor} strokeWidth="12"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.12" filter="url(#track-glow)" />
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.12" filter="url(#track-glow)" />
 
         {/* Track dashed guide */}
         <path d={pathD} fill="none" stroke={trackColor} strokeWidth="6"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.5" strokeDasharray="14 7" />
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.5" strokeDasharray={trackType === 'board_nodes' ? '8 4' : '14 7'} />
 
         {/* Track solid core */}
-        <path d={pathD} fill="none" stroke={trackColor} strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+        <path d={pathD} fill="none" stroke={trackColor} strokeWidth={trackType === 'depth_track' ? '3.5' : '2.5'}
+          strokeLinecap="round" strokeLinejoin={trackType === 'zigzag' ? 'bevel' : 'round'} opacity="0.85" />
+
+        {/* Board nodes markers */}
+        {trackType === 'board_nodes' && safeNodes.map((n, i) => (
+          <circle key={i} cx={(n.x / 100) * w} cy={(n.y / 100) * h} r={8}
+            fill="hsl(220, 14%, 96%)" stroke={trackColor} strokeWidth="1.5" opacity="0.6"
+            className="dark:fill-[hsl(222,25%,16%)]"
+          />
+        ))}
 
         {/* Checkpoint markers */}
         {checkpointMarkers.map((cp, i) => (
