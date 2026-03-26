@@ -357,9 +357,17 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const selectedEffectivePrice = selectedReward ? getEffectivePrice(selectedReward) : 0;
   const canAfford = selectedStudent ? selectedStudent.balance >= selectedEffectivePrice : false;
 
+  // Apply visibility filter
+  const filteredRewards = rewards.filter(r => {
+    if (visFilter === 'active') return r.active && !r.hidden && !r.archived;
+    if (visFilter === 'hidden') return r.hidden;
+    if (visFilter === 'archived') return r.archived;
+    return true; // 'all'
+  });
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-base font-bold font-heading flex items-center gap-2">
           <ShoppingBag className="h-4 w-4 text-primary" /> Reward Store
         </h3>
@@ -368,28 +376,46 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
         </Button>
       </div>
 
+      {/* Admin visibility filters */}
+      {adminMode && (
+        <div className="flex gap-1 flex-wrap">
+          {(['active', 'hidden', 'archived', 'all'] as VisibilityFilter[]).map(f => (
+            <Button key={f} size="sm" variant={visFilter === f ? 'default' : 'outline'} className="h-7 text-xs capitalize gap-1" onClick={() => setVisFilter(f)}>
+              {f === 'hidden' && <EyeOff className="h-3 w-3" />}
+              {f === 'archived' && <Archive className="h-3 w-3" />}
+              {f} ({rewards.filter(r => {
+                if (f === 'active') return r.active && !r.hidden && !r.archived;
+                if (f === 'hidden') return r.hidden;
+                if (f === 'archived') return r.archived;
+                return true;
+              }).length})
+            </Button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
-      ) : rewards.length === 0 ? (
+      ) : filteredRewards.length === 0 ? (
         <Card className="border-dashed border-2 border-border">
           <CardContent className="py-8 text-center">
             <Gift className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No rewards yet. Add some!</p>
+            <p className="text-sm text-muted-foreground">{visFilter === 'active' ? 'No rewards yet. Add some!' : `No ${visFilter} rewards.`}</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {rewards.map(reward => {
+          {filteredRewards.map(reward => {
             const effectivePrice = getEffectivePrice(reward);
             const basePrice = reward.base_cost || reward.cost;
             const modifier = getPriceModifier(reward);
             const outOfStock = reward.inventory_enabled && reward.stock_count !== null && reward.stock_count <= 0;
             const anyCanAfford = students.some(s => s.balance >= effectivePrice);
             const redeemCount = redemptions.filter(r => r.reward_id === reward.id).length;
-            const isAvailable = anyCanAfford && reward.active && !outOfStock;
+            const isAvailable = anyCanAfford && reward.active && !outOfStock && !reward.hidden && !reward.archived;
             const isLocked = !anyCanAfford && reward.active && !outOfStock;
+            const isAgencyWide = reward.scope_type === 'agency';
 
-            // Find closest student
             const closestStudent = students.length > 0
               ? students.reduce((best, s) => (Math.abs(effectivePrice - s.balance) < Math.abs(effectivePrice - best.balance) ? s : best))
               : null;
@@ -399,19 +425,22 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
               <Card key={reward.id} className={cn(
                 'transition-all border-border/40 overflow-hidden cursor-pointer hover:shadow-md',
                 !reward.active && 'opacity-40 border-dashed',
+                reward.hidden && 'opacity-50 border-dashed',
+                reward.archived && 'opacity-40',
                 outOfStock && 'opacity-50',
                 isAvailable && 'border-accent/40 shadow-sm shadow-accent/10',
               )} onClick={() => openDetail(reward)}>
                 {/* Top accent bar */}
                 <div className={cn(
                   'h-1',
-                  modifier === 'hot' && 'bg-destructive',
-                  modifier === 'sale' && 'bg-accent',
-                  modifier === 'scarce' && 'bg-amber-500',
-                  !modifier && isAvailable && 'bg-accent',
-                  !modifier && isLocked && 'bg-muted-foreground/20',
-                  !reward.active && 'bg-muted-foreground/10',
-                  outOfStock && 'bg-destructive/30',
+                  reward.archived && 'bg-muted-foreground/20',
+                  reward.hidden && 'bg-muted-foreground/30',
+                  !reward.archived && !reward.hidden && modifier === 'hot' && 'bg-destructive',
+                  !reward.archived && !reward.hidden && modifier === 'sale' && 'bg-accent',
+                  !reward.archived && !reward.hidden && !modifier && isAvailable && 'bg-accent',
+                  !reward.archived && !reward.hidden && !modifier && isLocked && 'bg-muted-foreground/20',
+                  !reward.active && !reward.archived && !reward.hidden && 'bg-muted-foreground/10',
+                  outOfStock && !reward.archived && !reward.hidden && 'bg-destructive/30',
                 )} />
                 <CardContent className="p-3">
                   <div className="flex items-start gap-3">
@@ -423,21 +452,27 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                       <div className="flex items-start justify-between gap-1">
                         <p className="font-semibold text-sm truncate">{reward.name}</p>
                         <div className="flex items-center gap-1 shrink-0">
-                          {modifier === 'hot' && <Badge className="text-[8px] bg-destructive/20 text-destructive border-destructive/30 gap-0.5"><Flame className="h-2 w-2" />Hot</Badge>}
-                          {modifier === 'sale' && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><TrendingDown className="h-2 w-2" />Sale</Badge>}
-                          {modifier === 'scarce' && <Badge className="text-[8px] bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-0.5"><Package className="h-2 w-2" />Low</Badge>}
-                          {isAvailable && !modifier && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 shrink-0 gap-0.5"><CheckCircle className="h-2 w-2" />Ready</Badge>}
-                          {isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                          {reward.hidden && <Badge variant="outline" className="text-[8px] gap-0.5"><EyeOff className="h-2 w-2" />Hidden</Badge>}
+                          {reward.archived && <Badge variant="outline" className="text-[8px] gap-0.5"><Archive className="h-2 w-2" />Archived</Badge>}
+                          {!reward.hidden && !reward.archived && modifier === 'hot' && <Badge className="text-[8px] bg-destructive/20 text-destructive border-destructive/30 gap-0.5"><Flame className="h-2 w-2" />Hot</Badge>}
+                          {!reward.hidden && !reward.archived && modifier === 'sale' && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 gap-0.5"><TrendingDown className="h-2 w-2" />Sale</Badge>}
+                          {!reward.hidden && !reward.archived && isAvailable && !modifier && <Badge className="text-[8px] bg-accent/20 text-accent-foreground border-accent/30 shrink-0 gap-0.5"><CheckCircle className="h-2 w-2" />Ready</Badge>}
+                          {isLocked && !reward.hidden && !reward.archived && <Lock className="h-3 w-3 text-muted-foreground" />}
                         </div>
                       </div>
                       {reward.description && <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{reward.description}</p>}
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                        {/* Price display */}
                         <Badge className="gap-0.5 text-[10px] bg-primary/10 text-primary border-primary/20">
-                          <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> {effectivePrice}
+                          <Star className="h-2.5 w-2.5 fill-current" /> {effectivePrice}
                         </Badge>
                         {modifier && effectivePrice !== basePrice && (
                           <span className="text-[9px] text-muted-foreground line-through">{basePrice}</span>
+                        )}
+                        {/* Scope label */}
+                        {adminMode && (
+                          <Badge variant="outline" className="text-[8px] gap-0.5">
+                            {isAgencyWide ? <><Building2 className="h-2 w-2" />Agency</> : <><School className="h-2 w-2" />Classroom</>}
+                          </Badge>
                         )}
                         {reward.reward_type === 'class' && (
                           <Badge variant="outline" className="text-[9px] gap-0.5"><Zap className="h-2 w-2" />Class</Badge>
@@ -457,11 +492,35 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
                     </div>
                   </div>
                   <div className="flex gap-1 mt-2.5" onClick={e => e.stopPropagation()}>
-                    <Button size="sm" variant={isAvailable ? "default" : "outline"} className={cn("flex-1 h-7 text-xs gap-1", isAvailable && "bg-accent hover:bg-accent/90 text-accent-foreground")} onClick={() => !outOfStock && reward.active && startRedeem(reward)} disabled={outOfStock || !reward.active}>
-                      <Gift className="h-3 w-3" /> Redeem
-                    </Button>
+                    {!reward.archived && (
+                      <Button size="sm" variant={isAvailable ? "default" : "outline"} className={cn("flex-1 h-7 text-xs gap-1", isAvailable && "bg-accent hover:bg-accent/90 text-accent-foreground")} onClick={() => !outOfStock && reward.active && startRedeem(reward)} disabled={outOfStock || !reward.active || reward.hidden}>
+                        <Gift className="h-3 w-3" /> Redeem
+                      </Button>
+                    )}
+                    {reward.archived && (
+                      <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1" onClick={() => toggleArchived(reward)}>
+                        <ArchiveRestore className="h-3 w-3" /> Restore
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(reward)} title="Edit"><Pencil className="h-3 w-3" /></Button>
-                    <Button size="sm" variant="ghost" className={cn("h-7 w-7 p-0", !reward.active && "text-muted-foreground")} onClick={() => toggleActive(reward)} title={reward.active ? 'Deactivate' : 'Activate'}><Power className="h-3 w-3" /></Button>
+                    {adminMode && (
+                      <>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => toggleHidden(reward)} title={reward.hidden ? 'Unhide' : 'Hide'}>
+                          {reward.hidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                        </Button>
+                        {!reward.archived && (
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => toggleArchived(reward)} title="Archive">
+                            <Archive className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => reward.archived ? hardDeleteReward(reward) : softDeleteReward(reward)} title={reward.archived ? 'Delete permanently' : 'Delete'}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                    {!adminMode && (
+                      <Button size="sm" variant="ghost" className={cn("h-7 w-7 p-0", !reward.active && "text-muted-foreground")} onClick={() => toggleActive(reward)} title={reward.active ? 'Deactivate' : 'Activate'}><Power className="h-3 w-3" /></Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
