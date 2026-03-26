@@ -14,6 +14,7 @@ import { displayInitials, displayName as getStudentDisplayName } from '@/lib/stu
 import { Star, Award, Target, Trophy, Sparkles, Flag, Users, Gift } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { getGroupStudentsWithSyncedNames } from '@/lib/student-name-sync';
 
 interface BoardSettings {
   show_points: boolean;
@@ -197,8 +198,7 @@ export default function ClassroomBoard() {
     } catch { /* silent */ }
 
     // Load students in this group (with names stored on Cloud)
-    const { data: groupStudents } = await cloudSupabase.from('classroom_group_students').select('client_id, first_name, last_name').eq('group_id', classroomId);
-    const studentRows = (groupStudents || []) as any[];
+    const studentRows = await getGroupStudentsWithSyncedNames(classroomId);
     const studentIds = studentRows.map((s: any) => s.client_id);
     if (studentIds.length === 0) { setStudents([]); return; }
 

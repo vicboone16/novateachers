@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Flag, Lock, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getGroupStudentsWithSyncedNames } from '@/lib/student-name-sync';
 
 const TRACK_LENGTH = 100;
 const CHECKPOINT_INTERVAL = 20;
@@ -68,11 +69,7 @@ export default function ClassroomLive() {
       setSettings(settingsData);
 
       // Load students with names from Cloud
-      const { data: groupStudents } = await cloudSupabase
-        .from('classroom_group_students')
-        .select('client_id, first_name, last_name')
-        .eq('group_id', gid);
-      const studentRows = (groupStudents || []) as any[];
+      const studentRows = await getGroupStudentsWithSyncedNames(gid);
       const studentIds = studentRows.map((r: any) => r.client_id);
 
       if (studentIds.length === 0) {
