@@ -64,8 +64,8 @@ export default function ExternalStudentPortal() {
 
       // Rewards
       try {
-        const { data: rws } = await supabase.from('v_beacon_rewards_by_classroom' as any).select('name, image_url, cost').order('cost', { ascending: true }).limit(4);
-        setRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost })));
+        const { data: rws } = await cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, emoji, cost').order('cost', { ascending: true }).limit(4);
+        setRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
       } catch {}
     } catch (err: any) {
       setError(err.message || 'Could not load.');
