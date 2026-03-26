@@ -571,6 +571,8 @@ export function CurvedTrackBoard({ nodes, totalSteps, students, zones = [], chec
             targetCx={sp.cx}
             targetCy={sp.cy}
             distanceToFinish={sp.distanceToFinish}
+            movementStyle={movementStyle}
+            depthScale={(sp as any).depthScale || 1}
           />
         ))}
 
