@@ -90,7 +90,7 @@ interface Props {
   adminMode?: boolean;
 }
 
-export function ReinforcerStore({ agencyId, classroomId, students, onRedemption, showInactive }: Props) {
+export function ReinforcerStore({ agencyId, classroomId, students, onRedemption, showInactive, adminMode = false }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -106,6 +106,7 @@ export function ReinforcerStore({ agencyId, classroomId, students, onRedemption,
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [redeeming, setRedeeming] = useState(false);
   const [redeemResult, setRedeemResult] = useState<any>(null);
+  const [visFilter, setVisFilter] = useState<VisibilityFilter>('active');
 
   // Create/Edit form
   const [formName, setFormName] = useState('');
