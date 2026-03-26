@@ -57,7 +57,47 @@ const MOVEMENT_STYLES = [
   { value: 'float', label: '🎈 Float', desc: 'Gentle floating with wobble' },
 ];
 
-const GameSettings = () => {
+const TRACK_TYPE_LABELS: Record<string, string> = {
+  curved: '🌊 Curved',
+  zigzag: '⚡ Zigzag',
+  map: '🗺️ Map',
+  board_nodes: '🎲 Board',
+  lanes: '🛤️ Lanes',
+  depth_track: '🏔️ Depth',
+};
+
+function TrackSelectSection({ groupId, trackId, onTrackChange }: { groupId: string; trackId: string | null; onTrackChange: (id: string) => void }) {
+  const { allTracks, loading } = useGameTrack(groupId);
+  if (loading) return <p className="text-xs text-muted-foreground">Loading tracks…</p>;
+  if (allTracks.length === 0) return <p className="text-xs text-muted-foreground">No tracks available. Create tracks in the database.</p>;
+  return (
+    <div className="space-y-2">
+      {allTracks.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onTrackChange(t.id)}
+          className={cn(
+            "w-full rounded-xl p-3 text-left border-2 transition-all",
+            trackId === t.id
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border/40 hover:border-primary/30"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">{t.name}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {TRACK_TYPE_LABELS[t.track_type] || t.track_type} · {t.total_steps} steps · {t.zones.length} zones
+              </p>
+            </div>
+            {trackId === t.id && <Badge className="text-[9px]">Active</Badge>}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
