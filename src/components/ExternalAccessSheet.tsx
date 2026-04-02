@@ -1,10 +1,11 @@
 /**
  * ExternalAccessSheet — Teacher-facing sheet to generate, manage, and share
  * external parent & student access links.
- * Calls Nova Core RPCs: create_external_access_link, get_student_external_links, deactivate_external_access_link.
+ * Uses current parent_access_links + student_portal_tokens contracts.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -19,17 +20,19 @@ import {
   ChevronDown, Clock, Loader2, Check, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { displayName as getStudentDisplayName } from '@/lib/student-utils';
 
 interface ExternalLink {
   id: string;
   student_id: string;
-  link_type: string; // 'parent' | 'student'
+  link_type: 'parent' | 'student';
   token: string;
   is_active: boolean;
   expires_at: string | null;
   created_at: string;
   last_used_at: string | null;
-  created_by: string;
+  created_by: string | null;
+  account_id?: string | null;
 }
 
 interface Props {
@@ -47,6 +50,8 @@ const EXPIRATION_OPTIONS = [
   { label: '30 days', value: '30d' },
 ];
 
+const NON_EXPIRING_TOKEN_DATE = '2099-12-31T23:59:59.999Z';
+
 function getExpirationDate(value: string): string | null {
   if (value === 'none') return null;
   const now = new Date();
@@ -54,6 +59,18 @@ function getExpirationDate(value: string): string | null {
   else if (value === '7d') now.setDate(now.getDate() + 7);
   else if (value === '30d') now.setDate(now.getDate() + 30);
   return now.toISOString();
+}
+
+function getStudentTokenExpirationDate(value: string): string {
+  return getExpirationDate(value) ?? NON_EXPIRING_TOKEN_DATE;
+}
+
+function isNonExpiringStudentToken(iso: string | null) {
+  return Boolean(iso && new Date(iso).getFullYear() >= 2099);
+}
+
+function generateAccessToken() {
+  return crypto.randomUUID().replace(/-/g, '');
 }
 
 export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName, agencyId }: Props) {
@@ -71,27 +88,58 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
   const loadLinks = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_student_external_links' as any, {
-        p_student_id: studentId,
-      });
-      if (error) throw error;
-      setLinks((data || []) as ExternalLink[]);
-    } catch (err: any) {
-      console.warn('[ExternalAccess] Failed to load links:', err.message);
-      // Fallback: try direct table query
-      try {
-        const { data } = await supabase
-          .from('external_access_links' as any)
+      const [parentRes, accountRes] = await Promise.all([
+        cloudSupabase
+          .from('parent_access_links')
           .select('*')
           .eq('student_id', studentId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('student_portal_accounts' as any)
+          .select('id')
+          .eq('student_id', studentId)
+          .maybeSingle(),
+      ]);
+
+      const parentLinks: ExternalLink[] = ((parentRes.data || []) as any[]).map(link => ({
+        ...link,
+        link_type: 'parent',
+      }));
+
+      let studentLinks: ExternalLink[] = [];
+      const accountId = (accountRes.data as any)?.id;
+      if (accountId) {
+        const { data: tokenData } = await supabase
+          .from('student_portal_tokens' as any)
+          .select('id, account_id, token, is_active, expires_at, created_at')
+          .eq('account_id', accountId)
           .order('created_at', { ascending: false });
-        setLinks((data || []) as ExternalLink[]);
-      } catch {
-        setLinks([]);
+
+        studentLinks = ((tokenData || []) as any[]).map(link => ({
+          id: link.id,
+          student_id: studentId,
+          link_type: 'student',
+          token: link.token,
+          is_active: Boolean(link.is_active),
+          expires_at: isNonExpiringStudentToken(link.expires_at) ? null : link.expires_at,
+          created_at: link.created_at,
+          last_used_at: null,
+          created_by: user?.id || null,
+          account_id: link.account_id,
+        }));
       }
+
+      setLinks(
+        [...parentLinks, ...studentLinks].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+      );
+    } catch (err: any) {
+      console.warn('[ExternalAccess] Failed to load links:', err.message);
+      setLinks([]);
     }
     setLoading(false);
-  }, [studentId]);
+  }, [studentId, user?.id]);
 
   useEffect(() => {
     if (open) loadLinks();
@@ -106,31 +154,114 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
     setGenerating(linkType);
     try {
       const expiry = linkType === 'parent' ? parentExpiry : studentExpiry;
-      const { data, error } = await supabase.rpc('create_external_access_link' as any, {
-        p_student_id: studentId,
-        p_link_type: linkType,
-        p_created_by: user.id,
-        p_agency_id: agencyId,
-        p_expires_at: getExpirationDate(expiry),
-        p_deactivate_existing: deactivateExisting,
-      });
-      if (error) throw error;
+      if (linkType === 'parent') {
+        if (deactivateExisting) {
+          const { error: deactivateError } = await cloudSupabase
+            .from('parent_access_links')
+            .update({ is_active: false })
+            .eq('student_id', studentId)
+            .eq('is_active', true);
+          if (deactivateError) throw deactivateError;
+        }
+
+        const { error } = await cloudSupabase
+          .from('parent_access_links')
+          .insert({
+            student_id: studentId,
+            agency_id: agencyId,
+            created_by: user.id,
+            token: generateAccessToken(),
+            expires_at: getExpirationDate(expiry),
+            is_active: true,
+          });
+        if (error) throw error;
+      } else {
+        const safeStudentName = getStudentDisplayName({
+          id: studentId,
+          client_id: studentId,
+          name: studentName,
+        });
+
+        const { data: existingAccount, error: accountLookupError } = await supabase
+          .from('student_portal_accounts' as any)
+          .select('id')
+          .eq('student_id', studentId)
+          .maybeSingle();
+        if (accountLookupError) throw accountLookupError;
+
+        let accountId = (existingAccount as any)?.id as string | undefined;
+
+        if (accountId) {
+          const { error: accountUpdateError } = await supabase
+            .from('student_portal_accounts' as any)
+            .update({
+              agency_id: agencyId,
+              display_name: safeStudentName,
+              is_active: true,
+              updated_at: new Date().toISOString(),
+            } as any)
+            .eq('id', accountId);
+          if (accountUpdateError) throw accountUpdateError;
+        } else {
+          const { data: createdAccount, error: accountCreateError } = await supabase
+            .from('student_portal_accounts' as any)
+            .insert({
+              student_id: studentId,
+              agency_id: agencyId,
+              display_name: safeStudentName,
+              created_by: user.id,
+              is_active: true,
+            } as any)
+            .select('id')
+            .single();
+          if (accountCreateError) throw accountCreateError;
+          accountId = (createdAccount as any)?.id;
+        }
+
+        if (!accountId) throw new Error('Could not prepare student portal account.');
+
+        if (deactivateExisting) {
+          const { error: deactivateError } = await supabase
+            .from('student_portal_tokens' as any)
+            .update({ is_active: false } as any)
+            .eq('account_id', accountId)
+            .eq('is_active', true);
+          if (deactivateError) throw deactivateError;
+        }
+
+        const { error } = await supabase
+          .from('student_portal_tokens' as any)
+          .insert({
+            account_id: accountId,
+            token: generateAccessToken(),
+            expires_at: getStudentTokenExpirationDate(expiry),
+            is_active: true,
+          } as any);
+        if (error) throw error;
+      }
+
       toast({ title: `${linkType === 'parent' ? 'Parent' : 'Student'} link created!` });
-      loadLinks();
+      await loadLinks();
     } catch (err: any) {
       toast({ title: 'Failed to create link', description: err.message, variant: 'destructive' });
     }
     setGenerating(null);
   };
 
-  const deactivateLink = async (linkId: string) => {
+   const deactivateLink = async (link: ExternalLink) => {
     try {
-      const { error } = await supabase.rpc('deactivate_external_access_link' as any, {
-        p_link_id: linkId,
-      });
+      const error = link.link_type === 'parent'
+        ? (await cloudSupabase
+            .from('parent_access_links')
+            .update({ is_active: false })
+            .eq('id', link.id)).error
+        : (await supabase
+            .from('student_portal_tokens' as any)
+            .update({ is_active: false } as any)
+            .eq('id', link.id)).error;
       if (error) throw error;
       toast({ title: 'Link deactivated' });
-      loadLinks();
+      await loadLinks();
     } catch (err: any) {
       toast({ title: 'Failed to deactivate', description: err.message, variant: 'destructive' });
     }
@@ -138,8 +269,9 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
 
   const buildUrl = (link: ExternalLink) => {
     const base = window.location.origin;
-    const path = link.link_type === 'parent' ? 'external/parent' : 'external/student';
-    return `${base}/${path}/${link.token}`;
+    return link.link_type === 'parent'
+      ? `${base}/external/parent/${link.token}`
+      : `${base}/portal/${link.token}`;
   };
 
   const copyLink = async (link: ExternalLink) => {
@@ -199,7 +331,7 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
               copiedId={copiedId}
               onGenerate={() => generateLink('parent')}
               onRegenerate={() => generateLink('parent', true)}
-              onDeactivate={() => activeParentLink && deactivateLink(activeParentLink.id)}
+              onDeactivate={() => activeParentLink && deactivateLink(activeParentLink)}
               onCopy={() => activeParentLink && copyLink(activeParentLink)}
               onPreview={() => activeParentLink && previewLink(activeParentLink)}
               buildUrl={buildUrl}
@@ -219,7 +351,7 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
               copiedId={copiedId}
               onGenerate={() => generateLink('student')}
               onRegenerate={() => generateLink('student', true)}
-              onDeactivate={() => activeStudentLink && deactivateLink(activeStudentLink.id)}
+              onDeactivate={() => activeStudentLink && deactivateLink(activeStudentLink)}
               onCopy={() => activeStudentLink && copyLink(activeStudentLink)}
               onPreview={() => activeStudentLink && previewLink(activeStudentLink)}
               buildUrl={buildUrl}
