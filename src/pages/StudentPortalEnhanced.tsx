@@ -25,6 +25,7 @@ import { CosmeticInventory } from '@/components/CosmeticInventory';
 import { StudentQuestCards } from '@/components/StudentQuestCards';
 import { StudentNarrativeCard } from '@/components/StudentNarrativeCard';
 import { cn } from '@/lib/utils';
+import { displayName as getStudentDisplayName } from '@/lib/student-utils';
 
 const TRACK_LENGTH = 100;
 const CHECKPOINT_INTERVAL = 20;
@@ -81,8 +82,13 @@ export default function StudentPortalEnhanced() {
         const { data: acct } = await supabase.from('student_portal_accounts' as any).select('id, student_id, display_name, avatar_emoji').eq('id', td.account_id).maybeSingle();
         if (acct) {
           const a = acct as any;
-          setStudentId(a.student_id); setDisplayName(a.display_name || 'Player'); setAvatarEmoji(a.avatar_emoji || '👤');
-          await loadStudentData(a.student_id); setLoading(false); return;
+          const safeAccountName = getStudentDisplayName({
+            id: a.student_id,
+            client_id: a.student_id,
+            name: a.display_name,
+          });
+          setStudentId(a.student_id); setDisplayName(safeAccountName || 'Player'); setAvatarEmoji(a.avatar_emoji || '👤');
+          await loadStudentData(a.student_id, safeAccountName); setLoading(false); return;
         }
       }
       const result = await validateStudentPortalAccess(t);
@@ -101,7 +107,7 @@ export default function StudentPortalEnhanced() {
     setLoading(false);
   };
 
-  const loadStudentData = async (sid: string) => {
+  const loadStudentData = async (sid: string, fallbackName?: string) => {
     try {
       const [profileData, studentUnlocks, studentStreaks] = await Promise.all([
         getStudentGameProfile(sid),
@@ -146,8 +152,22 @@ export default function StudentPortalEnhanced() {
       const { data: gameSettings } = await supabase.from('classroom_game_settings' as any).select('mission_of_the_day, word_of_the_week').limit(1).maybeSingle();
       if (gameSettings) { setMissionOfDay((gameSettings as any).mission_of_the_day || ''); setWordOfWeek((gameSettings as any).word_of_the_week || ''); }
 
-      const { data: client } = await supabase.from('clients' as any).select('first_name').eq('id', sid).maybeSingle();
-      if (client) setDisplayName((client as any).first_name || 'Player');
+      let resolvedName = fallbackName || '';
+      const { data: client } = await supabase
+        .from('clients' as any)
+        .select('first_name, last_name')
+        .eq('id', sid)
+        .maybeSingle();
+      if (client) {
+        resolvedName = getStudentDisplayName({
+          id: sid,
+          client_id: sid,
+          first_name: (client as any).first_name,
+          last_name: (client as any).last_name,
+          name: fallbackName,
+        });
+      }
+      setDisplayName(resolvedName || `Student ${sid.slice(-4).toUpperCase()}`);
     } catch (e) { console.warn('[Portal] load error:', e); }
   };
 
