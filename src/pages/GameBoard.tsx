@@ -34,6 +34,7 @@ import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCc
 import { GameModeSelector } from '@/components/GameModeSelector';
 import { cn } from '@/lib/utils';
 import { displayInitials, displayName as getStudentDisplayName } from '@/lib/student-utils';
+import { StudentNameEditor } from '@/components/StudentNameEditor';
 
 const CHECKPOINT_INTERVAL = 10;
 
@@ -506,7 +507,15 @@ const GameBoard = () => {
                       i > 2 && "text-muted-foreground"
                     )}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
-                    <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
+                    <StudentNameEditor
+                      studentId={s.student_id}
+                      currentName={name || 'Student'}
+                      firstName={s.first_name}
+                      lastName={s.last_name}
+                      displayNameOverride={gameProfiles[s.student_id]?.display_name_override}
+                      onSaved={() => loadBoard()}
+                      className="flex-1 text-sm font-medium truncate text-foreground"
+                    />
 
                     {/* Momentum indicators */}
                     {status?.status === 'on_fire' && (
