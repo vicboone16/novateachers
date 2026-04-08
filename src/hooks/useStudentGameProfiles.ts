@@ -115,6 +115,7 @@ export function useStudentGameProfiles(studentIds: string[]) {
               momentum_state: row.momentum_state || null,
               comeback_active: row.comeback_active || false,
               daily_narrative: row.daily_narrative || null,
+              display_name_override: row.display_name_override || null,
             },
           }));
         }
