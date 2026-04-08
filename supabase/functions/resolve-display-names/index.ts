@@ -12,7 +12,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth validation — three-tier: Cloud JWT, Core JWT, Core auth endpoint
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -29,8 +28,8 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { global: { headers: { Authorization: authHeader } } }
       );
-      const { data, error } = await cloudClient.auth.getClaims(token);
-      if (!error && data?.claims) authenticated = true;
+      const { data: { user }, error } = await cloudClient.auth.getUser(token);
+      if (!error && user) authenticated = true;
     } catch {}
 
     // Tier 2: Try Nova Core Supabase
@@ -39,8 +38,8 @@ Deno.serve(async (req) => {
       const coreAnon = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs";
       try {
         const coreClient = createClient(coreUrl2, coreAnon, { global: { headers: { Authorization: authHeader } } });
-        const { data, error } = await coreClient.auth.getClaims(token);
-        if (!error && data?.claims) authenticated = true;
+        const { data: { user }, error } = await coreClient.auth.getUser(token);
+        if (!error && user) authenticated = true;
       } catch {}
     }
 
@@ -89,7 +88,7 @@ Deno.serve(async (req) => {
     const names: Record<string, string> = {};
     const stillMissing: string[] = [];
 
-    // Step 1: profiles table — use select * to handle any schema
+    // Step 1: profiles table
     const { data: profiles, error: profilesErr } = await adminClient
       .from("profiles")
       .select("*")
@@ -114,7 +113,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 1b: also try agency_memberships with user profile data
     for (const id of ids) {
       if (!names[id]) stillMissing.push(id);
     }
@@ -143,7 +141,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3: For any still unresolved, try staff_members table as last resort
+    // Step 3: staff_members table as last resort
     const finalMissing = ids.filter(id => !names[id]);
     if (finalMissing.length > 0) {
       try {
@@ -162,9 +160,7 @@ Deno.serve(async (req) => {
             if (name) names[s.user_id] = name;
           }
         }
-      } catch {
-        // staff_members table may not exist
-      }
+      } catch {}
     }
 
     return new Response(JSON.stringify({ names }), {

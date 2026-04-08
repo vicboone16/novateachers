@@ -298,10 +298,7 @@ const AdminDashboard = () => {
     if (!editNameValue.trim()) return;
     try {
       const { error } = await supabase.from('profiles').update({ full_name: editNameValue.trim() }).eq('id', userId);
-      if (error) {
-        const { error: err2 } = await supabase.from('user_profiles').update({ full_name: editNameValue.trim() }).eq('user_id', userId);
-        if (err2) throw err2;
-      }
+      if (error) throw error;
       toast({ title: 'Display name updated' });
       setEditingUserId(null);
       setEditNameValue('');
