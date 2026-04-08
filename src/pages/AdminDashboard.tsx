@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
+import { saveStaffDisplayName } from '@/lib/display-names';
 import type { Client } from '@/lib/types';
 import { NOTIFICATION_LABELS } from '@/lib/notifications';
 import { MaydayContactsManager } from '@/components/MaydayContactsManager';
@@ -297,7 +298,12 @@ const AdminDashboard = () => {
   const handleUpdateDisplayName = async (userId: string) => {
     if (!editNameValue.trim()) return;
     try {
-      const { error } = await supabase.from('profiles').update({ full_name: editNameValue.trim() }).eq('id', userId);
+      const { error } = await saveStaffDisplayName({
+        userId,
+        displayName: editNameValue,
+        agencyId: currentWorkspace?.agency_id,
+        syncCurrentUserAuth: userId === user?.id,
+      });
       if (error) throw error;
       toast({ title: 'Display name updated' });
       setEditingUserId(null);
