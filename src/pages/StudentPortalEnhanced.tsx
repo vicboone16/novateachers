@@ -152,20 +152,25 @@ export default function StudentPortalEnhanced() {
       const { data: gameSettings } = await supabase.from('classroom_game_settings' as any).select('mission_of_the_day, word_of_the_week').limit(1).maybeSingle();
       if (gameSettings) { setMissionOfDay((gameSettings as any).mission_of_the_day || ''); setWordOfWeek((gameSettings as any).word_of_the_week || ''); }
 
+      // Check display_name_override from game profile first
       let resolvedName = fallbackName || '';
-      const { data: client } = await supabase
-        .from('clients' as any)
-        .select('first_name, last_name')
-        .eq('id', sid)
-        .maybeSingle();
-      if (client) {
-        resolvedName = getStudentDisplayName({
-          id: sid,
-          client_id: sid,
-          first_name: (client as any).first_name,
-          last_name: (client as any).last_name,
-          name: fallbackName,
-        });
+      if (profileData?.display_name_override) {
+        resolvedName = profileData.display_name_override;
+      } else {
+        const { data: client } = await supabase
+          .from('clients' as any)
+          .select('first_name, last_name')
+          .eq('id', sid)
+          .maybeSingle();
+        if (client) {
+          resolvedName = getStudentDisplayName({
+            id: sid,
+            client_id: sid,
+            first_name: (client as any).first_name,
+            last_name: (client as any).last_name,
+            name: fallbackName,
+          });
+        }
       }
       setDisplayName(resolvedName || `Student ${sid.slice(-4).toUpperCase()}`);
     } catch (e) { console.warn('[Portal] load error:', e); }
