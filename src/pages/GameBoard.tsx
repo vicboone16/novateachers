@@ -299,11 +299,13 @@ const GameBoard = () => {
   const getDisplayName = (s: StudentGameProgress) => {
     const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
+    const profile = gameProfiles[s.student_id];
     const safeDisplayName = getStudentDisplayName({
       id: s.student_id,
       client_id: s.student_id,
       first_name: s.first_name || '',
       last_name: s.last_name || '',
+      display_name_override: profile?.display_name_override || null,
     });
     const first = s.first_name || '';
     if (mode === 'initials') return displayInitials({ first_name: s.first_name, last_name: s.last_name, id: s.student_id });
