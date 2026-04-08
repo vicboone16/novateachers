@@ -147,18 +147,29 @@ export const AppLayout = () => {
             >
               <HelpCircle className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/settings')}
-              title="Settings"
-              className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={signOut} title="Sign out" className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" title="Account" className="text-muted-foreground h-8 w-8 sm:h-9 sm:w-9">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/classroom')} className="gap-2">
+                  <Users className="h-3.5 w-3.5" /> My Classroom / Roster
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/classrooms')} className="gap-2">
+                  <School className="h-3.5 w-3.5" /> Classroom Manager
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2">
+                  <Settings className="h-3.5 w-3.5" /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="gap-2 text-destructive">
+                  <LogOut className="h-3.5 w-3.5" /> Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

@@ -63,16 +63,13 @@ const Settings = () => {
         }
       } catch { /* profiles table may not exist */ }
 
-      if (profileMap.size === 0) {
+      // If profiles table had no results, use resolve-display-names edge function
+      if (profileMap.size === 0 && userIds.length > 0) {
         try {
-          const { data: profiles } = await supabase
-            .from('user_profiles')
-            .select('user_id, full_name, email')
-            .in('user_id', userIds);
-          if (profiles?.length) {
-            profiles.forEach((p: any) => profileMap.set(p.user_id, { name: p.full_name || '', email: p.email || '' }));
-          }
-        } catch { /* table doesn't exist */ }
+          const { resolveDisplayNames } = await import('@/lib/resolve-names');
+          const nameMap = await resolveDisplayNames(userIds);
+          nameMap.forEach((name, uid) => profileMap.set(uid, { name, email: '' }));
+        } catch { /* edge function may be unavailable */ }
       }
 
       const team: TeamMember[] = memberships.map((m: any) => {
