@@ -24,28 +24,21 @@ export async function resolveDisplayNames(
 
       if (!error && data?.names) {
         for (const [id, name] of Object.entries(data.names)) {
-          nameCache.set(id, name);
+          if (name?.trim()) {
+            nameCache.set(id, name.trim());
+          }
         }
       } else if (error) {
         console.warn('[resolveDisplayNames] Edge function error:', error.message);
-        // Fallback: cache truncated IDs so we don't retry endlessly
-        for (const id of uncached) {
-          nameCache.set(id, id.slice(0, 8) + '…');
-        }
       }
     } catch (err) {
       console.warn('[resolveDisplayNames] Unexpected error:', err);
-      for (const id of uncached) {
-        nameCache.set(id, id.slice(0, 8) + '…');
-      }
     }
   }
 
   const result = new Map<string, string>();
   for (const id of userIds) {
-    if (nameCache.has(id)) {
-      result.set(id, nameCache.get(id)!);
-    }
+    result.set(id, nameCache.get(id) || id.slice(0, 8) + '…');
   }
   return result;
 }

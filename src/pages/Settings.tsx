@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { supabase } from '@/lib/supabase';
+import { saveStaffDisplayName } from '@/lib/display-names';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,7 +26,7 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const currentName = user?.user_metadata?.full_name || '';
+  const currentName = user?.user_metadata?.display_name || user?.user_metadata?.full_name || '';
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(currentName);
   const [savingName, setSavingName] = useState(false);
@@ -37,6 +38,10 @@ const Settings = () => {
   useEffect(() => {
     if (isAdmin && currentWorkspace) loadTeamMembers();
   }, [isAdmin, currentWorkspace]);
+
+  useEffect(() => {
+    setNameValue(currentName);
+  }, [currentName]);
 
   const loadTeamMembers = async () => {
     if (!currentWorkspace) return;
@@ -92,15 +97,22 @@ const Settings = () => {
   };
 
   const handleSaveName = async () => {
+    if (!user) return;
     setSavingName(true);
-    const { error } = await supabase.auth.updateUser({
-      data: { full_name: nameValue.trim() },
+    const trimmed = nameValue.trim();
+    const { error } = await saveStaffDisplayName({
+      userId: user.id,
+      displayName: trimmed,
+      agencyId: currentWorkspace?.agency_id,
+      syncCurrentUserAuth: true,
     });
     if (error) {
       toast({ title: 'Error updating name', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Name updated' });
+      setNameValue(trimmed);
       setEditingName(false);
+      if (isAdmin && currentWorkspace) loadTeamMembers();
     }
     setSavingName(false);
   };
