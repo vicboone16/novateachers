@@ -3164,6 +3164,7 @@ export type Database = {
           current_xp: number
           daily_narrative: string | null
           daily_narrative_at: string | null
+          display_name_override: string | null
           id: string
           identity_emoji: string | null
           identity_title: string | null
@@ -3183,6 +3184,7 @@ export type Database = {
           current_xp?: number
           daily_narrative?: string | null
           daily_narrative_at?: string | null
+          display_name_override?: string | null
           id?: string
           identity_emoji?: string | null
           identity_title?: string | null
@@ -3202,6 +3204,7 @@ export type Database = {
           current_xp?: number
           daily_narrative?: string | null
           daily_narrative_at?: string | null
+          display_name_override?: string | null
           id?: string
           identity_emoji?: string | null
           identity_title?: string | null
