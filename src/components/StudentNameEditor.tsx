@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Pencil, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { displayName } from '@/lib/student-utils';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface Props {
   studentId: string;
@@ -25,6 +26,7 @@ export function StudentNameEditor({ studentId, currentName, firstName, lastName,
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { currentWorkspace } = useWorkspace();
 
   const startEdit = () => {
     setDraft(displayNameOverride || currentName || `${firstName || ''} ${lastName || ''}`.trim());
@@ -38,11 +40,30 @@ export function StudentNameEditor({ studentId, currentName, firstName, lastName,
     if (!trimmed) { cancel(); return; }
     setSaving(true);
     try {
-      const { error } = await cloudSupabase
+      const { data: updatedRow, error: updateError } = await cloudSupabase
         .from('student_game_profiles')
         .update({ display_name_override: trimmed } as any)
-        .eq('student_id', studentId);
-      if (error) throw error;
+        .eq('student_id', studentId)
+        .select('student_id')
+        .maybeSingle();
+
+      if (updateError) throw updateError;
+
+      if (!updatedRow) {
+        const agencyId = currentWorkspace?.agency_id;
+        if (!agencyId) throw new Error('No active workspace found for this student');
+
+        const { error: upsertError } = await cloudSupabase
+          .from('student_game_profiles')
+          .upsert({
+            student_id: studentId,
+            agency_id: agencyId,
+            display_name_override: trimmed,
+          } as any, { onConflict: 'student_id' });
+
+        if (upsertError) throw upsertError;
+      }
+
       toast({ title: 'Name updated' });
       onSaved?.(trimmed);
       setEditing(false);
