@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
+    const { data: claims, error: claimsErr } = await supabase.auth.getUser(token);
     if (claimsErr || !claims?.claims) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
