@@ -219,6 +219,12 @@ const ClassroomView = () => {
   const { profiles: gameProfiles } = useStudentGameProfiles(clients.map(c => c.id));
   const [avatarPickerStudent, setAvatarPickerStudent] = useState<Client | null>(null);
 
+  // Helper: displayName with display_name_override from gameProfiles
+  const resolvedDisplayName = useCallback((client: Client) => {
+    const gp = gameProfiles[client.id];
+    return displayName({ ...client, display_name_override: gp?.display_name_override || null });
+  }, [gameProfiles]);
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
