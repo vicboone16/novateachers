@@ -16,6 +16,7 @@ export interface GameProfile {
   momentum_state: string | null;
   comeback_active: boolean;
   daily_narrative: string | null;
+  display_name_override: string | null;
 }
 
 export function useStudentGameProfiles(studentIds: string[]) {
