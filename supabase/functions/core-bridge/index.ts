@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: cloudClaims } = await cloudAuthClient.auth.getUser(token);
-    if (cloudClaims?.claims?.sub) {
-      userId = String(cloudClaims.user.sub);
+    if (cloudClaims?.user?.id) {
+      userId = String(cloudClaims.user.id);
     }
 
     if (!userId && coreAnonKey) {
@@ -46,8 +46,8 @@ Deno.serve(async (req) => {
         global: { headers: { Authorization: authHeader } },
       });
       const { data: coreClaims } = await coreAuthClient.auth.getUser(token);
-      if (coreClaims?.claims?.sub) {
-        userId = String(coreClaims.user.sub);
+      if (coreClaims?.user?.id) {
+        userId = String(coreClaims.user.id);
       }
     }
 
