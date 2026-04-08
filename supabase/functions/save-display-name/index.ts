@@ -57,11 +57,17 @@ async function authenticateRequest(authHeader: string) {
 }
 
 async function persistProfileName(adminClient: ReturnType<typeof createClient>, userId: string, displayName: string, email?: string | null) {
-  const { data: existingProfile } = await adminClient
+  const { data: existingProfile, error: profileLookupError } = await adminClient
     .from('profiles')
     .select('id')
     .eq('id', userId)
     .maybeSingle();
+
+  if (profileLookupError && /relation .*profiles/i.test(profileLookupError.message)) {
+    return;
+  }
+
+  if (profileLookupError) throw profileLookupError;
 
   const updatePayload = {
     full_name: displayName,
@@ -73,6 +79,10 @@ async function persistProfileName(adminClient: ReturnType<typeof createClient>, 
       .from('profiles')
       .update(updatePayload)
       .eq('id', userId);
+
+    if (error && /relation .*profiles/i.test(error.message)) {
+      return;
+    }
 
     if (error && /column .*display_name/i.test(error.message)) {
       const retry = await adminClient
@@ -97,6 +107,10 @@ async function persistProfileName(adminClient: ReturnType<typeof createClient>, 
   const { error } = await adminClient
     .from('profiles')
     .upsert(insertPayload, { onConflict: 'id' });
+
+  if (error && /relation .*profiles/i.test(error.message)) {
+    return;
+  }
 
   if (error && /column .*display_name/i.test(error.message)) {
     const retry = await adminClient
