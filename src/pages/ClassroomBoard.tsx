@@ -251,12 +251,14 @@ export default function ClassroomBoard() {
       }
     }
 
-    // Load game profiles for avatars
+    // Load game profiles for avatars and display name overrides
     let avatarMap = new Map<string, string>();
+    let overrideMap = new Map<string, string>();
     try {
-      const { data: profiles } = await cloudSupabase.from('student_game_profiles').select('student_id, avatar_emoji').in('student_id', studentIds);
+      const { data: profiles } = await cloudSupabase.from('student_game_profiles').select('student_id, avatar_emoji, display_name_override').in('student_id', studentIds);
       for (const p of (profiles || []) as any[]) {
         avatarMap.set(p.student_id, p.avatar_emoji || '');
+        if (p.display_name_override) overrideMap.set(p.student_id, p.display_name_override);
       }
     } catch { /* silent */ }
 
@@ -267,6 +269,7 @@ export default function ClassroomBoard() {
         client_id: sid,
         first_name: names?.first_name || '',
         last_name: names?.last_name || '',
+        display_name_override: overrideMap.get(sid) || null,
       });
 
       return {

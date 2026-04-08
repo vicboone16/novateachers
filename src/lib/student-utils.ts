@@ -33,6 +33,15 @@ export function normalizeClients(records: any[]): Client[] {
 /** Display name from a possibly-mixed record */
 export function displayName(record: any): string {
   if (!record) return '';
+
+  // Priority 1: display_name_override (teacher-set custom name)
+  if (record.display_name_override) {
+    const override = record.display_name_override.trim();
+    if (override && !/^[0-9a-f]{6,}$/i.test(override.replace(/[-\s]/g, ''))) {
+      return override;
+    }
+  }
+
   const first = (record.first_name || '').trim();
   const last = (record.last_name || '').trim();
   if (first || last) {

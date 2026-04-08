@@ -34,6 +34,7 @@ import { ArrowLeft, Trophy, Users, Flag, Zap, PartyPopper, CheckCircle, RotateCc
 import { GameModeSelector } from '@/components/GameModeSelector';
 import { cn } from '@/lib/utils';
 import { displayInitials, displayName as getStudentDisplayName } from '@/lib/student-utils';
+import { StudentNameEditor } from '@/components/StudentNameEditor';
 
 const CHECKPOINT_INTERVAL = 10;
 
@@ -212,9 +213,13 @@ const GameBoard = () => {
       } catch { /* silent */ }
 
       const avatarMap: Record<string, string> = {};
+      const overrideNameMap: Record<string, string> = {};
       try {
-        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', sids);
-        for (const p of (profiles || []) as any[]) avatarMap[p.student_id] = p.avatar_emoji || '';
+        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji, display_name_override').in('student_id', sids);
+        for (const p of (profiles || []) as any[]) {
+          avatarMap[p.student_id] = p.avatar_emoji || '';
+          if (p.display_name_override) overrideNameMap[p.student_id] = p.display_name_override;
+        }
       } catch { /* silent */ }
 
       const fallbackStudents: StudentGameProgress[] = sids.map(sid => {
@@ -299,11 +304,13 @@ const GameBoard = () => {
   const getDisplayName = (s: StudentGameProgress) => {
     const mode = (settings as any)?.privacy_mode || 'first_names';
     if (mode === 'avatars_only') return '';
+    const profile = gameProfiles[s.student_id];
     const safeDisplayName = getStudentDisplayName({
       id: s.student_id,
       client_id: s.student_id,
       first_name: s.first_name || '',
       last_name: s.last_name || '',
+      display_name_override: profile?.display_name_override || null,
     });
     const first = s.first_name || '';
     if (mode === 'initials') return displayInitials({ first_name: s.first_name, last_name: s.last_name, id: s.student_id });
@@ -504,7 +511,15 @@ const GameBoard = () => {
                       i > 2 && "text-muted-foreground"
                     )}>{i + 1}</span>
                     <span className="text-lg">{s.avatar_emoji || '👤'}</span>
-                    <span className="flex-1 text-sm font-medium truncate text-foreground">{name || 'Student'}</span>
+                    <StudentNameEditor
+                      studentId={s.student_id}
+                      currentName={name || 'Student'}
+                      firstName={s.first_name}
+                      lastName={s.last_name}
+                      displayNameOverride={gameProfiles[s.student_id]?.display_name_override}
+                      onSaved={() => loadBoard()}
+                      className="flex-1 text-sm font-medium truncate text-foreground"
+                    />
 
                     {/* Momentum indicators */}
                     {status?.status === 'on_fire' && (
