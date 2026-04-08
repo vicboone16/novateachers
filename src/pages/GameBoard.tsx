@@ -213,9 +213,13 @@ const GameBoard = () => {
       } catch { /* silent */ }
 
       const avatarMap: Record<string, string> = {};
+      const overrideNameMap: Record<string, string> = {};
       try {
-        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji').in('student_id', sids);
-        for (const p of (profiles || []) as any[]) avatarMap[p.student_id] = p.avatar_emoji || '';
+        const { data: profiles } = await supabase.from('student_game_profiles' as any).select('student_id, avatar_emoji, display_name_override').in('student_id', sids);
+        for (const p of (profiles || []) as any[]) {
+          avatarMap[p.student_id] = p.avatar_emoji || '';
+          if (p.display_name_override) overrideNameMap[p.student_id] = p.display_name_override;
+        }
       } catch { /* silent */ }
 
       const fallbackStudents: StudentGameProgress[] = sids.map(sid => {
