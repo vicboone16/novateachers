@@ -31,7 +31,7 @@ export function useStudentGameProfiles(studentIds: string[]) {
     try {
       const { data } = await cloudSupabase
         .from('student_game_profiles')
-        .select('student_id, avatar_emoji, current_level, current_xp, identity_title, identity_emoji, momentum_state, comeback_active, daily_narrative')
+        .select('student_id, avatar_emoji, current_level, current_xp, identity_title, identity_emoji, momentum_state, comeback_active, daily_narrative, display_name_override')
         .in('student_id', studentIds);
 
       const map: Record<string, GameProfile> = {};
@@ -48,6 +48,7 @@ export function useStudentGameProfiles(studentIds: string[]) {
           momentum_state: row.momentum_state || null,
           comeback_active: row.comeback_active || false,
           daily_narrative: row.daily_narrative || null,
+          display_name_override: row.display_name_override || null,
         };
       }
 
@@ -74,6 +75,7 @@ export function useStudentGameProfiles(studentIds: string[]) {
             momentum_state: null,
             comeback_active: false,
             daily_narrative: null,
+            display_name_override: null,
           };
         }
       }
