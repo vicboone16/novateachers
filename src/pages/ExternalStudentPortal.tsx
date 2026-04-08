@@ -46,15 +46,20 @@ export default function ExternalStudentPortal() {
       // Update last used
       supabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
 
-      // Name + avatar
+      // Name + avatar + display_name_override
       try {
-        const { data: c } = await supabase.from('clients' as any).select('first_name').eq('id', sid).maybeSingle();
-        if (c) setStudentName((c as any).first_name || '');
+        const { data: p } = await cloudSupabase.from('student_game_profiles').select('avatar_emoji, display_name_override').eq('student_id', sid).maybeSingle();
+        if (p) {
+          setAvatarEmoji((p as any).avatar_emoji || '👤');
+          if ((p as any).display_name_override) { setStudentName((p as any).display_name_override); }
+        }
       } catch {}
-      try {
-        const { data: p } = await supabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', sid).maybeSingle();
-        if (p) setAvatarEmoji((p as any).avatar_emoji || '👤');
-      } catch {}
+      if (!studentName) {
+        try {
+          const { data: c } = await supabase.from('clients' as any).select('first_name').eq('id', sid).maybeSingle();
+          if (c) setStudentName((c as any).first_name || '');
+        } catch {}
+      }
 
       // Balance
       try {

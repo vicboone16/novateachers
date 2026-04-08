@@ -24,6 +24,7 @@ interface LiveStudent {
   avatar_emoji: string;
   points_balance: number;
   track_position: number;
+  display_name_override: string | null;
 }
 
 interface TeamScore {
@@ -88,15 +89,17 @@ export default function ClassroomLive() {
         balMap.set(row.student_id, (balMap.get(row.student_id) || 0) + row.points);
       }
 
-      // Load avatars from Cloud game profiles
+      // Load avatars and display name overrides from Cloud game profiles
       let avatarMap = new Map<string, string>();
+      let overrideMap = new Map<string, string>();
       try {
         const { data: profiles } = await cloudSupabase
           .from('student_game_profiles')
-          .select('student_id, avatar_emoji')
+          .select('student_id, avatar_emoji, display_name_override')
           .in('student_id', studentIds);
         for (const p of (profiles || []) as any[]) {
           avatarMap.set(p.student_id, p.avatar_emoji || '');
+          if (p.display_name_override) overrideMap.set(p.student_id, p.display_name_override);
         }
       } catch { /* silent */ }
 
@@ -111,6 +114,7 @@ export default function ClassroomLive() {
           avatar_emoji: avatarMap.get(r.client_id) || '👤',
           points_balance: bal,
           track_position: Math.min(bal, totalSteps),
+          display_name_override: overrideMap.get(r.client_id) || null,
         };
       });
 
@@ -188,6 +192,7 @@ export default function ClassroomLive() {
       client_id: s.student_id,
       first_name: s.first_name || '',
       last_name: s.last_name || '',
+      display_name_override: s.display_name_override || null,
     });
     if (mode === 'avatars_only') return '';
     if (mode === 'initials') return displayInitials({ first_name: s.first_name, last_name: s.last_name, id: s.student_id });

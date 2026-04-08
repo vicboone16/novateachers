@@ -219,6 +219,12 @@ const ClassroomView = () => {
   const { profiles: gameProfiles } = useStudentGameProfiles(clients.map(c => c.id));
   const [avatarPickerStudent, setAvatarPickerStudent] = useState<Client | null>(null);
 
+  // Helper: displayName with display_name_override from gameProfiles
+  const resolvedDisplayName = useCallback((client: Client) => {
+    const gp = gameProfiles[client.id];
+    return displayName({ ...client, display_name_override: gp?.display_name_override || null });
+  }, [gameProfiles]);
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     setLoading(true);
@@ -620,13 +626,13 @@ const ClassroomView = () => {
         id: result.ledgerRowId || crypto.randomUUID(),
         label: action.action_label,
         studentId: client.id,
-        studentName: displayName(client),
+        studentName: resolvedDisplayName(client),
         ledgerRowId: result.ledgerRowId,
         points: result.points || estimatedPts,
         agencyId: effectiveAgencyId,
         staffId: user.id,
       });
-      toast({ title: `${action.action_icon || '⭐'} ${action.action_label} · ${displayName(client)}` });
+      toast({ title: `${action.action_icon || '⭐'} ${action.action_label} · ${resolvedDisplayName(client)}` });
     } else {
       // Rollback optimistic
       handlePointChange(client.id, -estimatedPts);
@@ -940,7 +946,7 @@ const ClassroomView = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                            {displayName(client)}
+                            {resolvedDisplayName(client)}
                           </p>
                           {/* Level badge hidden for hybrid v1 — uncomment when ready */}
                           {/* <StudentLevelBadge level={level} xp={xp} compact /> */}
@@ -998,7 +1004,7 @@ const ClassroomView = () => {
                             id: info.ledgerRowId || crypto.randomUUID(),
                             label: info.label,
                             studentId: client.id,
-                            studentName: displayName(client),
+                            studentName: resolvedDisplayName(client),
                             ledgerRowId: info.ledgerRowId,
                             points: info.points,
                             agencyId: effectiveAgencyId,
@@ -1078,14 +1084,14 @@ const ClassroomView = () => {
                                 id: result.id || crypto.randomUUID(),
                                 label: `Quick +${n}`,
                                 studentId: client.id,
-                                studentName: displayName(client),
+                                studentName: resolvedDisplayName(client),
                                 ledgerRowId: result.id,
                                 points: n,
                                 agencyId: effectiveAgencyId,
                                 staffId: user.id,
                               });
                             }
-                            toast({ title: `+${n} ⭐ ${displayName(client)}` });
+                            toast({ title: `+${n} ⭐ ${resolvedDisplayName(client)}` });
                           }}
                           className="flex items-center gap-1 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-2.5 py-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 active:scale-95 transition-all"
                         >
@@ -1116,11 +1122,11 @@ const ClassroomView = () => {
                                 });
                                 pushAction({
                                   id: result.id || crypto.randomUUID(), label: 'Quick +1',
-                                  studentId: client.id, studentName: displayName(client),
+                                  studentId: client.id, studentName: resolvedDisplayName(client),
                                   ledgerRowId: result.id, points: 1, agencyId: effectiveAgencyId, staffId: user.id,
                                 });
                               }
-                              toast({ title: `+1 ⭐ ${displayName(client)}` });
+                              toast({ title: `+1 ⭐ ${resolvedDisplayName(client)}` });
                             }}
                             className="flex items-center gap-2 w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
                           >
@@ -1161,7 +1167,7 @@ const ClassroomView = () => {
                                       });
                                       pushAction({
                                         id: result.id || crypto.randomUUID(), label: target.name,
-                                        studentId: client.id, studentName: displayName(client),
+                                        studentId: client.id, studentName: resolvedDisplayName(client),
                                         ledgerRowId: result.id, points: target.points, agencyId: effectiveAgencyId, staffId: user.id,
                                       });
                                       // Also log the event
@@ -1172,7 +1178,7 @@ const ClassroomView = () => {
                                         sourceModule: 'classroom_view',
                                       });
                                     }
-                                    toast({ title: `${target.icon || '🎯'} +${target.points} ${target.name} · ${displayName(client)}` });
+                                    toast({ title: `${target.icon || '🎯'} +${target.points} ${target.name} · ${resolvedDisplayName(client)}` });
                                   }}
                                   className="flex items-center justify-between w-full rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-secondary transition-colors text-left"
                                 >
