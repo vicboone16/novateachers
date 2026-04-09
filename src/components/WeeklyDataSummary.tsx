@@ -197,21 +197,22 @@ export const WeeklyDataSummary = () => {
     const startTs = weekStart.toISOString();
     const endTs = weekEnd.toISOString();
 
+    // Load ALL staff data for this student (not just current user)
     const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
-        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_duration_entries').select('behavior_name,duration_seconds,logged_date')
-        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_quick_notes').select('behavior_name,note,logged_at')
-        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      cloudSupabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
-        .eq('student_id', selectedClientId).eq('staff_id', user?.id)
+      cloudSupabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
+        .eq('student_id', selectedClientId)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);
 
