@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getAuthToken } from '@/lib/auth-token';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { listMessages, listThread, markMessagesRead, updateMessageStatus, sendMessageViaBridge } from '@/lib/core-bridge';
@@ -63,8 +64,21 @@ const STATUS_LABELS: Record<string, string> = {
   completed: 'Completed',
 };
 
+const isIdLikeName = (value: string | undefined, id?: string | null) => {
+  const trimmed = value?.trim() || '';
+  if (!trimmed || !id) return true;
+  const compact = trimmed.replace(/[\s\-…]/g, '');
+  return trimmed === id || trimmed === id.slice(0, 8) || /^[0-9a-f]{6,}$/i.test(compact);
+};
+
+const getSafeUserLabel = (userNames: Map<string, string>, id?: string | null) => {
+  if (!id) return 'Staff member';
+  const resolved = userNames.get(id);
+  return isIdLikeName(resolved, id) ? 'Staff member' : resolved!.trim();
+};
+
 const Inbox = () => {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const { currentWorkspace, isSoloMode } = useWorkspace();
   const { toast } = useToast();
 
@@ -93,25 +107,27 @@ const Inbox = () => {
       const userIds = new Set<string>();
       msgs.forEach(m => { userIds.add(m.sender_id); userIds.add(m.recipient_id); });
       if (userIds.size > 0) {
-        const resolved = await resolveDisplayNames(Array.from(userIds), session?.access_token);
-        setUserNames(prev => {
-          const map = new Map(prev);
-          resolved.forEach((name, id) => map.set(id, name));
-          return map;
-        });
+        const authToken = await getAuthToken();
+        if (authToken) {
+          const resolved = await resolveDisplayNames(Array.from(userIds), authToken);
+          setUserNames(prev => {
+            const map = new Map(prev);
+            resolved.forEach((name, id) => map.set(id, name));
+            return map;
+          });
+        }
       }
     } catch (err: any) {
       toast({ title: 'Error loading messages', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  }, [user, tab, session?.access_token, toast]);
+  }, [user, tab, toast]);
 
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -141,12 +157,15 @@ const Inbox = () => {
       threadMsgs.forEach(m => { threadUserIds.add(m.sender_id); threadUserIds.add(m.recipient_id); });
       const unknownIds = Array.from(threadUserIds).filter(id => !userNames.has(id));
       if (unknownIds.length > 0) {
-        const resolved = await resolveDisplayNames(unknownIds, session?.access_token);
-        setUserNames(prev => {
-          const map = new Map(prev);
-          resolved.forEach((name, id) => map.set(id, name));
-          return map;
-        });
+        const authToken = await getAuthToken();
+        if (authToken) {
+          const resolved = await resolveDisplayNames(unknownIds, authToken);
+          setUserNames(prev => {
+            const map = new Map(prev);
+            resolved.forEach((name, id) => map.set(id, name));
+            return map;
+          });
+        }
       }
 
       const unread = threadMsgs.filter(m => !m.is_read && m.recipient_id === user?.id);
@@ -247,7 +266,7 @@ const Inbox = () => {
                 <h3 className="font-semibold truncate">{rootMsg?.subject || 'No subject'}</h3>
               </div>
               <p className="text-xs text-muted-foreground truncate">
-                {userNames.get(rootMsg?.sender_id) || rootMsg?.sender_id.slice(0, 8)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
+                {getSafeUserLabel(userNames, rootMsg?.sender_id)} · {rootMsg && format(new Date(rootMsg.created_at), 'MMM d, yyyy h:mm a')}
               </p>
             </div>
           </div>
@@ -267,7 +286,6 @@ const Inbox = () => {
           </div>
         </div>
 
-        {/* Messages in thread */}
         <div className="space-y-3">
           {threadMessages.map(msg => {
             const parentMsg = msg.parent_id ? threadMessages.find(m => m.id === msg.parent_id) : null;
@@ -302,7 +320,7 @@ const Inbox = () => {
                         <ArrowLeft className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground rotate-[135deg]" />
                         <div className="min-w-0">
                           <span className="text-[11px] font-medium text-muted-foreground">
-                            Replying to {parentMsg.sender_id === user?.id ? 'You' : userNames.get(parentMsg.sender_id) || parentMsg.sender_id.slice(0, 8)}
+                            Replying to {parentMsg.sender_id === user?.id ? 'You' : getSafeUserLabel(userNames, parentMsg.sender_id)}
                           </span>
                           <p className="text-xs text-muted-foreground/70 truncate">{parentMsg.body.slice(0, 100)}</p>
                         </div>
@@ -310,7 +328,7 @@ const Inbox = () => {
                     )}
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">
-                        {msg.sender_id === user?.id ? 'You' : userNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}
+                        {msg.sender_id === user?.id ? 'You' : getSafeUserLabel(userNames, msg.sender_id)}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(msg.created_at), 'MMM d, h:mm a')}
@@ -318,7 +336,6 @@ const Inbox = () => {
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
                     <AttachmentList messageId={msg.id} />
-                    {/* AI Review + Pin for FBA/BIP documents */}
                     {(msg.message_type === 'fba' || msg.message_type === 'bip' || (msg.metadata as any)?.document_type === 'fba' || (msg.metadata as any)?.document_type === 'bip') && msg.recipient_id === user?.id && (
                       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/30">
                         <AIReviewPanel
@@ -341,7 +358,6 @@ const Inbox = () => {
           })}
         </div>
 
-        {/* Reply box */}
         <div className="space-y-2">
           <div className="flex flex-col sm:flex-row gap-2">
             <Textarea
@@ -436,7 +452,7 @@ const Inbox = () => {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {tab === 'inbox' ? `From: ${userNames.get(msg.sender_id) || msg.sender_id.slice(0, 8)}` : `To: ${userNames.get(msg.recipient_id) || msg.recipient_id.slice(0, 8)}`}
+                      {tab === 'inbox' ? `From: ${getSafeUserLabel(userNames, msg.sender_id)}` : `To: ${getSafeUserLabel(userNames, msg.recipient_id)}`}
                       {' · '}
                       {msg.body.slice(0, 80)}
                     </p>
