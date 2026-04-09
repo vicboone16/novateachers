@@ -133,21 +133,41 @@ export const WeeklyDataSummary = () => {
     try {
       let staffIds: string[] = [];
 
+      // Try student_id column first, then client_id fallback
       const { data: accessRows, error: accessErr } = await supabase
         .from('user_student_access')
         .select('user_id')
-        .eq('client_id', selectedClientId)
+        .eq('student_id', selectedClientId)
         .neq('user_id', user?.id || '');
 
-      if (!accessErr && accessRows) {
+      if (!accessErr && accessRows && accessRows.length > 0) {
         staffIds = accessRows.map((r: any) => r.user_id);
       } else {
-        const { data: fallbackRows } = await supabase
-          .from('user_client_access')
+        // Fallback: try client_id column
+        const { data: fallback1 } = await supabase
+          .from('user_student_access')
           .select('user_id')
           .eq('client_id', selectedClientId)
           .neq('user_id', user?.id || '');
-        staffIds = (fallbackRows || []).map((r: any) => r.user_id);
+        if (fallback1 && fallback1.length > 0) {
+          staffIds = fallback1.map((r: any) => r.user_id);
+        } else {
+          // Last resort: classroom group teachers
+          const { data: groupRow } = await cloudSupabase
+            .from('classroom_group_students')
+            .select('group_id')
+            .eq('client_id', selectedClientId)
+            .limit(1)
+            .maybeSingle();
+          if (groupRow?.group_id) {
+            const { data: teachers } = await cloudSupabase
+              .from('classroom_group_teachers')
+              .select('user_id')
+              .eq('group_id', groupRow.group_id)
+              .neq('user_id', user?.id || '');
+            staffIds = (teachers || []).map((r: any) => r.user_id);
+          }
+        }
       }
 
       if (staffIds.length === 0) {
@@ -158,7 +178,7 @@ export const WeeklyDataSummary = () => {
       const nameMap = await resolveDisplayNames(staffIds);
       const staff = staffIds.map(id => ({
         id,
-        name: nameMap.get(id) || id.slice(0, 8) + '…',
+        name: nameMap.get(id) || 'Staff Member',
       }));
 
       setAssignedStaff(staff);
