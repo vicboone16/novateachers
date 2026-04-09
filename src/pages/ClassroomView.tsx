@@ -1555,18 +1555,36 @@ function RewardPreviewStrip({ agencyId, classroomId }: { agencyId: string; class
 }
 
 /* ── Celebration feed strip (bottom band right) ── */
-function CelebrationFeedStrip({ groupId }: { groupId: string | null }) {
+function CelebrationFeedStrip({ groupId, agencyId }: { groupId: string | null; agencyId: string }) {
   const [posts, setPosts] = useState<{ id: string; body: string; title: string | null; post_type: string }[]>([]);
   useEffect(() => {
-    if (!groupId) return;
-    cloudSupabase.from('classroom_feed_posts')
-      .select('id, body, title, post_type')
-      .eq('group_id', groupId)
-      .in('post_type', ['celebration', 'announcement', 'positive'])
-      .order('created_at', { ascending: false })
-      .limit(4)
-      .then(({ data }: any) => setPosts((data || []) as any[]));
-  }, [groupId]);
+    const load = async () => {
+      // Try group-specific first
+      if (groupId) {
+        const { data } = await cloudSupabase.from('classroom_feed_posts')
+          .select('id, body, title, post_type')
+          .eq('group_id', groupId)
+          .in('post_type', ['celebration', 'announcement', 'positive'])
+          .order('created_at', { ascending: false })
+          .limit(4);
+        if (data && data.length > 0) {
+          setPosts(data as any[]);
+          return;
+        }
+      }
+      // Fallback: agency-wide posts
+      const { data } = await cloudSupabase.from('classroom_feed_posts')
+        .select('id, body, title, post_type')
+        .eq('agency_id', agencyId)
+        .in('post_type', ['celebration', 'announcement', 'positive'])
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (data && data.length > 0) {
+        setPosts(data as any[]);
+      }
+    };
+    load();
+  }, [groupId, agencyId]);
 
   if (posts.length === 0) return <p className="text-xs text-muted-foreground">No celebrations yet today. 🎉</p>;
   return (
