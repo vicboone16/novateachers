@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAppAccess } from '@/contexts/AppAccessContext';
@@ -189,7 +190,7 @@ export const WeeklyDataSummary = () => {
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
         .eq('client_id', selectedClientId).eq('user_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      supabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
+      cloudSupabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
         .eq('student_id', selectedClientId).eq('staff_id', user?.id)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);
