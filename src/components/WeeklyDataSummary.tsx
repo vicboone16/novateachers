@@ -95,8 +95,9 @@ export const WeeklyDataSummary = () => {
       .from('teacher_weekly_summaries')
       .select('*')
       .eq('student_id', selectedClientId)
-      .eq('staff_id', user.id)
       .eq('week_start', weekStartStr)
+      .order('generated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     setDraft(data as WeeklySummaryDraft | null);
