@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle2, Zap, TrendingUp } from 'lucide-react';
