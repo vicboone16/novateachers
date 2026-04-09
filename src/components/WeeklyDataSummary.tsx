@@ -190,7 +190,7 @@ export const WeeklyDataSummary = () => {
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
         .eq('client_id', selectedClientId).eq('user_id', user?.id)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      supabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
+      cloudSupabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
         .eq('student_id', selectedClientId).eq('staff_id', user?.id)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);

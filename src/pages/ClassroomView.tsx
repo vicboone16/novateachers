@@ -352,8 +352,8 @@ const ClassroomView = () => {
     if (!user) return;
     try {
       const clientIds = clients.map(c => c.id);
-      const { data } = await supabase
-        .from('teacher_data_events' as any)
+      const { data } = await cloudSupabase
+        .from('teacher_data_events')
         .select('event_type, event_value')
         .eq('staff_id', user.id)
         .eq('event_type', 'engagement_sample')
