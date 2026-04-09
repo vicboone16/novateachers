@@ -96,6 +96,9 @@ const Login = () => {
                     required
                     minLength={6}
                   />
+                  {isSignUp && (
+                    <p className="text-xs text-muted-foreground">Minimum 6 characters.</p>
+                  )}
                 </div>
               )}
               {!isForgot && !isSignUp && (

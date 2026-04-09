@@ -841,7 +841,7 @@ const ClassroomView = () => {
                     <p className="text-[11px] font-medium text-foreground truncate cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }}>{missionText}</p>
                   )}
                 </div>
-                {!editingMission && <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }} />}
+                {!editingMission && <Pencil className="h-3 w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }} />}
               </div>
             );
             if (chipKey === 'word') return (
@@ -855,7 +855,7 @@ const ClassroomView = () => {
                     <p className="text-xs font-bold text-foreground cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }}>{wordOfWeek}</p>
                   )}
                 </div>
-                {!editingWord && <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }} />}
+                {!editingWord && <Pencil className="h-3 w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0 cursor-pointer" onClick={() => { setWordDraft(wordOfWeek); setEditingWord(true); }} />}
               </div>
             );
             return null;
