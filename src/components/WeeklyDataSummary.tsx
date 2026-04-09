@@ -321,7 +321,71 @@ export const WeeklyDataSummary = () => {
     return { daysWithData, schoolDays, percentage: pct };
   }, [freqEntries, durEntries, abcLogs, unifiedEvents]);
 
-  const hasData = freqEntries.length > 0 || durEntries.length > 0 || notes.length > 0 || abcLogs.length > 0 || unifiedEvents.length > 0;
+  // Reinforcement summary from points ledger
+  const reinforcementSummary = useMemo(() => {
+    if (pointsEntries.length === 0) return null;
+    const earned = pointsEntries.filter(p => p.points > 0 && p.entry_kind !== 'redemption');
+    const deducted = pointsEntries.filter(p => p.points < 0 && p.entry_kind !== 'redemption');
+    const redeemed = pointsEntries.filter(p => p.entry_kind === 'redemption');
+    const totalEarned = earned.reduce((s, p) => s + p.points, 0);
+    const totalDeducted = deducted.reduce((s, p) => s + Math.abs(p.points), 0);
+    const totalRedeemed = redeemed.reduce((s, p) => s + Math.abs(p.points), 0);
+    const netBalance = pointsEntries.reduce((s, p) => s + p.points, 0);
+
+    // Group by source for breakdown
+    const bySource: Record<string, { count: number; points: number }> = {};
+    for (const p of earned) {
+      const src = p.reason || p.source || 'Other';
+      if (!bySource[src]) bySource[src] = { count: 0, points: 0 };
+      bySource[src].count += 1;
+      bySource[src].points += p.points;
+    }
+
+    // Points per day
+    const byDay: Record<string, number> = {};
+    for (const p of earned) {
+      const day = format(new Date(p.created_at), 'yyyy-MM-dd');
+      byDay[day] = (byDay[day] || 0) + p.points;
+    }
+
+    return {
+      totalEarned,
+      totalDeducted,
+      totalRedeemed,
+      netBalance,
+      earnedCount: earned.length,
+      deductedCount: deducted.length,
+      redeemedCount: redeemed.length,
+      bySource: Object.entries(bySource).sort((a, b) => b[1].points - a[1].points).slice(0, 8),
+      byDay,
+    };
+  }, [pointsEntries]);
+
+  // Detailed ABC breakdown
+  const abcDetailedBreakdown = useMemo(() => {
+    if (abcLogs.length === 0) return null;
+    const byBehavior: Record<string, number> = {};
+    const byCategory: Record<string, number> = {};
+    const antecedentCounts: Record<string, number> = {};
+    const consequenceCounts: Record<string, number> = {};
+
+    for (const e of abcLogs) {
+      byBehavior[e.behavior] = (byBehavior[e.behavior] || 0) + 1;
+      if (e.behavior_category) byCategory[e.behavior_category] = (byCategory[e.behavior_category] || 0) + 1;
+      antecedentCounts[e.antecedent] = (antecedentCounts[e.antecedent] || 0) + 1;
+      consequenceCounts[e.consequence] = (consequenceCounts[e.consequence] || 0) + 1;
+    }
+
+    return {
+      total: abcLogs.length,
+      byBehavior: Object.entries(byBehavior).sort((a, b) => b[1] - a[1]),
+      byCategory: Object.entries(byCategory).sort((a, b) => b[1] - a[1]),
+      topAntecedents: Object.entries(antecedentCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+      topConsequences: Object.entries(consequenceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+    };
+  }, [abcLogs]);
+
+  const hasData = freqEntries.length > 0 || durEntries.length > 0 || notes.length > 0 || abcLogs.length > 0 || unifiedEvents.length > 0 || pointsEntries.length > 0;
 
   const buildSummaryBody = () => {
     const student = clients.find(c => c.id === selectedClientId);
