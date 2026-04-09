@@ -432,7 +432,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-1">
                 {filtered(staff, ['user_id', 'display_name']).map(s => (
-                  <div key={s.user_id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                  <div key={s.user_id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0 group">
                     <div className="flex-1 min-w-0">
                       {editingUserId === s.user_id ? (
                         <div className="flex items-center gap-1">
