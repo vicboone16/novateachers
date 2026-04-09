@@ -3,6 +3,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { RewardEconomySettings } from '@/components/RewardEconomySettings';
+import { ResponseCostSettings } from '@/components/ResponseCostSettings';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -375,8 +376,13 @@ const RewardsPage = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="economy">
+        <TabsContent value="economy" className="space-y-4">
           <RewardEconomySettings agencyId={effectiveAgencyId} classroomId={activeGroupId || undefined} />
+          <ResponseCostSettings
+            agencyId={effectiveAgencyId}
+            classroomId={activeGroupId || undefined}
+            students={clients.map(c => ({ id: c.id, name: displayName(c) }))}
+          />
         </TabsContent>
       </Tabs>
     </div>
