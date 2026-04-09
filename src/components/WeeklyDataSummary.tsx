@@ -58,6 +58,7 @@ export const WeeklyDataSummary = () => {
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [abcLogs, setAbcLogs] = useState<ABCEntry[]>([]);
   const [unifiedEvents, setUnifiedEvents] = useState<UnifiedEvent[]>([]);
+  const [pointsEntries, setPointsEntries] = useState<PointsEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
