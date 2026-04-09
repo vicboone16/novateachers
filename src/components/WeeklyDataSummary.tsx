@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw, Star, TrendingUp } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
@@ -40,8 +40,9 @@ interface WeeklySummaryDraft {
 interface FreqEntry { behavior_name: string; count: number; logged_date: string; }
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
 interface QuickNote { behavior_name: string | null; note: string; logged_at: string; }
-interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; }
+interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; intensity?: number | null; behavior_category?: string | null; notes?: string | null; }
 interface UnifiedEvent { event_type: string; event_subtype?: string | null; event_value: any; recorded_at: string; }
+interface PointsEntry { points: number; source: string; reason: string | null; entry_kind: string | null; created_at: string; }
 
 export const WeeklyDataSummary = () => {
   const { user } = useAuth();
@@ -57,6 +58,7 @@ export const WeeklyDataSummary = () => {
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [abcLogs, setAbcLogs] = useState<ABCEntry[]>([]);
   const [unifiedEvents, setUnifiedEvents] = useState<UnifiedEvent[]>([]);
+  const [pointsEntries, setPointsEntries] = useState<PointsEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [assignedStaff, setAssignedStaff] = useState<{ id: string; name: string }[]>([]);
@@ -199,7 +201,7 @@ export const WeeklyDataSummary = () => {
     const endTs = weekEnd.toISOString();
 
     // Load ALL staff data for this student (not just current user)
-    const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
+    const [freqRes, durRes, notesRes, abcRes, unifiedRes, pointsRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
         .eq('client_id', selectedClientId)
         .gte('logged_date', startStr).lte('logged_date', endStr),
@@ -209,12 +211,16 @@ export const WeeklyDataSummary = () => {
       supabase.from('teacher_quick_notes').select('behavior_name,note,logged_at')
         .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
+      supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at,intensity,behavior_category,notes')
         .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
       cloudSupabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
         .eq('student_id', selectedClientId)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
+      cloudSupabase.from('beacon_points_ledger').select('points,source,reason,entry_kind,created_at')
+        .eq('student_id', selectedClientId)
+        .gte('created_at', startTs).lte('created_at', endTs)
+        .order('created_at', { ascending: true }),
     ]);
 
     setFreqEntries((freqRes.data || []) as FreqEntry[]);
@@ -222,6 +228,7 @@ export const WeeklyDataSummary = () => {
     setNotes((notesRes.data || []) as QuickNote[]);
     setAbcLogs((abcRes.data || []) as ABCEntry[]);
     setUnifiedEvents((unifiedRes.data || []) as UnifiedEvent[]);
+    setPointsEntries((pointsRes.data || []) as PointsEntry[]);
     setLoading(false);
   };
 
@@ -314,7 +321,71 @@ export const WeeklyDataSummary = () => {
     return { daysWithData, schoolDays, percentage: pct };
   }, [freqEntries, durEntries, abcLogs, unifiedEvents]);
 
-  const hasData = freqEntries.length > 0 || durEntries.length > 0 || notes.length > 0 || abcLogs.length > 0 || unifiedEvents.length > 0;
+  // Reinforcement summary from points ledger
+  const reinforcementSummary = useMemo(() => {
+    if (pointsEntries.length === 0) return null;
+    const earned = pointsEntries.filter(p => p.points > 0 && p.entry_kind !== 'redemption');
+    const deducted = pointsEntries.filter(p => p.points < 0 && p.entry_kind !== 'redemption');
+    const redeemed = pointsEntries.filter(p => p.entry_kind === 'redemption');
+    const totalEarned = earned.reduce((s, p) => s + p.points, 0);
+    const totalDeducted = deducted.reduce((s, p) => s + Math.abs(p.points), 0);
+    const totalRedeemed = redeemed.reduce((s, p) => s + Math.abs(p.points), 0);
+    const netBalance = pointsEntries.reduce((s, p) => s + p.points, 0);
+
+    // Group by source for breakdown
+    const bySource: Record<string, { count: number; points: number }> = {};
+    for (const p of earned) {
+      const src = p.reason || p.source || 'Other';
+      if (!bySource[src]) bySource[src] = { count: 0, points: 0 };
+      bySource[src].count += 1;
+      bySource[src].points += p.points;
+    }
+
+    // Points per day
+    const byDay: Record<string, number> = {};
+    for (const p of earned) {
+      const day = format(new Date(p.created_at), 'yyyy-MM-dd');
+      byDay[day] = (byDay[day] || 0) + p.points;
+    }
+
+    return {
+      totalEarned,
+      totalDeducted,
+      totalRedeemed,
+      netBalance,
+      earnedCount: earned.length,
+      deductedCount: deducted.length,
+      redeemedCount: redeemed.length,
+      bySource: Object.entries(bySource).sort((a, b) => b[1].points - a[1].points).slice(0, 8),
+      byDay,
+    };
+  }, [pointsEntries]);
+
+  // Detailed ABC breakdown
+  const abcDetailedBreakdown = useMemo(() => {
+    if (abcLogs.length === 0) return null;
+    const byBehavior: Record<string, number> = {};
+    const byCategory: Record<string, number> = {};
+    const antecedentCounts: Record<string, number> = {};
+    const consequenceCounts: Record<string, number> = {};
+
+    for (const e of abcLogs) {
+      byBehavior[e.behavior] = (byBehavior[e.behavior] || 0) + 1;
+      if (e.behavior_category) byCategory[e.behavior_category] = (byCategory[e.behavior_category] || 0) + 1;
+      antecedentCounts[e.antecedent] = (antecedentCounts[e.antecedent] || 0) + 1;
+      consequenceCounts[e.consequence] = (consequenceCounts[e.consequence] || 0) + 1;
+    }
+
+    return {
+      total: abcLogs.length,
+      byBehavior: Object.entries(byBehavior).sort((a, b) => b[1] - a[1]),
+      byCategory: Object.entries(byCategory).sort((a, b) => b[1] - a[1]),
+      topAntecedents: Object.entries(antecedentCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+      topConsequences: Object.entries(consequenceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5),
+    };
+  }, [abcLogs]);
+
+  const hasData = freqEntries.length > 0 || durEntries.length > 0 || notes.length > 0 || abcLogs.length > 0 || unifiedEvents.length > 0 || pointsEntries.length > 0;
 
   const buildSummaryBody = () => {
     const student = clients.find(c => c.id === selectedClientId);
@@ -380,6 +451,39 @@ export const WeeklyDataSummary = () => {
       lines.push('── ABC Pattern Summaries ──');
       for (const [pattern, count] of abcPatterns) {
         lines.push(`• ${pattern} (×${count})`);
+      }
+      lines.push('');
+    }
+
+    // Reinforcement summary
+    if (reinforcementSummary) {
+      lines.push('── Reinforcement Summary ──');
+      lines.push(`• Points earned: ${reinforcementSummary.totalEarned} (${reinforcementSummary.earnedCount} events)`);
+      if (reinforcementSummary.totalDeducted > 0) {
+        lines.push(`• Points deducted: ${reinforcementSummary.totalDeducted} (${reinforcementSummary.deductedCount} events)`);
+      }
+      if (reinforcementSummary.totalRedeemed > 0) {
+        lines.push(`• Points redeemed: ${reinforcementSummary.totalRedeemed} (${reinforcementSummary.redeemedCount} redemptions)`);
+      }
+      lines.push(`• Net balance change: ${reinforcementSummary.netBalance >= 0 ? '+' : ''}${reinforcementSummary.netBalance}`);
+      lines.push('');
+    }
+
+    // Detailed ABC
+    if (abcDetailedBreakdown && abcDetailedBreakdown.total > 0) {
+      lines.push('── Detailed ABC Analysis ──');
+      lines.push(`• Total ABC entries: ${abcDetailedBreakdown.total}`);
+      if (abcDetailedBreakdown.byBehavior.length > 0) {
+        lines.push('  Behaviors:');
+        for (const [beh, count] of abcDetailedBreakdown.byBehavior.slice(0, 5)) {
+          lines.push(`    ${beh}: ×${count}`);
+        }
+      }
+      if (abcDetailedBreakdown.topAntecedents.length > 0) {
+        lines.push('  Top Antecedents:');
+        for (const [ant, count] of abcDetailedBreakdown.topAntecedents) {
+          lines.push(`    ${ant}: ×${count}`);
+        }
       }
       lines.push('');
     }
@@ -711,21 +815,139 @@ export const WeeklyDataSummary = () => {
             </Card>
           )}
 
-          {/* ABC Patterns */}
-          {abcPatterns.length > 0 && (
-            <Card>
+          {/* ABC Detailed Analysis */}
+          {abcDetailedBreakdown && abcDetailedBreakdown.total > 0 && (
+            <Card className="md:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
-                  <BarChart3 className="h-4 w-4 text-destructive" /> ABC Patterns
+                  <BarChart3 className="h-4 w-4 text-destructive" /> ABC Analysis ({abcDetailedBreakdown.total} entries)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
-                {abcPatterns.map(([pattern, count]) => (
-                  <div key={pattern} className="flex justify-between text-sm gap-2">
-                    <span className="text-xs text-muted-foreground truncate">{pattern}</span>
-                    <Badge variant="secondary">×{count}</Badge>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Behaviors breakdown */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Behaviors</p>
+                    <div className="space-y-1">
+                      {abcDetailedBreakdown.byBehavior.slice(0, 6).map(([beh, count]) => (
+                        <div key={beh} className="flex justify-between text-sm">
+                          <span className="truncate">{beh}</span>
+                          <Badge variant="outline" className="text-xs">×{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                  {/* Top antecedents */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Top Antecedents</p>
+                    <div className="space-y-1">
+                      {abcDetailedBreakdown.topAntecedents.map(([ant, count]) => (
+                        <div key={ant} className="flex justify-between text-sm">
+                          <span className="truncate text-xs text-muted-foreground">{ant}</span>
+                          <Badge variant="secondary" className="text-xs">×{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Top consequences */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Top Consequences</p>
+                    <div className="space-y-1">
+                      {abcDetailedBreakdown.topConsequences.map(([con, count]) => (
+                        <div key={con} className="flex justify-between text-sm">
+                          <span className="truncate text-xs text-muted-foreground">{con}</span>
+                          <Badge variant="secondary" className="text-xs">×{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Pattern chains */}
+                  {abcPatterns.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Top A→B→C Chains</p>
+                      <div className="space-y-1">
+                        {abcPatterns.map(([pattern, count]) => (
+                          <div key={pattern} className="flex justify-between text-sm gap-2">
+                            <span className="text-xs text-muted-foreground truncate">{pattern}</span>
+                            <Badge variant="secondary" className="text-xs">×{count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Reinforcement Summary */}
+          {reinforcementSummary && (
+            <Card className="md:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-primary" /> Reinforcement Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 mb-4">
+                  <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Earned</p>
+                    <p className="text-lg font-bold text-accent">+{reinforcementSummary.totalEarned}</p>
+                    <p className="text-[10px] text-muted-foreground">{reinforcementSummary.earnedCount} events</p>
+                  </div>
+                  {reinforcementSummary.totalDeducted > 0 && (
+                    <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Deducted</p>
+                      <p className="text-lg font-bold text-destructive">-{reinforcementSummary.totalDeducted}</p>
+                      <p className="text-[10px] text-muted-foreground">{reinforcementSummary.deductedCount} events</p>
+                    </div>
+                  )}
+                  {reinforcementSummary.totalRedeemed > 0 && (
+                    <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Redeemed</p>
+                      <p className="text-lg font-bold text-primary">{reinforcementSummary.totalRedeemed}</p>
+                      <p className="text-[10px] text-muted-foreground">{reinforcementSummary.redeemedCount} rewards</p>
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Net Change</p>
+                    <p className={`text-lg font-bold ${reinforcementSummary.netBalance >= 0 ? 'text-accent' : 'text-destructive'}`}>
+                      {reinforcementSummary.netBalance >= 0 ? '+' : ''}{reinforcementSummary.netBalance}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Points by source */}
+                {reinforcementSummary.bySource.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Points by Source</p>
+                    <div className="space-y-1">
+                      {reinforcementSummary.bySource.map(([source, data]) => (
+                        <div key={source} className="flex justify-between text-sm">
+                          <span className="truncate text-xs">{source}</span>
+                          <div className="flex gap-1.5 items-center">
+                            <Badge variant="outline" className="text-[10px]">×{data.count}</Badge>
+                            <Badge variant="secondary" className="text-[10px]">+{data.points}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Points by day */}
+                {Object.keys(reinforcementSummary.byDay).length > 1 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Daily Points Earned</p>
+                    <div className="flex gap-1 flex-wrap">
+                      {Object.entries(reinforcementSummary.byDay).map(([day, pts]) => (
+                        <Badge key={day} variant="secondary" className="text-[10px]">
+                          {format(new Date(day + 'T12:00:00'), 'EEE')}: +{pts}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
