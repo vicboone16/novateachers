@@ -468,7 +468,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-1">
                 {filtered(students, ['id', 'first_name', 'last_name']).map(s => (
-                  <div key={s.id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                  <div key={s.id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0 group">
                     <span className="flex-1 text-sm truncate">{displayName(s)}</span>
                     {s.grade && <Badge variant="outline" className="text-[9px]">Gr {s.grade}</Badge>}
                     <code className="text-[9px] text-muted-foreground font-mono select-all cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyToClipboard(s.id)} title="Click to copy ID">
