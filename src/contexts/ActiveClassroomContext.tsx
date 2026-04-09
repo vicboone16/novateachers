@@ -50,7 +50,7 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
     setLoading(true);
     setError(null);
     setErrorReason(null);
-    console.log('[ActiveClassroom] Resolving for user', user.id);
+    if (import.meta.env.DEV) console.log('[ActiveClassroom] Resolving for user', user.id);
 
     // 1) URL param — checked by consuming pages, not context
     // Context resolves the default; pages can override via setGroupId
@@ -75,7 +75,7 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
         .select('group_id, name, agency_id')
         .limit(1);
       if (data?.[0]) {
-        console.log('[ActiveClassroom] Using first_available fallback:', data[0].group_id);
+        if (import.meta.env.DEV) console.log('[ActiveClassroom] Using first_available fallback:', data[0].group_id);
         await applyGroup(data[0].group_id, 'first_available');
         return;
       }
@@ -100,7 +100,7 @@ export const ActiveClassroomProvider: React.FC<{ children: React.ReactNode }> = 
     setError(null);
     setErrorReason(null);
     setLoading(false);
-    console.log(`[ActiveClassroom] ✅ Resolved group=${gid} name="${(grp as any)?.name}" via ${source}`);
+    if (import.meta.env.DEV) console.log(`[ActiveClassroom] ✅ Resolved group=${gid} name="${(grp as any)?.name}" via ${source}`);
   };
 
   const setGroupId = useCallback(async (id: string) => {
