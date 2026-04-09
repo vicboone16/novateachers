@@ -13,8 +13,7 @@ import { ParentMessageThread } from '@/components/parent-link/ParentMessageThrea
 import { MessageComposer } from '@/components/parent-link/MessageComposer';
 import { ParentInsightCards } from '@/components/ParentInsightCards';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 interface PortalData {
   studentId: string;
@@ -32,6 +31,7 @@ export default function ExternalParentPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [threadKey, setThreadKey] = useState(0);
+  const [loadedAt, setLoadedAt] = useState<Date | null>(null);
 
   const loadPortal = useCallback(async (t: string) => {
     setLoading(true);
@@ -102,6 +102,7 @@ export default function ExternalParentPortal() {
         : [];
 
       setData({ studentId, agencyId: link.agency_id || '', studentName, avatarEmoji, pointsBalance, rewards, feedPosts });
+      setLoadedAt(new Date());
     } catch (err: any) {
       setError(err.message || 'Could not load portal.');
     }
@@ -153,7 +154,7 @@ export default function ExternalParentPortal() {
         <TeacherUpdateCard posts={data.feedPosts} />
 
         {/* 4. Quick Reply Buttons */}
-        <QuickReplyButtons studentId={data.studentId} agencyId={data.agencyId} parentName="Parent" />
+        <QuickReplyButtons studentId={data.studentId} agencyId={data.agencyId} parentName={`${data.studentName}'s Parent`} />
 
         {/* Parent Insights */}
         <ParentInsightCards studentId={data.studentId} agencyId={data.agencyId} />
@@ -165,29 +166,16 @@ export default function ExternalParentPortal() {
         <MessageComposer
           studentId={data.studentId}
           agencyId={data.agencyId}
-          parentName="Parent"
+          parentName={`${data.studentName}'s Parent`}
           onSent={() => setThreadKey(k => k + 1)}
         />
 
-        {/* 7. Footer CTA */}
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.04] to-accent/[0.04]">
-          <CardContent className="p-5 text-center space-y-3">
-            <div className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 mx-auto">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-sm font-bold">Want full access and ongoing updates?</p>
-            <p className="text-xs text-muted-foreground max-w-[240px] mx-auto">
-              Get insights, messaging, and your child's complete progress in one place.
-            </p>
-            <Button size="sm" className="gap-1.5 rounded-2xl" onClick={() => window.location.href = '/'}>
-              Open Parent App <ArrowRight className="h-3 w-3" />
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground/60 pt-2 pb-4">
-          Powered by Beacon · Updated live
+          Powered by NovaTrack
+          {loadedAt && (
+            <> · Updated {loadedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
+          )}
         </p>
       </div>
     </div>

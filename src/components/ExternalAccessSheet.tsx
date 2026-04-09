@@ -80,10 +80,11 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
   const [links, setLinks] = useState<ExternalLink[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
-  const [parentExpiry, setParentExpiry] = useState('none');
-  const [studentExpiry, setStudentExpiry] = useState('none');
+  const [parentExpiry, setParentExpiry] = useState('7d');
+  const [studentExpiry, setStudentExpiry] = useState('7d');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'deactivate' | 'regenerate'; linkType: 'parent' | 'student' } | null>(null);
 
   const loadLinks = useCallback(async () => {
     setLoading(true);
@@ -295,6 +296,11 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
     return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const formatDateTime = (iso: string | null) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+
   const isExpired = (link: ExternalLink) => {
     if (!link.expires_at) return false;
     return new Date(link.expires_at) < new Date();
@@ -322,40 +328,46 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
             {/* ── PARENT LINK SECTION ── */}
             <LinkSection
               title="Parent Link"
-              description="Safe view with points, feed, and progress"
+              description="Parents see points, positive feed posts, and can message you directly. No behavior data is shared."
               linkType="parent"
               activeLink={activeParentLink}
               expiry={parentExpiry}
               onExpiryChange={setParentExpiry}
               generating={generating === 'parent'}
               copiedId={copiedId}
+              confirmAction={confirmAction}
+              onConfirmSet={setConfirmAction}
               onGenerate={() => generateLink('parent')}
-              onRegenerate={() => generateLink('parent', true)}
-              onDeactivate={() => activeParentLink && deactivateLink(activeParentLink)}
+              onRegenerate={() => { generateLink('parent', true); setConfirmAction(null); }}
+              onDeactivate={() => { activeParentLink && deactivateLink(activeParentLink); setConfirmAction(null); }}
               onCopy={() => activeParentLink && copyLink(activeParentLink)}
               onPreview={() => activeParentLink && previewLink(activeParentLink)}
               buildUrl={buildUrl}
               formatDate={formatDate}
+              formatDateTime={formatDateTime}
               isExpired={isExpired}
             />
 
             {/* ── STUDENT LINK SECTION ── */}
             <LinkSection
               title="Student Link"
-              description="Game board, points, and rewards preview"
+              description="Students see their avatar, points balance, race progress, and available rewards. No classroom tools."
               linkType="student"
               activeLink={activeStudentLink}
               expiry={studentExpiry}
               onExpiryChange={setStudentExpiry}
               generating={generating === 'student'}
               copiedId={copiedId}
+              confirmAction={confirmAction}
+              onConfirmSet={setConfirmAction}
               onGenerate={() => generateLink('student')}
-              onRegenerate={() => generateLink('student', true)}
-              onDeactivate={() => activeStudentLink && deactivateLink(activeStudentLink)}
+              onRegenerate={() => { generateLink('student', true); setConfirmAction(null); }}
+              onDeactivate={() => { activeStudentLink && deactivateLink(activeStudentLink); setConfirmAction(null); }}
               onCopy={() => activeStudentLink && copyLink(activeStudentLink)}
               onPreview={() => activeStudentLink && previewLink(activeStudentLink)}
               buildUrl={buildUrl}
               formatDate={formatDate}
+              formatDateTime={formatDateTime}
               isExpired={isExpired}
             />
 
@@ -400,8 +412,8 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
 /* ── Link Section subcomponent ── */
 function LinkSection({
   title, description, linkType, activeLink, expiry, onExpiryChange,
-  generating, copiedId, onGenerate, onRegenerate, onDeactivate,
-  onCopy, onPreview, buildUrl, formatDate, isExpired,
+  generating, copiedId, confirmAction, onConfirmSet, onGenerate, onRegenerate, onDeactivate,
+  onCopy, onPreview, buildUrl, formatDate, formatDateTime, isExpired,
 }: {
   title: string;
   description: string;
@@ -411,6 +423,8 @@ function LinkSection({
   onExpiryChange: (v: string) => void;
   generating: boolean;
   copiedId: string | null;
+  confirmAction: { type: 'deactivate' | 'regenerate'; linkType: 'parent' | 'student' } | null;
+  onConfirmSet: (v: { type: 'deactivate' | 'regenerate'; linkType: 'parent' | 'student' } | null) => void;
   onGenerate: () => void;
   onRegenerate: () => void;
   onDeactivate: () => void;
@@ -418,11 +432,13 @@ function LinkSection({
   onPreview: () => void;
   buildUrl: (link: ExternalLink) => string;
   formatDate: (iso: string | null) => string;
+  formatDateTime: (iso: string | null) => string;
   isExpired: (link: ExternalLink) => boolean;
 }) {
   const emoji = linkType === 'parent' ? '👨‍👩‍👧' : '🎮';
   const hasActive = !!activeLink;
   const expired = activeLink ? isExpired(activeLink) : false;
+  const pendingConfirm = confirmAction?.linkType === linkType ? confirmAction.type : null;
 
   return (
     <div className="space-y-2">
@@ -436,7 +452,7 @@ function LinkSection({
 
       {hasActive && !expired ? (
         <div className="rounded-xl border border-accent/30 bg-accent/5 p-3 space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge className="gap-1 bg-accent/20 text-accent-foreground border-accent/30 text-[10px]">
               <Shield className="h-2.5 w-2.5" /> Active
             </Badge>
@@ -447,26 +463,54 @@ function LinkSection({
             )}
             {activeLink.last_used_at && (
               <span className="text-[10px] text-muted-foreground">
-                · Last used {formatDate(activeLink.last_used_at)}
+                · Last used {formatDateTime(activeLink.last_used_at)}
               </span>
             )}
           </div>
 
-          <div className="flex gap-1.5 flex-wrap">
-            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={onCopy}>
-              {copiedId === activeLink.id ? <Check className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
-              {copiedId === activeLink.id ? 'Copied!' : 'Copy Link'}
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={onPreview}>
-              <ExternalLink className="h-3 w-3" /> Preview
-            </Button>
-            <Button size="sm" variant="ghost" className="gap-1 text-xs h-7 text-destructive hover:text-destructive" onClick={onDeactivate}>
-              <XCircle className="h-3 w-3" /> Deactivate
-            </Button>
-            <Button size="sm" variant="ghost" className="gap-1 text-xs h-7" onClick={onRegenerate} disabled={generating}>
-              <RefreshCw className={cn('h-3 w-3', generating && 'animate-spin')} /> Regenerate
-            </Button>
-          </div>
+          {pendingConfirm ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 space-y-2">
+              <p className="text-xs font-medium text-destructive">
+                {pendingConfirm === 'deactivate'
+                  ? 'This will immediately break the link for anyone using it.'
+                  : 'This will invalidate the existing link and create a new one.'}
+              </p>
+              {activeLink.last_used_at && (
+                <p className="text-[10px] text-muted-foreground">Last used {formatDateTime(activeLink.last_used_at)}</p>
+              )}
+              <div className="flex gap-1.5">
+                <Button
+                  size="sm" variant="destructive" className="h-6 text-[10px] gap-1 px-2"
+                  onClick={pendingConfirm === 'deactivate' ? onDeactivate : onRegenerate}
+                  disabled={generating}
+                >
+                  {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : pendingConfirm === 'deactivate' ? 'Yes, deactivate' : 'Yes, regenerate'}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={() => onConfirmSet(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-1.5 flex-wrap">
+              <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={onCopy}>
+                {copiedId === activeLink.id ? <Check className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
+                {copiedId === activeLink.id ? 'Copied!' : 'Copy Link'}
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={onPreview}>
+                <ExternalLink className="h-3 w-3" /> Preview
+              </Button>
+              <div className="w-px bg-border/60 self-stretch mx-0.5" />
+              <Button size="sm" variant="ghost" className="gap-1 text-xs h-7 text-destructive hover:text-destructive"
+                onClick={() => onConfirmSet({ type: 'deactivate', linkType })}>
+                <XCircle className="h-3 w-3" /> Deactivate
+              </Button>
+              <Button size="sm" variant="ghost" className="gap-1 text-xs h-7"
+                onClick={() => onConfirmSet({ type: 'regenerate', linkType })} disabled={generating}>
+                <RefreshCw className={cn('h-3 w-3', generating && 'animate-spin')} /> Regenerate
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
