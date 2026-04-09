@@ -455,6 +455,39 @@ export const WeeklyDataSummary = () => {
       lines.push('');
     }
 
+    // Reinforcement summary
+    if (reinforcementSummary) {
+      lines.push('── Reinforcement Summary ──');
+      lines.push(`• Points earned: ${reinforcementSummary.totalEarned} (${reinforcementSummary.earnedCount} events)`);
+      if (reinforcementSummary.totalDeducted > 0) {
+        lines.push(`• Points deducted: ${reinforcementSummary.totalDeducted} (${reinforcementSummary.deductedCount} events)`);
+      }
+      if (reinforcementSummary.totalRedeemed > 0) {
+        lines.push(`• Points redeemed: ${reinforcementSummary.totalRedeemed} (${reinforcementSummary.redeemedCount} redemptions)`);
+      }
+      lines.push(`• Net balance change: ${reinforcementSummary.netBalance >= 0 ? '+' : ''}${reinforcementSummary.netBalance}`);
+      lines.push('');
+    }
+
+    // Detailed ABC
+    if (abcDetailedBreakdown && abcDetailedBreakdown.total > 0) {
+      lines.push('── Detailed ABC Analysis ──');
+      lines.push(`• Total ABC entries: ${abcDetailedBreakdown.total}`);
+      if (abcDetailedBreakdown.byBehavior.length > 0) {
+        lines.push('  Behaviors:');
+        for (const [beh, count] of abcDetailedBreakdown.byBehavior.slice(0, 5)) {
+          lines.push(`    ${beh}: ×${count}`);
+        }
+      }
+      if (abcDetailedBreakdown.topAntecedents.length > 0) {
+        lines.push('  Top Antecedents:');
+        for (const [ant, count] of abcDetailedBreakdown.topAntecedents) {
+          lines.push(`    ${ant}: ×${count}`);
+        }
+      }
+      lines.push('');
+    }
+
     if (notes.length > 0) {
       lines.push('── Teacher Notes ──');
       for (const n of notes) {
