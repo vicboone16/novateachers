@@ -1363,7 +1363,7 @@ const ClassroomView = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Celebrations</span>
               <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-xs text-primary font-medium hover:underline">Feed</button>
             </div>
-            <CelebrationFeedStrip groupId={activeGroupId} />
+            <CelebrationFeedStrip groupId={activeGroupId} agencyId={effectiveAgencyId} />
           </CardContent>
         </Card>
       </div>
@@ -1507,24 +1507,35 @@ function RewardPreviewStrip({ agencyId, classroomId }: { agencyId: string; class
   const [rewards, setRewards] = useState<{ name: string; emoji: string; cost: number }[]>([]);
   useEffect(() => {
     if (!agencyId) return;
-    // Try classroom-scoped first, then agency-scoped
-    const scopeType = classroomId ? 'classroom' : 'agency';
-    const scopeId = classroomId || agencyId;
-    // Use core-bridge to load rewards (avoids Core column mismatch)
-    invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
-      action: 'list_rewards', scope_type: scopeType, scope_id: scopeId, include_inactive: false,
-    }).then(result => {
-      const items = (result?.data?.rewards || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost }));
-      if (items.length > 0) {
-        setRewards(items);
-      } else if (classroomId) {
-        invokeCloudFunction<{ rewards: any[] }>('core-bridge', {
-          action: 'list_rewards', scope_type: 'agency', scope_id: agencyId, include_inactive: false,
-        }).then(fallback => {
-          setRewards((fallback?.data?.rewards || []).map((r: any) => ({ name: r.name, emoji: r.image_url || '🎁', cost: r.cost })));
-        }).catch(() => {});
+    const load = async () => {
+      // Try classroom-scoped first
+      if (classroomId) {
+        const { data } = await cloudSupabase
+          .from('beacon_rewards')
+          .select('name, emoji, cost')
+          .eq('scope_type', 'classroom')
+          .eq('scope_id', classroomId)
+          .eq('active', true)
+          .order('cost', { ascending: true })
+          .limit(8);
+        if (data && data.length > 0) {
+          setRewards(data.map(r => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+          return;
+        }
       }
-    }).catch(() => {});
+      // Fallback to agency-scoped
+      const { data } = await cloudSupabase
+        .from('beacon_rewards')
+        .select('name, emoji, cost')
+        .eq('agency_id', agencyId)
+        .eq('active', true)
+        .order('cost', { ascending: true })
+        .limit(8);
+      if (data && data.length > 0) {
+        setRewards(data.map(r => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
+      }
+    };
+    load();
   }, [agencyId, classroomId]);
 
   if (rewards.length === 0) return <p className="text-xs text-muted-foreground">No rewards configured yet.</p>;
@@ -1544,18 +1555,36 @@ function RewardPreviewStrip({ agencyId, classroomId }: { agencyId: string; class
 }
 
 /* ── Celebration feed strip (bottom band right) ── */
-function CelebrationFeedStrip({ groupId }: { groupId: string | null }) {
+function CelebrationFeedStrip({ groupId, agencyId }: { groupId: string | null; agencyId: string }) {
   const [posts, setPosts] = useState<{ id: string; body: string; title: string | null; post_type: string }[]>([]);
   useEffect(() => {
-    if (!groupId) return;
-    cloudSupabase.from('classroom_feed_posts')
-      .select('id, body, title, post_type')
-      .eq('group_id', groupId)
-      .in('post_type', ['celebration', 'announcement', 'positive'])
-      .order('created_at', { ascending: false })
-      .limit(4)
-      .then(({ data }: any) => setPosts((data || []) as any[]));
-  }, [groupId]);
+    const load = async () => {
+      // Try group-specific first
+      if (groupId) {
+        const { data } = await cloudSupabase.from('classroom_feed_posts')
+          .select('id, body, title, post_type')
+          .eq('group_id', groupId)
+          .in('post_type', ['celebration', 'announcement', 'positive'])
+          .order('created_at', { ascending: false })
+          .limit(4);
+        if (data && data.length > 0) {
+          setPosts(data as any[]);
+          return;
+        }
+      }
+      // Fallback: agency-wide posts
+      const { data } = await cloudSupabase.from('classroom_feed_posts')
+        .select('id, body, title, post_type')
+        .eq('agency_id', agencyId)
+        .in('post_type', ['celebration', 'announcement', 'positive'])
+        .order('created_at', { ascending: false })
+        .limit(4);
+      if (data && data.length > 0) {
+        setPosts(data as any[]);
+      }
+    };
+    load();
+  }, [groupId, agencyId]);
 
   if (posts.length === 0) return <p className="text-xs text-muted-foreground">No celebrations yet today. 🎉</p>;
   return (
