@@ -62,34 +62,46 @@ export function ClassroomReinforcementPanel({
         cloudSupabase.from('beacon_reinforcement_templates').select('id, name, category, description').order('name'),
         cloudSupabase.from('beacon_classroom_templates').select('template_id').eq('group_id', groupId).maybeSingle(),
       ]);
+      if (import.meta.env.DEV) console.log('[ReinforcementPanel] templates:', tRes.data?.length, 'error:', tRes.error);
       setTemplates((tRes.data || []) as Template[]);
       setClassTemplateId(bctRes.data?.template_id || '__none__');
 
       // Load per-student profiles
       const studentIds = students.map(s => s.id);
       if (studentIds.length > 0) {
-        const { data: profiles } = await cloudSupabase
-          .from('student_reinforcement_profiles')
-          .select('student_id, reinforcement_template_id, response_cost_enabled, bonus_points_enabled')
-          .in('student_id', studentIds)
-          .eq('agency_id', agencyId)
-          .eq('is_active', true);
+        // Also load game profile display names for better name resolution
+        const [profilesRes, rulesRes, gpRes] = await Promise.all([
+          cloudSupabase
+            .from('student_reinforcement_profiles')
+            .select('student_id, reinforcement_template_id, response_cost_enabled, bonus_points_enabled')
+            .in('student_id', studentIds)
+            .eq('agency_id', agencyId)
+            .eq('is_active', true),
+          cloudSupabase
+            .from('student_reinforcement_rules')
+            .select('student_id')
+            .in('student_id', studentIds)
+            .eq('is_active', true),
+          cloudSupabase
+            .from('student_game_profiles')
+            .select('student_id, display_name_override')
+            .in('student_id', studentIds),
+        ]);
 
-        const { data: rules } = await cloudSupabase
-          .from('student_reinforcement_rules')
-          .select('student_id')
-          .in('student_id', studentIds)
-          .eq('is_active', true);
+        const profiles = profilesRes.data || [];
+        const rules = rulesRes.data || [];
+        const gpMap = new Map((gpRes.data || []).map((p: any) => [p.student_id, p.display_name_override]));
 
-        const profileMap = new Map((profiles || []).map(p => [p.student_id, p]));
-        const ruleStudents = new Set((rules || []).map(r => r.student_id));
+        const profileMap = new Map(profiles.map(p => [p.student_id, p]));
+        const ruleStudents = new Set(rules.map(r => r.student_id));
         const templateMap = new Map((tRes.data || []).map((t: any) => [t.id, t.name]));
 
         const merged: StudentProfile[] = students.map(s => {
           const p = profileMap.get(s.id);
+          const resolvedName = gpMap.get(s.id) || s.name || `Student ${s.id.slice(-4).toUpperCase()}`;
           return {
             student_id: s.id,
-            student_name: s.name,
+            student_name: resolvedName,
             template_id: p?.reinforcement_template_id || null,
             template_name: p?.reinforcement_template_id ? (templateMap.get(p.reinforcement_template_id) || 'Unknown') : null,
             response_cost: p?.response_cost_enabled ?? false,
@@ -99,7 +111,9 @@ export function ClassroomReinforcementPanel({
         });
         setStudentProfiles(merged);
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('[ReinforcementPanel] Load error:', err);
+    }
     setLoading(false);
   }, [groupId, agencyId, students]);
 
