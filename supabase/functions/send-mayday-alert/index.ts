@@ -72,20 +72,32 @@ Deno.serve(async (req) => {
       triggered_by_name, recipient_emails, recipient_phones,
     } = await req.json();
 
+    // HTML-escape user-supplied values to prevent injection
+    function escapeHtml(s: string): string {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    const safeAlertType = escapeHtml(String(alert_type || ""));
+    const safeUrgency = escapeHtml(String(urgency || ""));
+    const safeMessage = escapeHtml(String(message || ""));
+    const safeClassroom = escapeHtml(String(classroom_name || ""));
+    const safeStudent = escapeHtml(String(student_name || ""));
+    const safeTriggeredBy = escapeHtml(String(triggered_by_name || ""));
+
     const urgencyEmoji = urgency === "critical" ? "🔴" : urgency === "high" ? "🟠" : urgency === "medium" ? "🟡" : "🔵";
-    const subject = `${urgencyEmoji} MAYDAY: ${alert_type} alert${classroom_name ? ` — ${classroom_name}` : ""}`;
+    const subject = `${urgencyEmoji} MAYDAY: ${safeAlertType} alert${safeClassroom ? ` — ${safeClassroom}` : ""}`;
     const htmlBody = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
         <div style="background: #FEE2E2; border: 2px solid #EF4444; border-radius: 12px; padding: 20px; text-align: center;">
           <h1 style="color: #DC2626; margin: 0 0 8px;">🚨 MAYDAY ALERT</h1>
-          <p style="color: #991B1B; font-size: 18px; font-weight: 600; margin: 0;">${(alert_type || "").toUpperCase()}</p>
+          <p style="color: #991B1B; font-size: 18px; font-weight: 600; margin: 0;">${safeAlertType.toUpperCase()}</p>
         </div>
         <div style="margin-top: 16px; padding: 16px; background: #F9FAFB; border-radius: 8px;">
-          <p style="margin: 0 0 8px;"><strong>Urgency:</strong> ${urgencyEmoji} ${urgency}</p>
-          ${classroom_name ? `<p style="margin: 0 0 8px;"><strong>Classroom:</strong> ${classroom_name}</p>` : ""}
-          ${student_name ? `<p style="margin: 0 0 8px;"><strong>Student:</strong> ${student_name}</p>` : ""}
-          ${triggered_by_name ? `<p style="margin: 0 0 8px;"><strong>Triggered by:</strong> ${triggered_by_name}</p>` : ""}
-          ${message ? `<p style="margin: 16px 0 0; padding-top: 12px; border-top: 1px solid #E5E7EB;"><strong>Message:</strong> ${message}</p>` : ""}
+          <p style="margin: 0 0 8px;"><strong>Urgency:</strong> ${urgencyEmoji} ${safeUrgency}</p>
+          ${safeClassroom ? `<p style="margin: 0 0 8px;"><strong>Classroom:</strong> ${safeClassroom}</p>` : ""}
+          ${safeStudent ? `<p style="margin: 0 0 8px;"><strong>Student:</strong> ${safeStudent}</p>` : ""}
+          ${safeTriggeredBy ? `<p style="margin: 0 0 8px;"><strong>Triggered by:</strong> ${safeTriggeredBy}</p>` : ""}
+          ${safeMessage ? `<p style="margin: 16px 0 0; padding-top: 12px; border-top: 1px solid #E5E7EB;"><strong>Message:</strong> ${safeMessage}</p>` : ""}
         </div>
         <p style="color: #6B7280; font-size: 12px; text-align: center; margin-top: 16px;">
           This is an automated alert from Beacon. Please respond immediately.
@@ -93,7 +105,7 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    const smsBody = `🚨 MAYDAY: ${(alert_type || "").toUpperCase()} (${urgency})${classroom_name ? ` - ${classroom_name}` : ""}${student_name ? ` - ${student_name}` : ""}${message ? `: ${message}` : ""}. Triggered by ${triggered_by_name || "Staff"}.`;
+    const smsBody = `🚨 MAYDAY: ${safeAlertType.toUpperCase()} (${safeUrgency})${safeClassroom ? ` - ${safeClassroom}` : ""}${safeStudent ? ` - ${safeStudent}` : ""}${safeMessage ? `: ${safeMessage}` : ""}. Triggered by ${safeTriggeredBy || "Staff"}.`;
 
     let emailsSent = 0;
     let smsSent = 0;
