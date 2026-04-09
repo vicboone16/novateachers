@@ -85,20 +85,31 @@ const ClassroomInsights = () => {
       const today = new Date().toISOString().split('T')[0];
       const dayStart = `${today}T00:00:00Z`;
 
-      // Load students in group WITH names
-      const { data: groupStudents } = await cloudSupabase
-        .from('classroom_group_students')
-        .select('client_id, first_name, last_name')
-        .eq('group_id', activeGroupId);
+      // Load students in group WITH names + game profile overrides
+      const [{ data: groupStudents }, { data: gameProfiles }] = await Promise.all([
+        cloudSupabase
+          .from('classroom_group_students')
+          .select('client_id, first_name, last_name')
+          .eq('group_id', activeGroupId),
+        cloudSupabase
+          .from('student_game_profiles')
+          .select('student_id, display_name_override')
+      ]);
       const students = groupStudents || [];
       const sids = students.map((s: any) => s.client_id);
 
-      // Build name lookup
+      // Build name lookup with game profile overrides
+      const gpMap = new Map((gameProfiles || []).map((p: any) => [p.student_id, p.display_name_override]));
       const nameMap: Record<string, string> = {};
       for (const s of students as any[]) {
-        const first = s.first_name || '';
-        const last = s.last_name || '';
-        nameMap[s.client_id] = (first + ' ' + last).trim() || `Student ${s.client_id.slice(-4).toUpperCase()}`;
+        const override = gpMap.get(s.client_id);
+        if (override) {
+          nameMap[s.client_id] = override;
+        } else {
+          const first = s.first_name || '';
+          const last = s.last_name || '';
+          nameMap[s.client_id] = (first + ' ' + last).trim() || `Student ${s.client_id.slice(-4).toUpperCase()}`;
+        }
       }
 
       if (sids.length === 0) {
