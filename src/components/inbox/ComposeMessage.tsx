@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { resolveDisplayNames } from '@/lib/resolve-names';
+import { getAuthToken } from '@/lib/auth-token';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { sendMessageViaBridge } from '@/lib/core-bridge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,8 +45,22 @@ const MESSAGE_TYPES = [
   { value: 'document', label: 'Document' },
 ];
 
+const isIdLikeName = (value: string | undefined, id: string) => {
+  const trimmed = value?.trim() || '';
+  if (!trimmed) return true;
+  const compact = trimmed.replace(/[\s\-…]/g, '');
+  return trimmed === id || trimmed === id.slice(0, 8) || /^[0-9a-f]{6,}$/i.test(compact);
+};
+
+const formatRoleLabel = (role?: string | null) => {
+  if (!role) return null;
+  return role
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+};
+
 const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { toast } = useToast();
 
@@ -58,7 +73,6 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
 
-  // Load team members as potential recipients
   useEffect(() => {
     if (!open || !currentWorkspace) return;
     loadRecipients();
@@ -68,26 +82,51 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
     if (!currentWorkspace || !user) return;
     setLoadingRecipients(true);
     try {
-      // Query team members from Lovable Cloud instead of Nova Core
-      const { data: teachers } = await cloudSupabase
-        .from('classroom_group_teachers')
-        .select('user_id')
-        .neq('user_id', user.id);
+      const authToken = await getAuthToken();
+      const [{ data: agencyAccess }, { data: memberships }] = await Promise.all([
+        supabase
+          .from('user_agency_access')
+          .select('user_id')
+          .eq('agency_id', currentWorkspace.agency_id),
+        supabase
+          .from('agency_memberships')
+          .select('user_id, role')
+          .eq('agency_id', currentWorkspace.agency_id),
+      ]);
 
-      // Deduplicate user IDs
-      const userIds = [...new Set((teachers || []).map(t => t.user_id))];
+      const roleByUserId = new Map(
+        (memberships || []).map((row: any) => [row.user_id as string, row.role as string | null])
+      );
 
-      if (userIds.length > 0) {
-        const resolved = await resolveDisplayNames(userIds, session?.access_token);
-        setRecipients(
-          userIds.map(id => ({
-            id,
-            name: resolved.get(id) || id.slice(0, 8),
-          }))
-        );
-      } else {
+      const userIds = Array.from(
+        new Set(
+          [
+            ...(agencyAccess || []).map((row: any) => row.user_id),
+            ...(memberships || []).map((row: any) => row.user_id),
+          ].filter(Boolean)
+        )
+      ).filter(id => id !== user.id);
+
+      if (userIds.length === 0) {
         setRecipients([]);
+        return;
       }
+
+      const resolved = authToken ? await resolveDisplayNames(userIds, authToken) : new Map<string, string>();
+      const mapped = userIds
+        .map((id, index) => {
+          const resolvedName = resolved.get(id);
+          const fallbackRole = formatRoleLabel(roleByUserId.get(id));
+          return {
+            id,
+            name: isIdLikeName(resolvedName, id)
+              ? fallbackRole || `Team Member ${index + 1}`
+              : resolvedName!.trim(),
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      setRecipients(mapped);
     } catch {
       setRecipients([]);
     } finally {
@@ -145,7 +184,6 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Recipient */}
           <div className="space-y-1.5">
             <Label className="text-xs">To</Label>
             <Select value={recipientId} onValueChange={setRecipientId}>
@@ -160,14 +198,13 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
                 ))}
                 {recipients.length === 0 && !loadingRecipients && (
                   <SelectItem value="__none" disabled>
-                    No team members found
+                    No recipients available in this workspace
                   </SelectItem>
                 )}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Type */}
           <div className="space-y-1.5">
             <Label className="text-xs">Type</Label>
             <Select value={messageType} onValueChange={setMessageType}>
@@ -184,7 +221,6 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
             </Select>
           </div>
 
-          {/* Subject */}
           <div className="space-y-1.5">
             <Label className="text-xs">Subject</Label>
             <Input
@@ -194,7 +230,6 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
             />
           </div>
 
-          {/* Body */}
           <div className="space-y-1.5">
             <Label className="text-xs">Message</Label>
             <Textarea
@@ -205,10 +240,8 @@ const ComposeMessage = ({ open, onOpenChange, onSent }: Props) => {
             />
           </div>
 
-          {/* Attachments */}
           <AttachmentUploader files={files} onFilesChange={setFiles} />
 
-          {/* Send */}
           <div className="flex justify-end">
             <Button onClick={handleSend} disabled={sending || !recipientId || !body.trim()} className="gap-1.5">
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
