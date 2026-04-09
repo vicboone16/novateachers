@@ -95,8 +95,9 @@ export const WeeklyDataSummary = () => {
       .from('teacher_weekly_summaries')
       .select('*')
       .eq('student_id', selectedClientId)
-      .eq('staff_id', user.id)
       .eq('week_start', weekStartStr)
+      .order('generated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     setDraft(data as WeeklySummaryDraft | null);
@@ -133,21 +134,41 @@ export const WeeklyDataSummary = () => {
     try {
       let staffIds: string[] = [];
 
+      // Try student_id column first, then client_id fallback
       const { data: accessRows, error: accessErr } = await supabase
         .from('user_student_access')
         .select('user_id')
-        .eq('client_id', selectedClientId)
+        .eq('student_id', selectedClientId)
         .neq('user_id', user?.id || '');
 
-      if (!accessErr && accessRows) {
+      if (!accessErr && accessRows && accessRows.length > 0) {
         staffIds = accessRows.map((r: any) => r.user_id);
       } else {
-        const { data: fallbackRows } = await supabase
-          .from('user_client_access')
+        // Fallback: try client_id column
+        const { data: fallback1 } = await supabase
+          .from('user_student_access')
           .select('user_id')
           .eq('client_id', selectedClientId)
           .neq('user_id', user?.id || '');
-        staffIds = (fallbackRows || []).map((r: any) => r.user_id);
+        if (fallback1 && fallback1.length > 0) {
+          staffIds = fallback1.map((r: any) => r.user_id);
+        } else {
+          // Last resort: classroom group teachers
+          const { data: groupRow } = await cloudSupabase
+            .from('classroom_group_students')
+            .select('group_id')
+            .eq('client_id', selectedClientId)
+            .limit(1)
+            .maybeSingle();
+          if (groupRow?.group_id) {
+            const { data: teachers } = await cloudSupabase
+              .from('classroom_group_teachers')
+              .select('user_id')
+              .eq('group_id', groupRow.group_id)
+              .neq('user_id', user?.id || '');
+            staffIds = (teachers || []).map((r: any) => r.user_id);
+          }
+        }
       }
 
       if (staffIds.length === 0) {
@@ -158,7 +179,7 @@ export const WeeklyDataSummary = () => {
       const nameMap = await resolveDisplayNames(staffIds);
       const staff = staffIds.map(id => ({
         id,
-        name: nameMap.get(id) || id.slice(0, 8) + '…',
+        name: nameMap.get(id) || 'Staff Member',
       }));
 
       setAssignedStaff(staff);
@@ -177,21 +198,22 @@ export const WeeklyDataSummary = () => {
     const startTs = weekStart.toISOString();
     const endTs = weekEnd.toISOString();
 
+    // Load ALL staff data for this student (not just current user)
     const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
-        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_duration_entries').select('behavior_name,duration_seconds,logged_date')
-        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_date', startStr).lte('logged_date', endStr),
       supabase.from('teacher_quick_notes').select('behavior_name,note,logged_at')
-        .eq('client_id', selectedClientId).eq('staff_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
       supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
-        .eq('client_id', selectedClientId).eq('user_id', user?.id)
+        .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      cloudSupabase.from('teacher_data_events').select('event_type,event_value,recorded_at')
-        .eq('student_id', selectedClientId).eq('staff_id', user?.id)
+      cloudSupabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
+        .eq('student_id', selectedClientId)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
     ]);
 
