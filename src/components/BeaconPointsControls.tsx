@@ -45,7 +45,7 @@ export const BeaconPointsControls = ({
   balance,
   onPointChange,
   onPointAction,
-  responseCostEnabled = true,
+  responseCostEnabled = false,
 }: Props) => {
   const [awarding, setAwarding] = useState(false);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);

@@ -386,12 +386,13 @@ const ClassroomView = () => {
     if (!effectiveAgencyId) return;
     try {
       const { data } = await cloudSupabase
-        .from('student_response_cost_settings')
+        .from('student_reinforcement_profiles' as any)
         .select('student_id, response_cost_enabled')
-        .eq('agency_id', effectiveAgencyId);
+        .eq('agency_id', effectiveAgencyId)
+        .eq('is_active', true);
       const map: ResponseCostMap = {};
       for (const row of (data || []) as any[]) {
-        map[row.student_id] = row.response_cost_enabled;
+        map[row.student_id] = row.response_cost_enabled === true;
       }
       setResponseCostMap(map);
     } catch { /* silent */ }
