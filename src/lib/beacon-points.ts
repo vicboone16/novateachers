@@ -195,11 +195,37 @@ export async function executeTeacherAction(
     studentId: string;
     staffId: string;
     classroomId?: string;
+    /** When true, response_cost rules are skipped — behavior is logged but no points deducted */
+    responseCostEnabled?: boolean;
   },
 ): Promise<{ ok: boolean; points: number; ledgerRowId?: string; error?: string }> {
-  const { agencyId, studentId, staffId, classroomId } = params;
+  const { agencyId, studentId, staffId, classroomId, responseCostEnabled = true } = params;
+
+  // If this action is a response_cost type but the student doesn't have RC enabled,
+  // skip the point deduction entirely — just log the behavior with 0 points
+  const isResponseCostAction = action.manual_rule_type === 'response_cost' ||
+    action.action_group === 'behavior' ||
+    (action.manual_points != null && action.manual_points < 0);
+
+  const shouldSkipPoints = isResponseCostAction && !responseCostEnabled;
 
   try {
+    if (shouldSkipPoints) {
+      // Log the behavior data without any point deduction
+      const { data, error } = await cloudSupabase.rpc('log_manual_points', {
+        p_agency_id: agencyId,
+        p_student_id: studentId,
+        p_staff_id: staffId,
+        p_points: 0,
+        p_reason: action.action_label + ' (RC disabled)',
+        p_manual_reason_category: 'because',
+        p_source: 'manual_award',
+      });
+      if (error) return { ok: false, points: 0, error: error.message };
+      const result = data as any;
+      return { ok: true, points: 0, ledgerRowId: result?.points_ledger_id };
+    }
+
     if (action.source_table === 'manual') {
       const pts = action.manual_points || 0;
       const { data, error } = await cloudSupabase.rpc('log_manual_points', {
