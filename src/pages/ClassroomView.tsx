@@ -1363,7 +1363,7 @@ const ClassroomView = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Celebrations</span>
               <button onClick={() => navigate('/classroom-feed')} className="ml-auto text-xs text-primary font-medium hover:underline">Feed</button>
             </div>
-            <CelebrationFeedStrip groupId={activeGroupId} />
+            <CelebrationFeedStrip groupId={activeGroupId} agencyId={effectiveAgencyId} />
           </CardContent>
         </Card>
       </div>
