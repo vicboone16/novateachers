@@ -815,21 +815,139 @@ export const WeeklyDataSummary = () => {
             </Card>
           )}
 
-          {/* ABC Patterns */}
-          {abcPatterns.length > 0 && (
-            <Card>
+          {/* ABC Detailed Analysis */}
+          {abcDetailedBreakdown && abcDetailedBreakdown.total > 0 && (
+            <Card className="md:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
-                  <BarChart3 className="h-4 w-4 text-destructive" /> ABC Patterns
+                  <BarChart3 className="h-4 w-4 text-destructive" /> ABC Analysis ({abcDetailedBreakdown.total} entries)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
-                {abcPatterns.map(([pattern, count]) => (
-                  <div key={pattern} className="flex justify-between text-sm gap-2">
-                    <span className="text-xs text-muted-foreground truncate">{pattern}</span>
-                    <Badge variant="secondary">×{count}</Badge>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Behaviors breakdown */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Behaviors</p>
+                    <div className="space-y-1">
+                      {abcDetailedBreakdown.byBehavior.slice(0, 6).map(([beh, count]) => (
+                        <div key={beh} className="flex justify-between text-sm">
+                          <span className="truncate">{beh}</span>
+                          <Badge variant="outline" className="text-xs">×{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                  {/* Top antecedents */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Top Antecedents</p>
+                    <div className="space-y-1">
+                      {abcDetailedBreakdown.topAntecedents.map(([ant, count]) => (
+                        <div key={ant} className="flex justify-between text-sm">
+                          <span className="truncate text-xs text-muted-foreground">{ant}</span>
+                          <Badge variant="secondary" className="text-xs">×{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Top consequences */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Top Consequences</p>
+                    <div className="space-y-1">
+                      {abcDetailedBreakdown.topConsequences.map(([con, count]) => (
+                        <div key={con} className="flex justify-between text-sm">
+                          <span className="truncate text-xs text-muted-foreground">{con}</span>
+                          <Badge variant="secondary" className="text-xs">×{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Pattern chains */}
+                  {abcPatterns.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Top A→B→C Chains</p>
+                      <div className="space-y-1">
+                        {abcPatterns.map(([pattern, count]) => (
+                          <div key={pattern} className="flex justify-between text-sm gap-2">
+                            <span className="text-xs text-muted-foreground truncate">{pattern}</span>
+                            <Badge variant="secondary" className="text-xs">×{count}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Reinforcement Summary */}
+          {reinforcementSummary && (
+            <Card className="md:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-primary" /> Reinforcement Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 mb-4">
+                  <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Earned</p>
+                    <p className="text-lg font-bold text-accent">+{reinforcementSummary.totalEarned}</p>
+                    <p className="text-[10px] text-muted-foreground">{reinforcementSummary.earnedCount} events</p>
+                  </div>
+                  {reinforcementSummary.totalDeducted > 0 && (
+                    <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Deducted</p>
+                      <p className="text-lg font-bold text-destructive">-{reinforcementSummary.totalDeducted}</p>
+                      <p className="text-[10px] text-muted-foreground">{reinforcementSummary.deductedCount} events</p>
+                    </div>
+                  )}
+                  {reinforcementSummary.totalRedeemed > 0 && (
+                    <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Redeemed</p>
+                      <p className="text-lg font-bold text-primary">{reinforcementSummary.totalRedeemed}</p>
+                      <p className="text-[10px] text-muted-foreground">{reinforcementSummary.redeemedCount} rewards</p>
+                    </div>
+                  )}
+                  <div className="rounded-lg border border-border/50 p-2.5 bg-card text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Net Change</p>
+                    <p className={`text-lg font-bold ${reinforcementSummary.netBalance >= 0 ? 'text-accent' : 'text-destructive'}`}>
+                      {reinforcementSummary.netBalance >= 0 ? '+' : ''}{reinforcementSummary.netBalance}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Points by source */}
+                {reinforcementSummary.bySource.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Points by Source</p>
+                    <div className="space-y-1">
+                      {reinforcementSummary.bySource.map(([source, data]) => (
+                        <div key={source} className="flex justify-between text-sm">
+                          <span className="truncate text-xs">{source}</span>
+                          <div className="flex gap-1.5 items-center">
+                            <Badge variant="outline" className="text-[10px]">×{data.count}</Badge>
+                            <Badge variant="secondary" className="text-[10px]">+{data.points}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Points by day */}
+                {Object.keys(reinforcementSummary.byDay).length > 1 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Daily Points Earned</p>
+                    <div className="flex gap-1 flex-wrap">
+                      {Object.entries(reinforcementSummary.byDay).map(([day, pts]) => (
+                        <Badge key={day} variant="secondary" className="text-[10px]">
+                          {format(new Date(day + 'T12:00:00'), 'EEE')}: +{pts}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
