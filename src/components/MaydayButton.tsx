@@ -305,7 +305,7 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
 
   return (
     <>
-      <Button variant="destructive" size="sm" className={cn("gap-1.5 font-bold relative", activeCount > 0 && "animate-pulse hover:animate-none")} onClick={() => setOpen(true)}>
+      <Button variant="destructive" className={cn("gap-1.5 font-bold relative h-9 px-4", activeCount > 0 && "animate-pulse hover:animate-none")} onClick={() => setOpen(true)}>
         <AlertTriangle className="h-4 w-4" /> MAYDAY
         {activeCount > 0 && <Badge className="absolute -top-1.5 -right-1.5 h-4 min-w-4 text-[9px] bg-background text-destructive border border-destructive px-1">{activeCount}</Badge>}
       </Button>

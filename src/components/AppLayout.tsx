@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck, HelpCircle, Sparkles } from 'lucide-react';
+import { Users, Activity, FileText, ChevronDown, LogOut, Building2, Settings, GraduationCap, ClipboardList, Inbox, BookOpen, BarChart3, Bell, LayoutGrid, FileEdit, FileSearch, MessageCircle, MessagesSquare, Star, Monitor, UserCheck, Gamepad2, School, ShieldCheck, HelpCircle, Sparkles, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QuickAddPanel } from '@/components/QuickAddPanel';
 import { SmartHelpBanner } from '@/components/SmartHelpBanner';
@@ -26,7 +26,7 @@ const navItems = [
   { to: '/game-board', label: 'Game', icon: Gamepad2 },
   { to: '/rewards', label: 'Rewards', icon: Star },
   { to: '/feed', label: 'Feed', icon: MessageCircle },
-  { to: '/threads', label: 'Threads', icon: MessageCircle },
+  { to: '/threads', label: 'Threads', icon: MessagesSquare },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
 ];
 
@@ -97,17 +97,20 @@ export const AppLayout = () => {
                   <DropdownMenuItem
                     key={ws.id}
                     onClick={() => setCurrentWorkspace(ws)}
-                    className={cn(ws.id === currentWorkspace?.id && 'bg-accent/20')}
+                    className={cn('gap-2', ws.id === currentWorkspace?.id && 'bg-accent/20')}
                   >
                     {ws.mode === 'solo' ? (
-                      <GraduationCap className="mr-2 h-3.5 w-3.5" />
+                      <GraduationCap className="h-3.5 w-3.5 shrink-0" />
                     ) : (
-                      <Building2 className="mr-2 h-3.5 w-3.5" />
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
                     )}
                     {ws.name}
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <span className="ml-1 text-xs text-muted-foreground">
                       {ws.mode === 'solo' ? 'Independent' : 'Connected'}
                     </span>
+                    {ws.id === currentWorkspace?.id && (
+                      <Check className="ml-auto h-3.5 w-3.5 text-primary shrink-0" />
+                    )}
                   </DropdownMenuItem>
                 ))}
                 {workspaces.length > 1 && (
@@ -129,7 +132,8 @@ export const AppLayout = () => {
               variant="ghost"
               size="icon"
               className="relative text-muted-foreground h-8 w-8 sm:h-9 sm:w-9"
-              title="Signals sent"
+              title="Notifications"
+              onClick={() => navigate('/inbox')}
             >
               <Bell className="h-4 w-4" />
               {signalCount > 0 && (
@@ -154,13 +158,6 @@ export const AppLayout = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/classroom')} className="gap-2">
-                  <Users className="h-3.5 w-3.5" /> My Classroom / Roster
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/classrooms')} className="gap-2">
-                  <School className="h-3.5 w-3.5" /> Classroom Manager
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2">
                   <Settings className="h-3.5 w-3.5" /> Settings
                 </DropdownMenuItem>
@@ -237,13 +234,13 @@ function IEPNavDropdown() {
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
+            'flex items-center gap-1.5 sm:gap-2 border-b-2 px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
             isActive
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           )}
         >
-          <FileText className="h-4 w-4" />
+          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           IEP
           <ChevronDown className="h-3 w-3" />
         </button>
@@ -275,7 +272,7 @@ function MoreNavDropdown() {
         <button
           data-walkthrough="more-menu"
           className={cn(
-            'flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap',
+            'flex items-center gap-1.5 sm:gap-2 border-b-2 px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0',
             isActive
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'

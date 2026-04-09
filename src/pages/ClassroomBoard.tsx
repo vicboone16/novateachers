@@ -411,6 +411,10 @@ export default function ClassroomBoard() {
                 <p className="text-lg font-bold text-primary">{settings.word_of_week}</p>
               </div>
             )}
+            <div className="flex items-center gap-1.5 rounded-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/40 px-2.5 py-1">
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+              <span className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">Live</span>
+            </div>
           </div>
         </div>
 

@@ -53,15 +53,27 @@ export default function StudentPortalEnhanced() {
   const [codeInput, setCodeInput] = useState('');
   const [needsCode, setNeedsCode] = useState(false);
   const [avatarState, setAvatarState] = useState<AvatarAnimState>('idle');
+  const [eventFlash, setEventFlash] = useState<string | null>(null);
   const { getEffect } = useGameEvents({ classroomId: groupId, agencyId: agencyId || undefined, enabled: !!studentId });
 
-  // Drive avatar state from realtime game events
+  // Drive avatar state and event flash from realtime game events
   useEffect(() => {
     if (!studentId) return;
     const eff = getEffect(studentId);
     if (eff) {
       const mapped = eventTypeToAnimState(eff.eventType);
       setAvatarState(mapped);
+      if (eff.eventType === 'points' || eff.eventType === 'reward' || eff.eventType === 'level_up') {
+        const flashMsg = eff.eventType === 'level_up'
+          ? '🎉 Level up! Keep it going!'
+          : eff.eventType === 'reward'
+          ? '🎁 You earned a reward!'
+          : '⭐ Your teacher just gave you points!';
+        setEventFlash(flashMsg);
+        const clearFlash = setTimeout(() => setEventFlash(null), 4000);
+        const clearAnim = setTimeout(() => setAvatarState('idle'), 1500);
+        return () => { clearTimeout(clearFlash); clearTimeout(clearAnim); };
+      }
       const timeout = setTimeout(() => setAvatarState('idle'), 1500);
       return () => clearTimeout(timeout);
     }
@@ -148,8 +160,21 @@ export default function StudentPortalEnhanced() {
         setUnlocks((catalogItems || []).map((c: any) => ({ name: c.name, emoji: c.icon_emoji })));
       }
 
-      // Game settings
-      const { data: gameSettings } = await supabase.from('classroom_game_settings' as any).select('mission_of_the_day, word_of_the_week').limit(1).maybeSingle();
+      // Resolve student's classroom group for context-aware queries
+      const { data: groupData } = await cloudSupabase
+        .from('classroom_group_students')
+        .select('group_id')
+        .eq('client_id', sid)
+        .limit(1)
+        .maybeSingle();
+      const studentGroupId = (groupData as any)?.group_id || null;
+      if (studentGroupId) setGroupId(studentGroupId);
+
+      // Game settings — filter to student's actual classroom so mission/word are relevant
+      const gsQuery = supabase.from('classroom_game_settings' as any).select('mission_of_the_day, word_of_the_week');
+      const { data: gameSettings } = await (studentGroupId
+        ? gsQuery.eq('group_id', studentGroupId).limit(1).maybeSingle()
+        : gsQuery.limit(1).maybeSingle());
       if (gameSettings) { setMissionOfDay((gameSettings as any).mission_of_the_day || ''); setWordOfWeek((gameSettings as any).word_of_the_week || ''); }
 
       // Check display_name_override from game profile first
@@ -183,7 +208,7 @@ export default function StudentPortalEnhanced() {
           <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center"><span className="text-4xl">🎮</span></div>
           <h1 className="text-2xl font-bold font-heading">Student Portal</h1>
           <p className="text-sm text-muted-foreground">Enter your access code to see your progress</p>
-          <Input value={codeInput} onChange={e => setCodeInput(e.target.value)} placeholder="Enter 4-digit code" className="text-center text-2xl tracking-[0.5em] font-bold h-14" maxLength={6} onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()} autoFocus />
+          <Input value={codeInput} onChange={e => setCodeInput(e.target.value)} placeholder="Enter your access code" className="text-center text-2xl tracking-[0.5em] font-bold h-14" maxLength={6} onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()} autoFocus />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button onClick={handleCodeSubmit} className="w-full h-11" disabled={loading}>{loading ? 'Checking…' : 'Enter Portal'}</Button>
         </div>
@@ -207,6 +232,13 @@ export default function StudentPortalEnhanced() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-accent/5">
       <div className="mx-auto max-w-md px-4 py-6 space-y-5">
+        {/* Realtime event flash */}
+        {eventFlash && (
+          <div className="animate-in slide-in-from-top-3 fade-in duration-300 rounded-2xl bg-accent/10 border border-accent/30 px-4 py-3 text-center">
+            <p className="text-sm font-bold text-accent">{eventFlash}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center space-y-2">
           <AnimatedAvatar emoji={avatarEmoji} state={avatarState} size="lg" className={cn(

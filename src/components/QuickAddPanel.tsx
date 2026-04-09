@@ -444,19 +444,26 @@ export const QuickAddPanel = () => {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedClientId && behaviorNames.length > 0 && (
-                <div className="w-full sm:min-w-[180px] sm:flex-1 sm:max-w-xs">
-                  <Select value={selectedBehavior} onValueChange={setSelectedBehavior}>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Select behavior…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {behaviorNames.map(b => (
-                        <SelectItem key={b} value={b}>{b}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {selectedClientId && (
+                behaviorNames.length > 0 ? (
+                  <div className="w-full sm:min-w-[180px] sm:flex-1 sm:max-w-xs">
+                    <Select value={selectedBehavior} onValueChange={setSelectedBehavior}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Select behavior…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {behaviorNames.map(b => (
+                          <SelectItem key={b} value={b}>{b}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground self-center">
+                    No behaviors configured for this student.{' '}
+                    <a href="/classrooms" className="text-primary underline">Add in Classroom Manager</a>
+                  </p>
+                )
               )}
             </div>
 
@@ -518,7 +525,7 @@ export const QuickAddPanel = () => {
                     <span className="text-3xl font-mono font-bold text-foreground min-w-[5ch]">
                       {formatDuration(durationElapsed)}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       {!durationRunning ? (
                         <Button size="sm" onClick={startDuration} className="gap-1.5">
                           <Play className="h-3.5 w-3.5" /> Start
@@ -541,6 +548,21 @@ export const QuickAddPanel = () => {
                           className="gap-1.5"
                         >
                           <Square className="h-3.5 w-3.5" /> Stop & Save
+                        </Button>
+                      )}
+                      {(durationRunning || durationElapsed > 0) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1.5 text-muted-foreground"
+                          onClick={() => {
+                            if (durationRef.current) clearInterval(durationRef.current);
+                            setDurationRunning(false);
+                            setDurationPaused(false);
+                            setDurationElapsed(0);
+                          }}
+                        >
+                          Cancel
                         </Button>
                       )}
                     </div>
