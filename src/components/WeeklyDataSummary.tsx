@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw, Star, TrendingUp } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
@@ -40,8 +40,9 @@ interface WeeklySummaryDraft {
 interface FreqEntry { behavior_name: string; count: number; logged_date: string; }
 interface DurEntry { behavior_name: string; duration_seconds: number; logged_date: string; }
 interface QuickNote { behavior_name: string | null; note: string; logged_at: string; }
-interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; }
+interface ABCEntry { antecedent: string; behavior: string; consequence: string; logged_at: string; intensity?: number | null; behavior_category?: string | null; notes?: string | null; }
 interface UnifiedEvent { event_type: string; event_subtype?: string | null; event_value: any; recorded_at: string; }
+interface PointsEntry { points: number; source: string; reason: string | null; entry_kind: string | null; created_at: string; }
 
 export const WeeklyDataSummary = () => {
   const { user } = useAuth();
