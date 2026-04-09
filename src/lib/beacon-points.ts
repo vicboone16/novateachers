@@ -195,6 +195,8 @@ export async function executeTeacherAction(
     studentId: string;
     staffId: string;
     classroomId?: string;
+    /** When true, response_cost rules are skipped — behavior is logged but no points deducted */
+    responseCostEnabled?: boolean;
   },
 ): Promise<{ ok: boolean; points: number; ledgerRowId?: string; error?: string }> {
   const { agencyId, studentId, staffId, classroomId } = params;
