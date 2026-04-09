@@ -201,7 +201,7 @@ export const WeeklyDataSummary = () => {
     const endTs = weekEnd.toISOString();
 
     // Load ALL staff data for this student (not just current user)
-    const [freqRes, durRes, notesRes, abcRes, unifiedRes] = await Promise.all([
+    const [freqRes, durRes, notesRes, abcRes, unifiedRes, pointsRes] = await Promise.all([
       supabase.from('teacher_frequency_entries').select('behavior_name,count,logged_date')
         .eq('client_id', selectedClientId)
         .gte('logged_date', startStr).lte('logged_date', endStr),
@@ -211,12 +211,16 @@ export const WeeklyDataSummary = () => {
       supabase.from('teacher_quick_notes').select('behavior_name,note,logged_at')
         .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
-      supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at')
+      supabase.from('abc_logs').select('antecedent,behavior,consequence,logged_at,intensity,behavior_category,notes')
         .eq('client_id', selectedClientId)
         .gte('logged_at', startTs).lte('logged_at', endTs),
       cloudSupabase.from('teacher_data_events').select('event_type,event_subtype,event_value,recorded_at')
         .eq('student_id', selectedClientId)
         .gte('recorded_at', startTs).lte('recorded_at', endTs),
+      cloudSupabase.from('beacon_points_ledger').select('points,source,reason,entry_kind,created_at')
+        .eq('student_id', selectedClientId)
+        .gte('created_at', startTs).lte('created_at', endTs)
+        .order('created_at', { ascending: true }),
     ]);
 
     setFreqEntries((freqRes.data || []) as FreqEntry[]);
@@ -224,6 +228,7 @@ export const WeeklyDataSummary = () => {
     setNotes((notesRes.data || []) as QuickNote[]);
     setAbcLogs((abcRes.data || []) as ABCEntry[]);
     setUnifiedEvents((unifiedRes.data || []) as UnifiedEvent[]);
+    setPointsEntries((pointsRes.data || []) as PointsEntry[]);
     setLoading(false);
   };
 
