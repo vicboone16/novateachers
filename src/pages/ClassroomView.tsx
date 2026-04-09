@@ -605,7 +605,9 @@ const ClassroomView = () => {
   /** Execute a teacher_point_action for a student */
   const handleTeacherAction = async (action: TeacherPointAction, client: Client) => {
     if (!user) return;
-    const estimatedPts = action.manual_points || (action.action_group === 'behavior' ? -2 : 1);
+    const rcEnabled = responseCostMap[client.id] === true;
+    const rawEstimate = action.manual_points || (action.action_group === 'behavior' ? -2 : 1);
+    const estimatedPts = (!rcEnabled && rawEstimate < 0) ? 0 : rawEstimate;
     handlePointChange(client.id, estimatedPts);
     setFlashCard(client.id);
     setTimeout(() => setFlashCard(null), 800);
