@@ -616,6 +616,7 @@ const ClassroomView = () => {
       studentId: client.id,
       staffId: user.id,
       classroomId: activeGroupId || undefined,
+      responseCostEnabled: responseCostMap[client.id] === true,
     });
 
     if (result.ok) {
