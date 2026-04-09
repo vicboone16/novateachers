@@ -164,7 +164,7 @@ const ClassroomInsights = () => {
       const sorted = Object.entries(studentStats).sort((a, b) => b[1].earned - a[1].earned);
       const topPerformers = sorted.slice(0, 5).filter(([_, v]) => v.earned > 0).map(([sid, v]) => ({
         student_id: sid,
-        name: nameMap[sid] || sid.slice(0, 8),
+        name: nameMap[sid] || `Student ${sid.slice(-4).toUpperCase()}`,
         points: v.earned,
         streak: 0,
       }));
@@ -175,7 +175,7 @@ const ClassroomInsights = () => {
         return v.deducted > v.earned * 0.5 || (v.earned === 0 && v.deducted > 0);
       }).map(([sid, v]) => ({
         student_id: sid,
-        name: nameMap[sid] || sid.slice(0, 8),
+        name: nameMap[sid] || `Student ${sid.slice(-4).toUpperCase()}`,
         reason: v.earned === 0 ? 'No positive points today' : 'High deduction ratio',
         severity: (v.deducted > v.earned ? 'high' : 'medium') as 'low' | 'medium' | 'high',
       }));
@@ -186,7 +186,7 @@ const ClassroomInsights = () => {
         .filter(([_, v]) => v.last_at)
         .map(([sid, v]) => ({
           student_id: sid,
-          name: nameMap[sid] || sid.slice(0, 8),
+          name: nameMap[sid] || `Student ${sid.slice(-4).toUpperCase()}`,
           gap_minutes: Math.round((now - new Date(v.last_at!).getTime()) / 60000),
         }))
         .filter(g => g.gap_minutes > 30)
