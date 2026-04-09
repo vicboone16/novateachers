@@ -98,7 +98,7 @@ const ClassroomInsights = () => {
       for (const s of students as any[]) {
         const first = s.first_name || '';
         const last = s.last_name || '';
-        nameMap[s.client_id] = (first + ' ' + last).trim() || s.client_id.slice(0, 8);
+        nameMap[s.client_id] = (first + ' ' + last).trim() || `Student ${s.client_id.slice(-4).toUpperCase()}`;
       }
 
       if (sids.length === 0) {

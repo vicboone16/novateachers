@@ -51,7 +51,7 @@ const PinToStudentButton = ({ messageBody, documentType, clientId, subject }: Pr
     if (result.data) {
       setStudents(result.data.map((s: any) => ({
         id: s.id,
-        name: [s.first_name, s.last_name].filter(Boolean).join(' ') || s.name || s.id.slice(0, 8),
+        name: [s.first_name, s.last_name].filter(Boolean).join(' ') || s.name || `Student ${s.id.slice(-4).toUpperCase()}`,
       })));
     }
   };

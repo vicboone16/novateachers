@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { resolveDisplayNames } from '@/lib/resolve-names';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, CheckCircle2, Zap, TrendingUp } from 'lucide-react';
@@ -21,6 +22,7 @@ interface StaffEngagement {
   total_actions: number;
   actions_this_week: number;
   status: 'active' | 'started' | 'needs_support';
+  displayName?: string;
 }
 
 const STATUS_CONFIG = {
@@ -47,7 +49,13 @@ export const StaffEngagementDashboard = () => {
       .select('*')
       .eq('agency_id', agencyId);
 
-    setStaff((data as any as StaffEngagement[]) || []);
+    const rows = (data as any as StaffEngagement[]) || [];
+    const userIds = rows.map(r => r.user_id);
+    let nameMap = new Map<string, string>();
+    if (userIds.length > 0) {
+      try { nameMap = await resolveDisplayNames(userIds); } catch { /* silent */ }
+    }
+    setStaff(rows.map(r => ({ ...r, displayName: nameMap.get(r.user_id) || 'Staff' })));
     setLoading(false);
   };
 
@@ -120,7 +128,7 @@ export const StaffEngagementDashboard = () => {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {s.user_id.slice(0, 8)}…
+                        {s.displayName || 'Staff'}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {s.total_actions} actions · {s.actions_this_week} this week

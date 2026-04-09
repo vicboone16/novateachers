@@ -432,7 +432,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-1">
                 {filtered(staff, ['user_id', 'display_name']).map(s => (
-                  <div key={s.user_id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                  <div key={s.user_id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0 group">
                     <div className="flex-1 min-w-0">
                       {editingUserId === s.user_id ? (
                         <div className="flex items-center gap-1">
@@ -451,7 +451,7 @@ const AdminDashboard = () => {
                       )}
                     </div>
                     <Badge variant="outline" className="text-[9px]">{s.role}</Badge>
-                    <code className="text-[9px] text-muted-foreground font-mono select-all cursor-pointer" onClick={() => copyToClipboard(s.user_id)} title="Click to copy">
+                    <code className="text-[9px] text-muted-foreground font-mono select-all cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyToClipboard(s.user_id)} title="Click to copy ID">
                       {s.user_id.slice(0, 12)}…
                     </code>
                     <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.user_id)}>
@@ -468,10 +468,10 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-1">
                 {filtered(students, ['id', 'first_name', 'last_name']).map(s => (
-                  <div key={s.id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                  <div key={s.id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0 group">
                     <span className="flex-1 text-sm truncate">{displayName(s)}</span>
                     {s.grade && <Badge variant="outline" className="text-[9px]">Gr {s.grade}</Badge>}
-                    <code className="text-[9px] text-muted-foreground font-mono select-all cursor-pointer" onClick={() => copyToClipboard(s.id)} title="Click to copy">
+                    <code className="text-[9px] text-muted-foreground font-mono select-all cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyToClipboard(s.id)} title="Click to copy ID">
                       {s.id.slice(0, 12)}…
                     </code>
                     <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => copyToClipboard(s.id)}>
@@ -656,7 +656,7 @@ const AdminDashboard = () => {
                 <CardContent className="py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{displayName(s)}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono">{s.id}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.status || 'active'}</p>
                   </div>
                   {s.grade && <Badge variant="outline" className="text-[9px]">Gr {s.grade}</Badge>}
                   <Badge variant="outline" className="text-[9px]">{s.status || 'active'}</Badge>
