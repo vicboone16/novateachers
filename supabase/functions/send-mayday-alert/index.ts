@@ -6,6 +6,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const PINGRAM_API_URL = "https://api.pingram.io/send";
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildEmailHtml(lines: string[]) {
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+      <h2 style="margin: 0 0 12px; color: #b91c1c;">Mayday Alert</h2>
+      ${lines.map((line) => `<p style="margin: 0 0 8px;">${escapeHtml(line)}</p>`).join("")}
+    </div>
+  `.trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -74,13 +94,16 @@ Deno.serve(async (req) => {
 
     // Build the comment merge tag for the Pingram template
     const urgencyEmoji = urgency === "critical" ? "🔴" : urgency === "high" ? "🟠" : urgency === "medium" ? "🟡" : "🔵";
-    const commentParts = [
+    const detailLines = [
       `${urgencyEmoji} MAYDAY: ${(alert_type || "Alert").toUpperCase()} (${urgency || "medium"})`,
       classroom_name ? `Classroom: ${classroom_name}` : null,
       student_name ? `Student: ${student_name}` : null,
       message ? `Message: ${message}` : null,
       `Triggered by: ${triggered_by_name || "Staff"}`,
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean) as string[];
+    const commentParts = detailLines.join("\n");
+    const emailSubject = `${urgencyEmoji} Mayday Alert${classroom_name ? ` • ${classroom_name}` : ""}`;
+    const smsMessage = detailLines.join(" | ").slice(0, 320);
 
     let sent = 0;
     const errors: string[] = [];
@@ -108,20 +131,35 @@ Deno.serve(async (req) => {
       try {
         console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
 
-        const res = await fetch("https://api.pingram.io/sender", {
+        const payload: Record<string, unknown> = {
+          type: "mayday",
+          to: toObj,
+          templateId: "template_1",
+          parameters: {
+            comment: commentParts,
+          },
+        };
+
+        if (email) {
+          payload.email = {
+            subject: emailSubject,
+            html: buildEmailHtml(detailLines),
+          };
+        }
+
+        if (phone) {
+          payload.sms = {
+            message: smsMessage,
+          };
+        }
+
+        const res = await fetch(PINGRAM_API_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${PINGRAM_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            type: "mayday",
-            to: toObj,
-            templateId: "template_1",
-            parameters: {
-              comment: commentParts,
-            },
-          }),
+          body: JSON.stringify(payload),
         });
 
         const resBody = await res.text();
