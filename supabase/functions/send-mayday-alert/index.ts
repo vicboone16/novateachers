@@ -85,35 +85,29 @@ Deno.serve(async (req) => {
     let sent = 0;
     const errors: string[] = [];
 
-    // Collect all unique recipients and send one Pingram call per recipient
-    const allRecipients: { email?: string; number?: string }[] = [];
+    // Collect all unique recipients
+    const emailArr = Array.from(new Set<string>(recipient_emails || []));
+    const phoneArr = Array.from(new Set<string>(recipient_phones || []));
 
-    // Merge emails and phones into recipients
-    const emailSet = new Set<string>(recipient_emails || []);
-    const phoneSet = new Set<string>(recipient_phones || []);
+    // If no recipients at all, use defaults
+    if (emailArr.length === 0 && phoneArr.length === 0) {
+      emailArr.push("victoriaboonebcba@gmail.com");
+      phoneArr.push("+18185180306");
+    }
 
-    // Try to pair emails with phones, then send remaining individually
-    const emailArr = Array.from(emailSet);
-    const phoneArr = Array.from(phoneSet);
-
+    // Send one call per unique email (with paired phone if available)
     const maxPairs = Math.max(emailArr.length, phoneArr.length);
     for (let i = 0; i < maxPairs; i++) {
-      const recipient: { email?: string; number?: string } = {};
-      if (i < emailArr.length) recipient.email = emailArr[i];
-      if (i < phoneArr.length) recipient.number = phoneArr[i];
-      allRecipients.push(recipient);
-    }
+      const email = i < emailArr.length ? emailArr[i] : undefined;
+      const phone = i < phoneArr.length ? phoneArr[i] : undefined;
 
-    // If no recipients at all, add the default
-    if (allRecipients.length === 0) {
-      allRecipients.push({
-        email: "victoriaboonebcba@gmail.com",
-        number: "+18185180306",
-      });
-    }
+      const toObj: Record<string, string> = {};
+      if (email) toObj.email = email;
+      if (phone) toObj.number = phone;
 
-    for (const recipient of allRecipients) {
       try {
+        console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
+
         const res = await fetch("https://api.pingram.io/sender", {
           method: "POST",
           headers: {
@@ -122,11 +116,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             type: "mayday",
-            to: {
-              id: recipient.email || recipient.number || "mayday-recipient",
-              ...(recipient.email ? { email: recipient.email } : {}),
-              ...(recipient.number ? { number: recipient.number } : {}),
-            },
+            to: toObj,
             templateId: "template_1",
             parameters: {
               comment: commentParts,
@@ -134,14 +124,16 @@ Deno.serve(async (req) => {
           }),
         });
 
+        const resBody = await res.text();
+        console.log(`[Mayday] Pingram response ${res.status}:`, resBody);
+
         if (res.ok) {
           sent++;
         } else {
-          const errBody = await res.text();
-          errors.push(`${recipient.email || recipient.number}:${res.status}:${errBody}`);
+          errors.push(`${email || phone}:${res.status}:${resBody}`);
         }
       } catch (e) {
-        errors.push(`${recipient.email || recipient.number}:${(e as Error).message}`);
+        errors.push(`${email || phone}:${(e as Error).message}`);
       }
     }
 
@@ -149,6 +141,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    console.error("[Mayday] Error:", (e as Error).message);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
