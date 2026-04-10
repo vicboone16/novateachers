@@ -62,47 +62,41 @@ Deno.serve(async (req) => {
       phoneArr.push("+18185180306");
     }
 
-    // Use the Pingram SDK approach via dynamic import
     const { Pingram } = await import("npm:pingram");
     const pingram = new Pingram({ apiKey: PINGRAM_API_KEY });
 
-    // Send to each unique recipient
-    const maxPairs = Math.max(emailArr.length, phoneArr.length);
-    for (let i = 0; i < maxPairs; i++) {
-      const email = i < emailArr.length ? emailArr[i] : undefined;
-      const phone = i < phoneArr.length ? phoneArr[i] : undefined;
-
-      const toObj: Record<string, string> = {};
-      if (email) toObj.email = email;
-      if (phone) toObj.number = phone;
-
+    // Send EMAIL to each recipient separately
+    for (const email of emailArr) {
       try {
-        console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
-
-        const sendPayload: Record<string, unknown> = {
+        console.log(`[Mayday] Sending email to:`, email);
+        const result = await pingram.send({
           type: "mayday",
-          to: toObj,
-        };
-
-        if (email) {
-          sendPayload.email = {
-            subject: emailSubject,
-            html: emailHtml,
-          };
-        }
-
-        if (phone) {
-          sendPayload.sms = {
-            message: smsMessage,
-          };
-        }
-
-        const result = await pingram.send(sendPayload);
-        console.log(`[Mayday] Pingram result:`, JSON.stringify(result));
+          to: { email },
+          email: { subject: emailSubject, html: emailHtml },
+        });
+        console.log(`[Mayday] Email result:`, JSON.stringify(result));
         sent++;
       } catch (e) {
-        const errMsg = `${email || phone}: ${(e as Error).message}`;
-        console.error(`[Mayday] Send error:`, errMsg);
+        const errMsg = `email ${email}: ${(e as Error).message}`;
+        console.error(`[Mayday] Email error:`, errMsg);
+        errors.push(errMsg);
+      }
+    }
+
+    // Send SMS to each recipient separately
+    for (const phone of phoneArr) {
+      try {
+        console.log(`[Mayday] Sending SMS to:`, phone);
+        const result = await pingram.send({
+          type: "mayday",
+          to: { number: phone },
+          sms: { message: smsMessage },
+        });
+        console.log(`[Mayday] SMS result:`, JSON.stringify(result));
+        sent++;
+      } catch (e) {
+        const errMsg = `sms ${phone}: ${(e as Error).message}`;
+        console.error(`[Mayday] SMS error:`, errMsg);
         errors.push(errMsg);
       }
     }
