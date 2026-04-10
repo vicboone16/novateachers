@@ -84,11 +84,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    let recipientIdx = 0;
     for (const [key, toObj] of recipientMap) {
+      recipientIdx++;
       try {
         const payload: any = {
           type: "alert",
-          to: toObj,
+          to: { id: `mayday_${Date.now()}_${recipientIdx}`, ...toObj },
         };
         if (toObj.email) {
           payload.email = { subject: emailSubject, html: emailHtml };
