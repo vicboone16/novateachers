@@ -247,6 +247,8 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         }
       }
 
+      let deliveryIssue: string | null = null;
+
       // Always try to send notifications via edge function
       if (recipientEmails.length > 0 || recipientPhones.length > 0) {
         try {
@@ -263,13 +265,23 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
 
           if (fnError) {
             console.warn('[Mayday] Edge function error:', fnError);
-            toast({ title: '⚠️ Alert partially sent', description: 'Notification delivery may have failed. Contacts were selected.', variant: 'destructive' });
+            deliveryIssue = 'Notification delivery failed before the alert could be sent.';
           } else {
             console.log('[Mayday] Edge function result:', fnResult);
+            const warningText = [
+              ...(Array.isArray(fnResult?.warnings) ? fnResult.warnings : []),
+              ...(Array.isArray(fnResult?.errors) ? fnResult.errors : []),
+            ].join(' ');
+
+            if (!fnResult?.ok) {
+              deliveryIssue = warningText || 'Notification delivery was not confirmed.';
+            } else if (fnResult?.partial) {
+              deliveryIssue = warningText || 'Some notification channels may not have delivered.';
+            }
           }
         } catch (e) {
           console.warn('[Mayday] notification send failed:', e);
-          toast({ title: '⚠️ Notification error', description: 'Could not reach notification service.', variant: 'destructive' });
+          deliveryIssue = 'Could not reach the notification service.';
         }
       } else if (selected.length > 0 && recipientEmails.length === 0 && recipientPhones.length === 0) {
         toast({ title: '⚠️ No email/phone configured', description: 'Selected contacts have no email or phone for notifications.', variant: 'destructive' });
@@ -277,7 +289,11 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         return;
       }
 
-      toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selected.length} contact(s) notified` });
+      if (deliveryIssue) {
+        toast({ title: '⚠️ MAYDAY created, delivery needs attention', description: deliveryIssue, variant: 'destructive' });
+      } else {
+        toast({ title: '🚨 MAYDAY Alert Sent!', description: `${selected.length} contact(s) notified` });
+      }
       setMessage(''); setUrgency('high'); setAlertType('safety');
       loadAlerts();
       setTab('active');

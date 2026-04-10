@@ -6,6 +6,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const PINGRAM_API_URL = "https://api.pingram.io/send";
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildEmailHtml(lines: string[]) {
+  return `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+      <h2 style="margin: 0 0 12px; color: #b91c1c;">Mayday Alert</h2>
+      ${lines.map((line) => `<p style="margin: 0 0 8px;">${escapeHtml(line)}</p>`).join("")}
+    </div>
+  `.trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -74,16 +94,20 @@ Deno.serve(async (req) => {
 
     // Build the comment merge tag for the Pingram template
     const urgencyEmoji = urgency === "critical" ? "🔴" : urgency === "high" ? "🟠" : urgency === "medium" ? "🟡" : "🔵";
-    const commentParts = [
+    const detailLines = [
       `${urgencyEmoji} MAYDAY: ${(alert_type || "Alert").toUpperCase()} (${urgency || "medium"})`,
       classroom_name ? `Classroom: ${classroom_name}` : null,
       student_name ? `Student: ${student_name}` : null,
       message ? `Message: ${message}` : null,
       `Triggered by: ${triggered_by_name || "Staff"}`,
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean) as string[];
+    const commentParts = detailLines.join("\n");
+    const emailSubject = `${urgencyEmoji} Mayday Alert${classroom_name ? ` • ${classroom_name}` : ""}`;
+    const smsMessage = detailLines.join(" | ").slice(0, 320);
 
     let sent = 0;
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     // Collect all unique recipients
     const emailArr = Array.from(new Set<string>(recipient_emails || []));
@@ -108,27 +132,56 @@ Deno.serve(async (req) => {
       try {
         console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
 
-        const res = await fetch("https://api.pingram.io/sender", {
+        const payload: Record<string, unknown> = {
+          type: "mayday",
+          to: toObj,
+          templateId: "template_1",
+          parameters: {
+            comment: commentParts,
+          },
+        };
+
+        if (email) {
+          payload.email = {
+            subject: emailSubject,
+            html: buildEmailHtml(detailLines),
+          };
+        }
+
+        if (phone) {
+          payload.sms = {
+            message: smsMessage,
+          };
+        }
+
+        const res = await fetch(PINGRAM_API_URL, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${PINGRAM_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            type: "mayday",
-            to: toObj,
-            templateId: "template_1",
-            parameters: {
-              comment: commentParts,
-            },
-          }),
+          body: JSON.stringify(payload),
         });
 
         const resBody = await res.text();
         console.log(`[Mayday] Pingram response ${res.status}:`, resBody);
 
+        let responseMessages: string[] = [];
+        try {
+          const parsed = JSON.parse(resBody);
+          if (Array.isArray(parsed?.messages)) {
+            responseMessages = parsed.messages.filter((value): value is string => typeof value === "string");
+          }
+        } catch {
+          // non-JSON response body
+        }
+
         if (res.ok) {
           sent++;
+          const deliveryWarnings = responseMessages.filter((entry) => /discarding|not found|default template/i.test(entry));
+          if (deliveryWarnings.length > 0) {
+            warnings.push(`${email || phone}:${deliveryWarnings.join(" | ")}`);
+          }
         } else {
           errors.push(`${email || phone}:${res.status}:${resBody}`);
         }
@@ -137,7 +190,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, errors }), {
+    const ok = sent > 0 && errors.length === 0 && warnings.length === 0;
+    return new Response(JSON.stringify({ ok, sent, errors, warnings, partial: sent > 0 && (errors.length > 0 || warnings.length > 0) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
