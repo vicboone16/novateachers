@@ -55,8 +55,16 @@ const StudentDetail = () => {
     // Try clients table with id first (canonical Core table)
     let result = await supabase.from('clients').select('*').eq('id', id).single();
     if (result.error) {
+      // Fallback: try students table (students may be stored here instead of clients)
+      result = await supabase.from('students').select('*').eq('id', id!).single();
+    }
+    if (result.error) {
       // Fallback: try client_id column if Core uses that as PK
       result = await supabase.from('clients').select('*').eq('client_id', id!).single();
+    }
+    if (result.error) {
+      // Try students table with client_id column
+      result = await supabase.from('students').select('*').eq('client_id', id!).single();
     }
     if (result.error) {
       // Last resort: re-check via v_teacher_roster to verify access
@@ -69,7 +77,11 @@ const StudentDetail = () => {
           .limit(1)
           .maybeSingle();
         if (rosterRow?.client_id) {
-          result = await supabase.from('clients').select('*').eq('id', rosterRow.client_id).single();
+          // Try both tables for the resolved client_id
+          const r1 = await supabase.from('clients').select('*').eq('id', rosterRow.client_id).single();
+          result = r1.error
+            ? await supabase.from('students').select('*').eq('id', rosterRow.client_id).single()
+            : r1;
         }
       } catch { /* view may not exist */ }
     }

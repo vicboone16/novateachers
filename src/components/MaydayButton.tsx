@@ -250,13 +250,28 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
           });
           if (fnError) {
             console.warn('[Mayday] Edge function error:', fnError);
-            toast({ title: '⚠️ Alert partially sent', description: 'Notification delivery may have failed. Contacts were selected.', variant: 'destructive' });
-          } else {
-            console.log('[Mayday] Edge function result:', fnResult);
+            const desc = fnError.message?.includes('PINGRAM_API_KEY')
+              ? 'PINGRAM_API_KEY secret is missing in Supabase. Add it in Supabase → Settings → Edge Functions → Secrets.'
+              : fnError.message || 'Notification delivery failed.';
+            toast({ title: '⚠️ Alert recorded but notification failed', description: desc, variant: 'destructive' });
+            setSending(false);
+            return;
           }
-        } catch (e) { 
+          const result = fnResult as any;
+          console.log('[Mayday] Edge function result:', result);
+          if (result?.errors?.length > 0) {
+            console.warn('[Mayday] Pingram errors:', result.errors);
+          }
+          if (result?.sent === 0) {
+            toast({ title: '⚠️ Alert recorded but not delivered', description: result?.errors?.[0] || 'Pingram returned no successful sends. Check edge function logs.', variant: 'destructive' });
+            setSending(false);
+            return;
+          }
+        } catch (e) {
           console.warn('[Mayday] notification send failed:', e);
           toast({ title: '⚠️ Notification error', description: 'Could not reach notification service.', variant: 'destructive' });
+          setSending(false);
+          return;
         }
       } else if (selected.length > 0 && recipientEmails.length === 0 && recipientPhones.length === 0) {
         toast({ title: '⚠️ No email/phone configured', description: 'Selected contacts have no email or phone for notifications.', variant: 'destructive' });

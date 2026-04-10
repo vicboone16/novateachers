@@ -18,12 +18,17 @@ async function fetchByAgencyIds(agencyIds: string[]): Promise<Client[]> {
     .in('agency_id', agencyIds)
     .order('last_name');
 
-  if (records.error) {
-    records = await supabase
+  // Fallback to students table on error OR when clients table returns no rows
+  // (students may be stored in `students` rather than `clients` depending on schema)
+  if (records.error || !records.data?.length) {
+    const fallback = await supabase
       .from('students')
       .select('*')
       .in('agency_id', agencyIds)
       .order('last_name');
+    if (!fallback.error && fallback.data?.length) {
+      return normalizeClients(fallback.data);
+    }
   }
 
   if (records.error) throw records.error;
@@ -40,13 +45,17 @@ async function fetchByClientIds(clientIds: string[], agencyId: string): Promise<
     .eq('agency_id', agencyId)
     .order('last_name');
 
-  if (records.error) {
-    records = await supabase
+  // Fallback to students table on error OR when clients table returns no rows
+  if (records.error || !records.data?.length) {
+    const fallback = await supabase
       .from('students')
       .select('*')
       .in('id', clientIds)
       .eq('agency_id', agencyId)
       .order('last_name');
+    if (!fallback.error && fallback.data?.length) {
+      return normalizeClients(fallback.data);
+    }
   }
 
   if (records.error) throw records.error;

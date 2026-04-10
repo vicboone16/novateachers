@@ -64,7 +64,10 @@ Deno.serve(async (req) => {
 
     const PINGRAM_API_KEY = Deno.env.get("PINGRAM_API_KEY");
     if (!PINGRAM_API_KEY) {
-      throw new Error("PINGRAM_API_KEY is not configured");
+      console.error("[Mayday] PINGRAM_API_KEY secret is not set in Supabase edge function secrets.");
+      return new Response(JSON.stringify({ error: "PINGRAM_API_KEY is not configured. Add it in Supabase → Settings → Edge Functions → Secrets." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const {
@@ -74,13 +77,14 @@ Deno.serve(async (req) => {
 
     // Build the comment merge tag for the Pingram template
     const urgencyEmoji = urgency === "critical" ? "🔴" : urgency === "high" ? "🟠" : urgency === "medium" ? "🟡" : "🔵";
-    const commentParts = [
+    const commentLines = [
       `${urgencyEmoji} MAYDAY: ${(alert_type || "Alert").toUpperCase()} (${urgency || "medium"})`,
       classroom_name ? `Classroom: ${classroom_name}` : null,
       student_name ? `Student: ${student_name}` : null,
       message ? `Message: ${message}` : null,
       `Triggered by: ${triggered_by_name || "Staff"}`,
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean) as string[];
+    const commentText = commentLines.join("\n");
 
     let sent = 0;
     const errors: string[] = [];
@@ -105,8 +109,18 @@ Deno.serve(async (req) => {
       if (email) toObj.email = email;
       if (phone) toObj.number = phone;
 
+      const payload = {
+        type: "mayday",
+        to: toObj,
+        templateId: "template_1",
+        parameters: {
+          comment: commentText,
+        },
+      };
+
       try {
         console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
+        console.log(`[Mayday] Payload:`, JSON.stringify(payload));
 
         const res = await fetch("https://api.pingram.io/sender", {
           method: "POST",
@@ -114,14 +128,7 @@ Deno.serve(async (req) => {
             Authorization: `Bearer ${PINGRAM_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            type: "mayday",
-            to: toObj,
-            templateId: "template_1",
-            parameters: {
-              comment: commentParts,
-            },
-          }),
+          body: JSON.stringify(payload),
         });
 
         const resBody = await res.text();
@@ -130,18 +137,23 @@ Deno.serve(async (req) => {
         if (res.ok) {
           sent++;
         } else {
-          errors.push(`${email || phone}:${res.status}:${resBody}`);
+          const errDetail = `${email || phone}: HTTP ${res.status} — ${resBody}`;
+          errors.push(errDetail);
+          console.error(`[Mayday] Pingram error:`, errDetail);
         }
       } catch (e) {
-        errors.push(`${email || phone}:${(e as Error).message}`);
+        const errDetail = `${email || phone}: ${(e as Error).message}`;
+        errors.push(errDetail);
+        console.error(`[Mayday] Fetch error:`, errDetail);
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, errors }), {
+    const ok = sent > 0;
+    return new Response(JSON.stringify({ ok, sent, errors, total: maxPairs }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[Mayday] Error:", (e as Error).message);
+    console.error("[Mayday] Unhandled error:", (e as Error).message);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
