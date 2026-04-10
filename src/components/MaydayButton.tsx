@@ -76,6 +76,19 @@ const ALERT_TYPES = [
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const LEADERSHIP_ROLES = ['supervisor', 'bcba', 'admin', 'director', 'lead', 'coordinator'];
 
+const normalizeMaydayPhone = (value: string): string | null => {
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, '');
+
+  if (!digits) return null;
+  if (trimmed.startsWith('+')) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.length > 10) return `+${digits}`;
+
+  return null;
+};
+
 export function MaydayButton({ agencyId, classroomId, classroomName, studentId, studentName }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -219,13 +232,12 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
         .filter(c => c.notify_email && c.email)
         .map(c => c.email!.trim())
         .filter(Boolean);
-      const recipientPhones = selected
-        .filter(c => c.notify_sms && c.phone)
-        .map(c => {
-          const rawPhone = c.phone!.trim();
-          return rawPhone ? (rawPhone.startsWith('+') ? rawPhone : `+1${rawPhone.replace(/\D/g, '')}`) : null;
-        })
-        .filter((phone): phone is string => Boolean(phone));
+      const recipientPhones = Array.from(new Set(
+        selected
+          .filter(c => c.notify_sms && c.phone)
+          .map(c => normalizeMaydayPhone(c.phone!))
+          .filter((phone): phone is string => Boolean(phone))
+      ));
 
       // Insert recipient records into Cloud
       if (alertId) {
