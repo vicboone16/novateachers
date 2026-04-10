@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       try {
         console.log(`[Mayday] Sending email to:`, email);
         const result = await pingram.send({
-          type: "mayday",
+          type: "alert",
           to: { email },
           email: { subject: emailSubject, html: emailHtml },
         });
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       try {
         console.log(`[Mayday] Sending SMS to:`, phone);
         const result = await pingram.send({
-          type: "mayday",
+          type: "alert",
           to: { number: phone },
           sms: { message: smsMessage },
         });
