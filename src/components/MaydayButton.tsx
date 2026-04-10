@@ -215,8 +215,17 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       }
 
       const selected = contacts.filter(c => selectedContacts.has(c.id));
-      const recipientEmails = selected.filter(c => c.notify_email && c.email).map(c => c.email!);
-      const recipientPhones = selected.filter(c => c.notify_sms && c.phone).map(c => c.phone!);
+      const recipientEmails = selected
+        .filter(c => c.notify_email && c.email)
+        .map(c => c.email!.trim())
+        .filter(Boolean);
+      const recipientPhones = selected
+        .filter(c => c.notify_sms && c.phone)
+        .map(c => {
+          const rawPhone = c.phone!.trim();
+          return rawPhone ? (rawPhone.startsWith('+') ? rawPhone : `+1${rawPhone.replace(/\D/g, '')}`) : null;
+        })
+        .filter((phone): phone is string => Boolean(phone));
 
       // Insert recipient records into Cloud
       if (alertId) {
@@ -241,21 +250,24 @@ export function MaydayButton({ agencyId, classroomId, classroomName, studentId, 
       // Always try to send notifications via edge function
       if (recipientEmails.length > 0 || recipientPhones.length > 0) {
         try {
-          const { data: fnResult, error: fnError } = await cloudSupabase.functions.invoke('send-mayday-alert', {
-            body: {
-              alert_type: alertType, urgency, message: alertMsg,
-              classroom_name: classroomName || null, student_name: studentName || null,
-              triggered_by_name: user.email?.split('@')[0] || 'Staff',
-              recipient_emails: recipientEmails, recipient_phones: recipientPhones,
-            },
+          const { data: fnResult, error: fnError } = await invokeCloudFunction('send-mayday-alert', {
+            alert_type: alertType,
+            urgency,
+            message: alertMsg,
+            classroom_name: classroomName || null,
+            student_name: studentName || null,
+            triggered_by_name: user.email?.split('@')[0] || 'Staff',
+            recipient_emails: recipientEmails,
+            recipient_phones: recipientPhones,
           });
+
           if (fnError) {
             console.warn('[Mayday] Edge function error:', fnError);
             toast({ title: '⚠️ Alert partially sent', description: 'Notification delivery may have failed. Contacts were selected.', variant: 'destructive' });
           } else {
             console.log('[Mayday] Edge function result:', fnResult);
           }
-        } catch (e) { 
+        } catch (e) {
           console.warn('[Mayday] notification send failed:', e);
           toast({ title: '⚠️ Notification error', description: 'Could not reach notification service.', variant: 'destructive' });
         }
