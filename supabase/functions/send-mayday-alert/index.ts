@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       recipientIdx++;
       try {
         const payload: any = {
-          type: "alert",
+          type: "template_1",
           to: { id: `mayday_${Date.now()}_${recipientIdx}`, ...toObj },
         };
         if (toObj.email) {
