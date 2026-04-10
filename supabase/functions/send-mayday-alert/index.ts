@@ -1,12 +1,8 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-const PINGRAM_API_URL = "https://api.pingram.io/send";
 
 function escapeHtml(value: string) {
   return value
@@ -32,56 +28,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth validation
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const token = authHeader.replace("Bearer ", "");
-    let authenticated = false;
-
-    // Tier 1: Cloud
-    try {
-      const cloudClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const { data: { user }, error } = await cloudClient.auth.getUser(token);
-      if (!error && user) authenticated = true;
-    } catch {}
-
-    // Tier 2: Core
-    if (!authenticated) {
-      const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
-      const coreAnon = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "";
-      try {
-        const coreClient = createClient(coreUrl, coreAnon, { global: { headers: { Authorization: authHeader } } });
-        const { data: { user }, error } = await coreClient.auth.getUser(token);
-        if (!error && user) authenticated = true;
-      } catch {}
-    }
-
-    // Tier 3: Direct fetch
-    if (!authenticated) {
-      const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
-      try {
-        const res = await fetch(`${coreUrl}/auth/v1/user`, {
-          headers: { Authorization: authHeader, apikey: Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "" },
-        });
-        if (res.ok) authenticated = true;
-        else await res.text();
-      } catch {}
-    }
-
-    if (!authenticated) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const PINGRAM_API_KEY = Deno.env.get("PINGRAM_API_KEY");
     if (!PINGRAM_API_KEY) {
       throw new Error("PINGRAM_API_KEY is not configured");
@@ -92,7 +38,6 @@ Deno.serve(async (req) => {
       triggered_by_name, recipient_emails, recipient_phones,
     } = await req.json();
 
-    // Build the comment merge tag for the Pingram template
     const urgencyEmoji = urgency === "critical" ? "🔴" : urgency === "high" ? "🟠" : urgency === "medium" ? "🟡" : "🔵";
     const detailLines = [
       `${urgencyEmoji} MAYDAY: ${(alert_type || "Alert").toUpperCase()} (${urgency || "medium"})`,
@@ -101,25 +46,27 @@ Deno.serve(async (req) => {
       message ? `Message: ${message}` : null,
       `Triggered by: ${triggered_by_name || "Staff"}`,
     ].filter(Boolean) as string[];
-    const commentParts = detailLines.join("\n");
+
     const emailSubject = `${urgencyEmoji} Mayday Alert${classroom_name ? ` • ${classroom_name}` : ""}`;
     const smsMessage = detailLines.join(" | ").slice(0, 320);
+    const emailHtml = buildEmailHtml(detailLines);
 
     let sent = 0;
     const errors: string[] = [];
-    const warnings: string[] = [];
 
-    // Collect all unique recipients
     const emailArr = Array.from(new Set<string>(recipient_emails || []));
     const phoneArr = Array.from(new Set<string>(recipient_phones || []));
 
-    // If no recipients at all, use defaults
     if (emailArr.length === 0 && phoneArr.length === 0) {
       emailArr.push("victoriaboonebcba@gmail.com");
       phoneArr.push("+18185180306");
     }
 
-    // Send one call per unique email (with paired phone if available)
+    // Use the Pingram SDK approach via dynamic import
+    const { Pingram } = await import("npm:pingram");
+    const pingram = new Pingram({ apiKey: PINGRAM_API_KEY });
+
+    // Send to each unique recipient
     const maxPairs = Math.max(emailArr.length, phoneArr.length);
     for (let i = 0; i < maxPairs; i++) {
       const email = i < emailArr.length ? emailArr[i] : undefined;
@@ -132,66 +79,36 @@ Deno.serve(async (req) => {
       try {
         console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
 
-        const payload: Record<string, unknown> = {
+        const sendPayload: Record<string, unknown> = {
           type: "mayday",
           to: toObj,
-          templateId: "template_1",
-          parameters: {
-            comment: commentParts,
-          },
         };
 
         if (email) {
-          payload.email = {
+          sendPayload.email = {
             subject: emailSubject,
-            html: buildEmailHtml(detailLines),
+            html: emailHtml,
           };
         }
 
         if (phone) {
-          payload.sms = {
+          sendPayload.sms = {
             message: smsMessage,
           };
         }
 
-        const res = await fetch(PINGRAM_API_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${PINGRAM_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const resBody = await res.text();
-        console.log(`[Mayday] Pingram response ${res.status}:`, resBody);
-
-        let responseMessages: string[] = [];
-        try {
-          const parsed = JSON.parse(resBody);
-          if (Array.isArray(parsed?.messages)) {
-            responseMessages = parsed.messages.filter((value): value is string => typeof value === "string");
-          }
-        } catch {
-          // non-JSON response body
-        }
-
-        if (res.ok) {
-          sent++;
-          const deliveryWarnings = responseMessages.filter((entry) => /discarding|not found|default template/i.test(entry));
-          if (deliveryWarnings.length > 0) {
-            warnings.push(`${email || phone}:${deliveryWarnings.join(" | ")}`);
-          }
-        } else {
-          errors.push(`${email || phone}:${res.status}:${resBody}`);
-        }
+        const result = await pingram.send(sendPayload);
+        console.log(`[Mayday] Pingram result:`, JSON.stringify(result));
+        sent++;
       } catch (e) {
-        errors.push(`${email || phone}:${(e as Error).message}`);
+        const errMsg = `${email || phone}: ${(e as Error).message}`;
+        console.error(`[Mayday] Send error:`, errMsg);
+        errors.push(errMsg);
       }
     }
 
-    const ok = sent > 0 && errors.length === 0 && warnings.length === 0;
-    return new Response(JSON.stringify({ ok, sent, errors, warnings, partial: sent > 0 && (errors.length > 0 || warnings.length > 0) }), {
+    const ok = sent > 0 && errors.length === 0;
+    return new Response(JSON.stringify({ ok, sent, errors, partial: sent > 0 && errors.length > 0 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
