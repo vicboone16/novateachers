@@ -65,46 +65,40 @@ Deno.serve(async (req) => {
     const { Pingram } = await import("npm:pingram");
     const pingram = new Pingram({ apiKey: PINGRAM_API_KEY });
 
-    // Build unique recipient map: merge email+phone per person where possible
-    const recipientMap = new Map<string, { email?: string; number?: string }>();
-
-    for (const email of emailArr) {
-      recipientMap.set(email, { email });
-    }
-    for (const phone of phoneArr) {
-      // Try to pair with an existing email recipient
-      const matchingEmail = emailArr.find((e) => {
-        const existing = recipientMap.get(e);
-        return existing && !existing.number;
-      });
-      if (matchingEmail) {
-        recipientMap.get(matchingEmail)!.number = phone;
-      } else {
-        recipientMap.set(phone, { number: phone });
+    // Send emails — one call per email (separate from SMS to avoid silent drops)
+    for (let i = 0; i < emailArr.length; i++) {
+      try {
+        const payload = {
+          type: "template_1",
+          to: { id: `mayday_email_${Date.now()}_${i}`, email: emailArr[i] },
+          email: { subject: emailSubject, html: emailHtml },
+        };
+        console.log(`[Mayday] Sending EMAIL to:`, emailArr[i]);
+        const result = await pingram.send(payload);
+        console.log(`[Mayday] Email result:`, JSON.stringify(result));
+        sent++;
+      } catch (e) {
+        const errMsg = `email ${emailArr[i]}: ${(e as Error).message}`;
+        console.error(`[Mayday] Email error:`, errMsg);
+        errors.push(errMsg);
       }
     }
 
-    let recipientIdx = 0;
-    for (const [key, toObj] of recipientMap) {
-      recipientIdx++;
+    // Send SMS — one call per phone (MUST be separate from email)
+    for (let i = 0; i < phoneArr.length; i++) {
       try {
-        const payload: any = {
+        const payload = {
           type: "template_1",
-          to: { id: `mayday_${Date.now()}_${recipientIdx}`, ...toObj },
+          to: { id: `mayday_sms_${Date.now()}_${i}`, number: phoneArr[i] },
+          sms: { message: smsMessage },
         };
-        if (toObj.email) {
-          payload.email = { subject: emailSubject, html: emailHtml };
-        }
-        if (toObj.number) {
-          payload.sms = { message: smsMessage };
-        }
-        console.log(`[Mayday] Sending to:`, JSON.stringify(toObj));
+        console.log(`[Mayday] Sending SMS to:`, phoneArr[i]);
         const result = await pingram.send(payload);
-        console.log(`[Mayday] Result:`, JSON.stringify(result));
+        console.log(`[Mayday] SMS result:`, JSON.stringify(result));
         sent++;
       } catch (e) {
-        const errMsg = `${key}: ${(e as Error).message}`;
-        console.error(`[Mayday] Send error:`, errMsg);
+        const errMsg = `sms ${phoneArr[i]}: ${(e as Error).message}`;
+        console.error(`[Mayday] SMS error:`, errMsg);
         errors.push(errMsg);
       }
     }
