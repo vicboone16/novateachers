@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     ].filter(Boolean) as string[];
 
     const emailSubject = `${urgencyEmoji} Mayday Alert${classroom_name ? ` • ${classroom_name}` : ""}`;
-    const smsMessage = detailLines.join(" | ").slice(0, 320);
+    const smsMessage = detailLines.join(" | ").replace(/[\n\r\t]+/g, " ").replace(/[^\x20-\x7E\u00C0-\u024F\u1F00-\u1FFF]/g, "").trim().slice(0, 320);
     const emailHtml = buildEmailHtml(detailLines);
 
     let sent = 0;
