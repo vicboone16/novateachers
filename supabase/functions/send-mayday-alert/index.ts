@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
     ].filter(Boolean) as string[];
 
     const emailSubject = `${urgencyEmoji} Mayday Alert${classroom_name ? ` • ${classroom_name}` : ""}`;
-    const smsMessage = detailLines.join(" | ").slice(0, 320);
+    const smsMessage = detailLines.join(" | ").replace(/[\n\r\t]+/g, " ").trim().slice(0, 320);
+    console.log(`[Mayday] SMS body (${smsMessage.length} chars):`, smsMessage);
     const emailHtml = buildEmailHtml(detailLines);
 
     let sent = 0;
