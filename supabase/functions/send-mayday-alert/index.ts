@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
 
     let sent = 0;
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     // Collect all unique recipients
     const emailArr = Array.from(new Set<string>(recipient_emails || []));
@@ -165,8 +166,22 @@ Deno.serve(async (req) => {
         const resBody = await res.text();
         console.log(`[Mayday] Pingram response ${res.status}:`, resBody);
 
+        let responseMessages: string[] = [];
+        try {
+          const parsed = JSON.parse(resBody);
+          if (Array.isArray(parsed?.messages)) {
+            responseMessages = parsed.messages.filter((value): value is string => typeof value === "string");
+          }
+        } catch {
+          // non-JSON response body
+        }
+
         if (res.ok) {
           sent++;
+          const deliveryWarnings = responseMessages.filter((entry) => /discarding|not found|default template/i.test(entry));
+          if (deliveryWarnings.length > 0) {
+            warnings.push(`${email || phone}:${deliveryWarnings.join(" | ")}`);
+          }
         } else {
           errors.push(`${email || phone}:${res.status}:${resBody}`);
         }
@@ -175,7 +190,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, errors }), {
+    const ok = sent > 0 && errors.length === 0 && warnings.length === 0;
+    return new Response(JSON.stringify({ ok, sent, errors, warnings, partial: sent > 0 && (errors.length > 0 || warnings.length > 0) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
