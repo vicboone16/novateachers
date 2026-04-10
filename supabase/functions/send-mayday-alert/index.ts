@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Three-tier auth validation (Cloud → Core → Core endpoint)
+    // Auth validation
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     // Tier 2: Core
     if (!authenticated) {
       const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
-      const coreAnon = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlib3FxbWtnaHdobGhobnNlZ2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDc4ODMsImV4cCI6MjA4NTEyMzg4M30.F2RPn-0nNx6sqje7P7W2Jfz9mXAXBFNy6xzbV4vf-Fs";
+      const coreAnon = Deno.env.get("VITE_CORE_SUPABASE_ANON_KEY") || "";
       try {
         const coreClient = createClient(coreUrl, coreAnon, { global: { headers: { Authorization: authHeader } } });
         const { data: { user }, error } = await coreClient.auth.getUser(token);
@@ -72,100 +72,80 @@ Deno.serve(async (req) => {
       triggered_by_name, recipient_emails, recipient_phones,
     } = await req.json();
 
-    // HTML-escape user-supplied values to prevent injection
-    function escapeHtml(s: string): string {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-
-    const safeAlertType = escapeHtml(String(alert_type || ""));
-    const safeUrgency = escapeHtml(String(urgency || ""));
-    const safeMessage = escapeHtml(String(message || ""));
-    const safeClassroom = escapeHtml(String(classroom_name || ""));
-    const safeStudent = escapeHtml(String(student_name || ""));
-    const safeTriggeredBy = escapeHtml(String(triggered_by_name || ""));
-
+    // Build the comment merge tag for the Pingram template
     const urgencyEmoji = urgency === "critical" ? "🔴" : urgency === "high" ? "🟠" : urgency === "medium" ? "🟡" : "🔵";
-    const subject = `${urgencyEmoji} MAYDAY: ${safeAlertType} alert${safeClassroom ? ` — ${safeClassroom}` : ""}`;
-    const htmlBody = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-        <div style="background: #FEE2E2; border: 2px solid #EF4444; border-radius: 12px; padding: 20px; text-align: center;">
-          <h1 style="color: #DC2626; margin: 0 0 8px;">🚨 MAYDAY ALERT</h1>
-          <p style="color: #991B1B; font-size: 18px; font-weight: 600; margin: 0;">${safeAlertType.toUpperCase()}</p>
-        </div>
-        <div style="margin-top: 16px; padding: 16px; background: #F9FAFB; border-radius: 8px;">
-          <p style="margin: 0 0 8px;"><strong>Urgency:</strong> ${urgencyEmoji} ${safeUrgency}</p>
-          ${safeClassroom ? `<p style="margin: 0 0 8px;"><strong>Classroom:</strong> ${safeClassroom}</p>` : ""}
-          ${safeStudent ? `<p style="margin: 0 0 8px;"><strong>Student:</strong> ${safeStudent}</p>` : ""}
-          ${safeTriggeredBy ? `<p style="margin: 0 0 8px;"><strong>Triggered by:</strong> ${safeTriggeredBy}</p>` : ""}
-          ${safeMessage ? `<p style="margin: 16px 0 0; padding-top: 12px; border-top: 1px solid #E5E7EB;"><strong>Message:</strong> ${safeMessage}</p>` : ""}
-        </div>
-        <p style="color: #6B7280; font-size: 12px; text-align: center; margin-top: 16px;">
-          This is an automated alert from Beacon. Please respond immediately.
-        </p>
-      </div>
-    `;
+    const commentParts = [
+      `${urgencyEmoji} MAYDAY: ${(alert_type || "Alert").toUpperCase()} (${urgency || "medium"})`,
+      classroom_name ? `Classroom: ${classroom_name}` : null,
+      student_name ? `Student: ${student_name}` : null,
+      message ? `Message: ${message}` : null,
+      `Triggered by: ${triggered_by_name || "Staff"}`,
+    ].filter(Boolean).join("\n");
 
-    const smsBody = `🚨 MAYDAY: ${safeAlertType.toUpperCase()} (${safeUrgency})${safeClassroom ? ` - ${safeClassroom}` : ""}${safeStudent ? ` - ${safeStudent}` : ""}${safeMessage ? `: ${safeMessage}` : ""}. Triggered by ${safeTriggeredBy || "Staff"}.`;
-
-    let emailsSent = 0;
-    let smsSent = 0;
+    let sent = 0;
     const errors: string[] = [];
 
-    if (recipient_emails?.length > 0) {
-      for (const email of recipient_emails) {
-        try {
-          const res = await fetch("https://api.pingram.io/sender", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${PINGRAM_API_KEY}`,
-              "Content-Type": "application/json",
+    // Collect all unique recipients and send one Pingram call per recipient
+    const allRecipients: { email?: string; number?: string }[] = [];
+
+    // Merge emails and phones into recipients
+    const emailSet = new Set<string>(recipient_emails || []);
+    const phoneSet = new Set<string>(recipient_phones || []);
+
+    // Try to pair emails with phones, then send remaining individually
+    const emailArr = Array.from(emailSet);
+    const phoneArr = Array.from(phoneSet);
+
+    const maxPairs = Math.max(emailArr.length, phoneArr.length);
+    for (let i = 0; i < maxPairs; i++) {
+      const recipient: { email?: string; number?: string } = {};
+      if (i < emailArr.length) recipient.email = emailArr[i];
+      if (i < phoneArr.length) recipient.number = phoneArr[i];
+      allRecipients.push(recipient);
+    }
+
+    // If no recipients at all, add the default
+    if (allRecipients.length === 0) {
+      allRecipients.push({
+        email: "victoriaboonebcba@gmail.com",
+        number: "+18185180306",
+      });
+    }
+
+    for (const recipient of allRecipients) {
+      try {
+        const res = await fetch("https://api.pingram.io/sender", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${PINGRAM_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: "mayday",
+            to: {
+              id: recipient.email || recipient.number || "mayday-recipient",
+              ...(recipient.email ? { email: recipient.email } : {}),
+              ...(recipient.number ? { number: recipient.number } : {}),
             },
-            body: JSON.stringify({
-              type: "mayday_alert_email",
-              to: { id: email, email: email },
-              forceChannels: ["EMAIL"],
-              email: { subject, html: htmlBody, senderName: "Beacon Alerts", senderEmail: "noreply@novabehavior.com" },
-            }),
-          });
-          if (res.ok) emailsSent++;
-          else {
-            const errBody = await res.text();
-            errors.push(`email:${email}:${res.status}:${errBody}`);
-          }
-        } catch (e) {
-          errors.push(`email:${email}:${(e as Error).message}`);
+            templateId: "template_1",
+            parameters: {
+              comment: commentParts,
+            },
+          }),
+        });
+
+        if (res.ok) {
+          sent++;
+        } else {
+          const errBody = await res.text();
+          errors.push(`${recipient.email || recipient.number}:${res.status}:${errBody}`);
         }
+      } catch (e) {
+        errors.push(`${recipient.email || recipient.number}:${(e as Error).message}`);
       }
     }
 
-    if (recipient_phones?.length > 0) {
-      for (const phone of recipient_phones) {
-        try {
-          const res = await fetch("https://api.pingram.io/sender", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${PINGRAM_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              type: "mayday_alert_sms",
-              to: { id: phone, number: phone },
-              forceChannels: ["SMS"],
-              sms: { message: smsBody.slice(0, 1600) },
-            }),
-          });
-          if (res.ok) smsSent++;
-          else {
-            const errBody = await res.text();
-            errors.push(`sms:${phone}:${res.status}:${errBody}`);
-          }
-        } catch (e) {
-          errors.push(`sms:${phone}:${(e as Error).message}`);
-        }
-      }
-    }
-
-    return new Response(JSON.stringify({ ok: true, emails_sent: emailsSent, sms_sent: smsSent, errors }), {
+    return new Response(JSON.stringify({ ok: true, sent, errors }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
