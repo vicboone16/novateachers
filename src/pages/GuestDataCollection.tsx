@@ -138,6 +138,22 @@ const GuestDataCollection = () => {
           )}
         </div>
 
+        {/* Context banner so substitutes know whose classroom they're covering */}
+        {session && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-3">
+              <p className="text-xs font-semibold text-foreground mb-0.5">You're covering:</p>
+              <p className="text-sm text-muted-foreground">
+                {session.student_ids.length} student{session.student_ids.length !== 1 ? 's' : ''} in this session.
+                Log behavior tallies below — each entry is saved immediately to the teacher's records.
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Tip: Use the same behavior names the teacher tracks (e.g. "Aggression", "Elopement", "Noncompliance") so data matches their records.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
