@@ -7,6 +7,94 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * Compute concrete behavioral statistics from raw ABC log rows.
+ * Returns a formatted string ready to inject into the AI prompt so
+ * the model cannot invent baseline numbers.
+ */
+function computeBehaviorBaselines(logs: any[]): string {
+  if (!logs.length) return "No ABC log data available — do not invent baseline numbers.";
+
+  // Group by calendar date → count per category per day
+  const byDateCategory: Record<string, Record<string, number>> = {};
+  const antecedentCounts: Record<string, number> = {};
+  const consequenceCounts: Record<string, number> = {};
+  const intensityByCat: Record<string, number[]> = {};
+
+  for (const log of logs) {
+    const date = String(log.logged_at || log.created_at || "").slice(0, 10) || "unknown";
+    const cat = String(log.behavior_category || log.behavior || "uncategorized").slice(0, 80);
+    if (!byDateCategory[date]) byDateCategory[date] = {};
+    byDateCategory[date][cat] = (byDateCategory[date][cat] || 0) + 1;
+
+    const ant = String(log.antecedent || "").trim().slice(0, 60);
+    if (ant) antecedentCounts[ant] = (antecedentCounts[ant] || 0) + 1;
+
+    const con = String(log.consequence || "").trim().slice(0, 60);
+    if (con) consequenceCounts[con] = (consequenceCounts[con] || 0) + 1;
+
+    const intensity = Number(log.intensity);
+    if (!isNaN(intensity) && intensity > 0) {
+      if (!intensityByCat[cat]) intensityByCat[cat] = [];
+      intensityByCat[cat].push(intensity);
+    }
+  }
+
+  const dates = Object.keys(byDateCategory).sort();
+  const numDays = Math.max(dates.length, 1);
+
+  // Per-category stats
+  const categoryTotals: Record<string, number[]> = {};
+  for (const date of dates) {
+    for (const [cat, count] of Object.entries(byDateCategory[date])) {
+      if (!categoryTotals[cat]) categoryTotals[cat] = [];
+      categoryTotals[cat].push(count);
+    }
+  }
+
+  const lines: string[] = [`Data spans ${numDays} observation days across ${logs.length} total entries.`];
+
+  for (const [cat, dailyCounts] of Object.entries(categoryTotals)) {
+    const total = dailyCounts.reduce((a, b) => a + b, 0);
+    const mean = (total / numDays).toFixed(1);
+    const max = Math.max(...dailyCounts);
+    const min = Math.min(...dailyCounts);
+
+    // Simple trend: compare first half vs second half of dates
+    const half = Math.floor(dates.length / 2);
+    let trend = "stable";
+    if (half >= 1) {
+      const firstHalfDates = dates.slice(0, half);
+      const secondHalfDates = dates.slice(half);
+      const firstAvg = firstHalfDates.reduce((s, d) => s + (byDateCategory[d][cat] || 0), 0) / firstHalfDates.length;
+      const secondAvg = secondHalfDates.reduce((s, d) => s + (byDateCategory[d][cat] || 0), 0) / secondHalfDates.length;
+      if (secondAvg > firstAvg * 1.15) trend = "increasing";
+      else if (secondAvg < firstAvg * 0.85) trend = "decreasing";
+    }
+
+    const intensityNote = intensityByCat[cat]?.length
+      ? `, mean intensity ${(intensityByCat[cat].reduce((a, b) => a + b, 0) / intensityByCat[cat].length).toFixed(1)}/10`
+      : "";
+
+    lines.push(`- ${cat}: mean ${mean}/day (range ${min}–${max}, trend: ${trend}${intensityNote})`);
+  }
+
+  // Top antecedents and consequences
+  const topAnt = Object.entries(antecedentCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k, v]) => `"${k}" (${v}×)`).join(", ");
+  const topCon = Object.entries(consequenceCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k, v]) => `"${k}" (${v}×)`).join(", ");
+
+  if (topAnt) lines.push(`- Most common antecedents: ${topAnt}`);
+  if (topCon) lines.push(`- Most common consequences: ${topCon}`);
+
+  return lines.join("\n");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -122,6 +210,10 @@ serve(async (req) => {
       })
       .join("\n");
 
+    // ── Compute real behavioral baselines from the ABC log data ──────────
+    // These exact numbers MUST be used as baselines in goal writing.
+    const computedStats = computeBehaviorBaselines(safeLogs);
+
     const sectionInstructions: Record<string, string> = {
       present_levels:
         "Write a Present Levels of Academic Achievement and Functional Performance (PLAAFP) section. Summarize the student's current performance using the ABC data patterns. Include strengths and areas of concern.",
@@ -147,10 +239,15 @@ Grade: ${safeGrade}
 Behavior Categories:
 ${categorySummary || "None recorded"}
 
+COMPUTED BEHAVIORAL BASELINES (use ONLY these exact numbers — do not invent or estimate):
+${computedStats}
+
 Recent ABC Log Data (up to 50 entries):
 ${abcSummary || "No ABC data available"}
 
 Task: ${instruction}
+
+IMPORTANT: Any goal baselines or current performance levels MUST use the exact computed numbers above, not estimates.
 
 Provide the content directly, ready to paste into an IEP document section.`;
 

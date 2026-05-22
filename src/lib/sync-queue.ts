@@ -2,6 +2,9 @@
  * Offline-resilient sync queue for teacher data writes to Core.
  * Routes writes through the core-bridge edge function to avoid
  * iOS "Load failed" errors from direct cross-origin PostgREST calls.
+ *
+ * Call setupOnlineFlush() once at app startup to auto-drain the queue
+ * when the device regains connectivity.
  */
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { supabase } from '@/lib/supabase';
@@ -104,6 +107,20 @@ export async function flushQueue(): Promise<{ flushed: number; remaining: number
 
   saveQueue(stillFailed);
   return { flushed, remaining: stillFailed.length };
+}
+
+/**
+ * Register a window 'online' listener that automatically drains the queue
+ * when network connectivity is restored. Safe to call multiple times —
+ * only one listener is ever registered.
+ */
+let _onlineListenerRegistered = false;
+export function setupOnlineFlush(): void {
+  if (_onlineListenerRegistered || typeof window === 'undefined') return;
+  _onlineListenerRegistered = true;
+  window.addEventListener('online', () => {
+    if (getQueueLength() > 0) flushQueue();
+  });
 }
 
 /**
