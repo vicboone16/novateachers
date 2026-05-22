@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2 } from 'lucide-react';
+import { Plus, Clock, TrendingUp, ListChecks, Zap, ChevronDown, ChevronUp, X, Trash2, Pencil, Check, AlertTriangle, Wand2, Square, RotateCcw, Bookmark } from 'lucide-react';
 import { logEvent, createSignal, trackBehaviorForEscalation, evaluateIncidentThreshold, trackLowRatings, trackBehaviorForReinforcementGap, trackReinforcementEvent } from '@/lib/supervisorSignals';
 import { writeUnifiedEvent } from '@/lib/unified-events';
 import { NotifySupervisorModal } from '@/components/NotifySupervisorModal';
@@ -32,6 +32,15 @@ interface StudentBehavior {
   category?: string;
   operationalDefinition?: string;
 }
+
+interface SessionTemplate {
+  id: string;
+  name: string;
+  antecedent: string;
+  behavior: string;
+  consequence: string;
+}
+const TEMPLATES_KEY = 'abc_session_templates';
 
 // Default quick-select tags
 const DEFAULT_ANTECEDENT_TAGS = ['Transition', 'Demand', 'Denied access', 'Peer conflict', 'Noise', 'Unstructured time'];
@@ -88,6 +97,21 @@ const TriggerTracker = () => {
   const [persistedConsequences, setPersistedConsequences] = useState<string[]>([]);
   const [newAntecedentInput, setNewAntecedentInput] = useState('');
   const [newConsequenceInput, setNewConsequenceInput] = useState('');
+
+  // Duration stopwatch (P2.12)
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerElapsedMs, setTimerElapsedMs] = useState(0);
+  const timerRef = useRef<{ startMs: number; baseMs: number; interval: ReturnType<typeof setInterval> | null }>({ startMs: 0, baseMs: 0, interval: null });
+
+  // Session templates (P2.11)
+  const [templates, setTemplates] = useState<SessionTemplate[]>(() => {
+    try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]'); } catch { return []; }
+  });
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+
+  // Dedup ref (P2.16)
+  const lastLogRef = useRef<{ key: string; ts: number } | null>(null);
 
   useEffect(() => {
     if (currentWorkspace) loadClients();
@@ -217,6 +241,53 @@ const TriggerTracker = () => {
     setPersistedConsequences(updated);
   };
 
+  // ── Timer helpers (P2.12) ──────────────────────────────────
+  const formatTimer = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+  const startTimer = () => {
+    timerRef.current.startMs = Date.now();
+    timerRef.current.interval = setInterval(() => {
+      setTimerElapsedMs(timerRef.current.baseMs + (Date.now() - timerRef.current.startMs));
+    }, 200);
+    setTimerRunning(true);
+  };
+  const stopTimer = () => {
+    if (timerRef.current.interval) { clearInterval(timerRef.current.interval); timerRef.current.interval = null; }
+    timerRef.current.baseMs = timerElapsedMs;
+    setTimerRunning(false);
+  };
+  const resetTimer = () => {
+    if (timerRef.current.interval) { clearInterval(timerRef.current.interval); timerRef.current.interval = null; }
+    timerRef.current.baseMs = 0;
+    setTimerElapsedMs(0);
+    setTimerRunning(false);
+  };
+
+  // ── Template helpers (P2.11) ──────────────────────────────
+  const saveTemplate = () => {
+    const name = templateName.trim() || `Template ${templates.length + 1}`;
+    const t: SessionTemplate = { id: crypto.randomUUID(), name, antecedent, behavior, consequence };
+    const updated = [...templates, t];
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    setTemplates(updated);
+    setTemplateName('');
+    toast({ title: 'Template saved', description: `"${name}"` });
+  };
+  const applyTemplate = (t: SessionTemplate) => {
+    if (t.antecedent) setAntecedent(t.antecedent);
+    if (t.behavior) setBehavior(t.behavior);
+    if (t.consequence) setConsequence(t.consequence);
+    setShowTemplates(false);
+    toast({ title: 'Template loaded', description: t.name });
+  };
+  const deleteTemplate = (id: string) => {
+    const updated = templates.filter(t => t.id !== id);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(updated));
+    setTemplates(updated);
+  };
+
   const loadClients = async () => {
     if (!currentWorkspace) return;
     try {
@@ -283,6 +354,15 @@ const TriggerTracker = () => {
       return;
     }
 
+    // P2.16 — Duplicate prevention: block same A+B+C within 8 seconds
+    const logKey = `${antecedent}|${behavior}|${consequence}`;
+    const now = Date.now();
+    if (lastLogRef.current?.key === logKey && now - lastLogRef.current.ts < 8000) {
+      toast({ title: 'Duplicate blocked', description: 'Same A+B+C logged within 8 s. Change a selection or wait.', variant: 'destructive' });
+      return;
+    }
+    lastLogRef.current = { key: logKey, ts: now };
+
     setSaving(true);
     try {
       const notesParts = [notes.trim()];
@@ -297,7 +377,7 @@ const TriggerTracker = () => {
         behavior,
         consequence,
         intensity,
-        duration_seconds: duration ? parseInt(duration) * 60 : null,
+        duration_seconds: timerElapsedMs > 0 ? Math.round(timerElapsedMs / 1000) : null,
         notes: notesParts.filter(Boolean).join(' • ') || null,
         logged_at: new Date().toISOString(),
       });
@@ -411,7 +491,7 @@ const TriggerTracker = () => {
           eventSubtype: behavior,
           eventValue: {
             antecedent, behavior, consequence, intensity,
-            duration_seconds: duration ? parseInt(duration) * 60 : null,
+            duration_seconds: timerElapsedMs > 0 ? Math.round(timerElapsedMs / 1000) : null,
             notes: notesParts.filter(Boolean).join(' • ') || null,
           },
           sourceModule: 'trigger_tracker',
@@ -428,6 +508,7 @@ const TriggerTracker = () => {
       setDuration('');
       setStaffInitials('');
       setLocation('');
+      resetTimer();
       loadLogs();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -506,6 +587,33 @@ const TriggerTracker = () => {
     const freq: Record<string, number> = {};
     logs.forEach((l) => { freq[l.behavior] = (freq[l.behavior] || 0) + 1; });
     return Object.entries(freq).map(([behavior, count]) => ({ behavior, count })).sort((a, b) => b.count - a.count).slice(0, 10);
+  }, [logs]);
+
+  // P2.13 — Behavior function hypothesis from consequence patterns
+  const behaviorFunctions = useMemo(() => {
+    const ATTENTION = ['verbal prompt', 'redirected', 'peer mediation', 'reprimand', 'warned', 'attention', 'response'];
+    const ESCAPE = ['break given', 'removed from situation', 'task removed', 'escaped', 'left room', 'break', 'avoided'];
+    const TANGIBLE = ['preferred', 'reward', 'token', 'earned', 'received', 'given item', 'access'];
+    const map: Record<string, { attention: number; escape: number; tangible: number; automatic: number; total: number }> = {};
+    logs.forEach(log => {
+      if (!map[log.behavior]) map[log.behavior] = { attention: 0, escape: 0, tangible: 0, automatic: 0, total: 0 };
+      const s = map[log.behavior];
+      s.total++;
+      const c = (log.consequence || '').toLowerCase();
+      if (ATTENTION.some(kw => c.includes(kw))) s.attention++;
+      else if (ESCAPE.some(kw => c.includes(kw))) s.escape++;
+      else if (TANGIBLE.some(kw => c.includes(kw))) s.tangible++;
+      else s.automatic++;
+    });
+    return Object.entries(map)
+      .filter(([, s]) => s.total >= 3)
+      .map(([beh, s]) => {
+        const max = Math.max(s.attention, s.escape, s.tangible, s.automatic);
+        const fn = max === s.attention ? 'Attention' : max === s.escape ? 'Escape / Avoidance' : max === s.tangible ? 'Tangible / Access' : 'Automatic / Sensory';
+        const color = max === s.attention ? 'bg-blue-100 text-blue-700 border-blue-200' : max === s.escape ? 'bg-orange-100 text-orange-700 border-orange-200' : max === s.tangible ? 'bg-green-100 text-green-700 border-green-200' : 'bg-purple-100 text-purple-700 border-purple-200';
+        return { behavior: beh, function: fn, confidence: Math.round((max / s.total) * 100), color, total: s.total, s };
+      })
+      .sort((a, b) => b.total - a.total);
   }, [logs]);
 
   const TagSelector = ({
@@ -715,8 +823,24 @@ const TriggerTracker = () => {
                         <Input value={setting} onChange={(e) => setSetting(e.target.value)} placeholder="e.g. Math class" />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Duration (minutes)</Label>
-                        <Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 5" />
+                        <Label className="text-xs">Duration</Label>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm tabular-nums min-w-[3rem]">{formatTimer(timerElapsedMs)}</span>
+                          {!timerRunning ? (
+                            <Button type="button" size="sm" variant="outline" onClick={startTimer} className="gap-1 h-8">
+                              <Clock className="h-3.5 w-3.5" />{timerElapsedMs > 0 ? 'Resume' : 'Start'}
+                            </Button>
+                          ) : (
+                            <Button type="button" size="sm" variant="outline" onClick={stopTimer} className="gap-1 h-8 border-destructive text-destructive hover:bg-destructive/10">
+                              <Square className="h-3 w-3 fill-current" /> Stop
+                            </Button>
+                          )}
+                          {timerElapsedMs > 0 && (
+                            <Button type="button" size="sm" variant="ghost" onClick={resetTimer} className="h-8 w-8 p-0">
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Staff Initials</Label>
@@ -732,6 +856,53 @@ const TriggerTracker = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* P2.11 — Session Templates */}
+                  <div className="border-t border-border/40 pt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowTemplates(!showTemplates)}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Bookmark className="h-3.5 w-3.5" />
+                        Templates{templates.length > 0 ? ` (${templates.length})` : ''}
+                        {showTemplates ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      </button>
+                      {(antecedent || behavior || consequence) && (
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            value={templateName}
+                            onChange={e => setTemplateName(e.target.value)}
+                            placeholder="Template name…"
+                            className="h-7 text-xs w-32"
+                          />
+                          <Button type="button" size="sm" variant="outline" onClick={saveTemplate} className="h-7 text-xs gap-1 px-2">
+                            <Plus className="h-3 w-3" /> Save
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    {showTemplates && (
+                      templates.length > 0 ? (
+                        <div className="space-y-1.5 mb-3">
+                          {templates.map(t => (
+                            <div key={t.id} className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-2">
+                              <button type="button" className="flex-1 min-w-0 text-left" onClick={() => applyTemplate(t)}>
+                                <p className="text-xs font-medium">{t.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{[t.antecedent, t.behavior, t.consequence].filter(Boolean).join(' → ')}</p>
+                              </button>
+                              <Button type="button" size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => deleteTemplate(t.id)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mb-3">No templates yet. Select A+B+C and tap Save.</p>
+                      )
+                    )}
+                  </div>
 
                   <Button
                     onClick={handleLog}
@@ -1083,6 +1254,36 @@ const TriggerTracker = () => {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* P2.13 — Hypothesized Behavior Functions */}
+                {behaviorFunctions.length > 0 && (
+                  <Card className="border-border/50 lg:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="text-sm">Hypothesized Behavior Functions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Based on consequence patterns (min 3 data points). Validate with clinical judgment.</p>
+                      {behaviorFunctions.map(bf => (
+                        <div key={bf.behavior} className={`rounded-md border p-2.5 ${bf.color}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{bf.behavior}</p>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="outline" className={`text-[10px] ${bf.color}`}>{bf.function}</Badge>
+                              <span className="text-xs font-semibold">{bf.confidence}%</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 mt-1 text-[10px] opacity-80">
+                            <span>Attention: {bf.s.attention}</span>
+                            <span>Escape: {bf.s.escape}</span>
+                            <span>Tangible: {bf.s.tangible}</span>
+                            <span>Automatic: {bf.s.automatic}</span>
+                            <span className="ml-auto">n={bf.total}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
           </Tabs>
