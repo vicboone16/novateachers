@@ -56,6 +56,7 @@ const FAQTutorial = lazy(() => import("@/pages/FAQTutorial"));
 const LaunchReadiness = lazy(() => import("@/pages/LaunchReadiness"));
 const ParentView = lazy(() => import("@/pages/ParentView"));
 const ClassroomInsights = lazy(() => import("@/pages/ClassroomInsights"));
+const SupervisorDashboard = lazy(() => import("@/pages/SupervisorDashboard"));
 
 const queryClient = new QueryClient();
 
@@ -137,6 +138,7 @@ const WorkspaceRoutes = () => {
           <Route path="/threads" element={<Threads />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/supervisor" element={<SupervisorDashboard />} />
           <Route path="/point-rules" element={<PointRulesManager />} />
           <Route path="/launch-readiness" element={<LaunchReadiness />} />
           <Route path="/classroom-insights" element={<ClassroomInsights />} />

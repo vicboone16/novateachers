@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAppAccess } from '@/contexts/AppAccessContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { resolveDisplayNames } from '@/lib/resolve-names';
+import { createSignal } from '@/lib/supervisorSignals';
 import {
   FileText,
   Brain,
@@ -36,7 +38,11 @@ import {
   Share2,
   ClipboardCopy,
   BookOpen,
+  Zap,
+  ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
 
 interface Props {
@@ -53,10 +59,26 @@ interface DocumentDraft {
   data_summary?: Record<string, any>;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  review: 'Under Review',
+  approved: 'Approved',
+  applied: 'Active',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  draft: 'border-muted-foreground/40 text-muted-foreground',
+  review: 'border-amber-400 text-amber-700 bg-amber-50',
+  approved: 'border-blue-400 text-blue-700 bg-blue-50',
+  applied: 'border-green-500 text-green-700 bg-green-50',
+};
+
 const FBABIPPanel = ({ client }: Props) => {
   const { user, session } = useAuth();
   const { currentWorkspace } = useWorkspace();
+  const { appRole, agencyId } = useAppAccess();
   const { toast } = useToast();
+  const isApprover = ['supervisor', 'admin', 'owner'].includes(appRole || '');
 
   const [activeTab, setActiveTab] = useState('generate');
   const [generating, setGenerating] = useState(false);
@@ -234,6 +256,93 @@ const FBABIPPanel = ({ client }: Props) => {
     }
   };
 
+  const advanceDraftStatus = async (
+    draftId: string,
+    newStatus: 'review' | 'approved' | 'applied',
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('iep_drafts')
+        .update({ status: newStatus })
+        .eq('id', draftId);
+      if (error) throw error;
+
+      setSavedDrafts(prev =>
+        prev.map(d => d.id === draftId ? { ...d, status: newStatus } : d),
+      );
+
+      if (newStatus === 'review' && currentWorkspace) {
+        // Notify supervisor that a BIP needs review
+        createSignal({
+          clientId: client.id,
+          agencyId: currentWorkspace.agency_id,
+          signalType: 'other',
+          severity: 'watch',
+          title: 'BIP submitted for review',
+          message: `A BIP draft for ${clientName} has been submitted and is awaiting supervisor review.`,
+          source: { app: 'beacon', draft_id: draftId },
+        });
+      }
+
+      if (newStatus === 'applied') {
+        // Write event when BIP goes live
+        if (currentWorkspace) {
+          createSignal({
+            clientId: client.id,
+            agencyId: currentWorkspace.agency_id,
+            signalType: 'other',
+            severity: 'watch',
+            title: 'BIP activated',
+            message: `A Behavior Intervention Plan for ${clientName} is now active.`,
+            source: { app: 'beacon', draft_id: draftId },
+          });
+        }
+        toast({ title: 'BIP activated', description: `The BIP for ${clientName} is now live.` });
+      } else {
+        const labels = { review: 'submitted for review', approved: 'approved', applied: 'activated' };
+        toast({ title: `BIP ${labels[newStatus]}` });
+      }
+    } catch (err: any) {
+      toast({ title: 'Error updating status', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleSaveAndSubmit = async () => {
+    if (!user || !currentWorkspace || !bipContent) return;
+    try {
+      const { data, error } = await supabase
+        .from('iep_drafts')
+        .insert({
+          client_id: client.id,
+          created_by: user.id,
+          title: `BIP Draft – ${clientName}`,
+          sections: [],
+          status: 'review',
+          draft_type: 'bip',
+          content: bipContent,
+          content_json: {},
+          agency_id: currentWorkspace.agency_id,
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      createSignal({
+        clientId: client.id,
+        agencyId: currentWorkspace.agency_id,
+        signalType: 'other',
+        severity: 'watch',
+        title: 'BIP submitted for review',
+        message: `A BIP draft for ${clientName} has been submitted and is awaiting supervisor review.`,
+        source: { app: 'beacon', draft_id: data?.id },
+      });
+      toast({ title: 'BIP saved and submitted for review' });
+      loadSavedDrafts();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -339,17 +448,17 @@ const FBABIPPanel = ({ client }: Props) => {
 
         {/* BIP viewer */}
         <TabsContent value="bip" className="space-y-3 animate-in fade-in-50">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold font-heading">BIP Draft</h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => handleCopy(bipContent)} className="gap-1.5">
                 <ClipboardCopy className="h-3.5 w-3.5" /> Copy
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleSaveDraft('bip')} className="gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Save
+                <CheckCircle2 className="h-3.5 w-3.5" /> Save Draft
               </Button>
-              <Button size="sm" onClick={() => openShareDialog('bip')} className="gap-1.5">
-                <Share2 className="h-3.5 w-3.5" /> Send to Supervisor
+              <Button size="sm" onClick={handleSaveAndSubmit} className="gap-1.5">
+                <ArrowRight className="h-3.5 w-3.5" /> Save & Submit for Review
               </Button>
             </div>
           </div>
@@ -375,18 +484,73 @@ const FBABIPPanel = ({ client }: Props) => {
           ) : (
             <div className="space-y-2">
               {savedDrafts.map(draft => (
-                <Card key={draft.id} className="cursor-pointer hover:bg-accent/50 transition-colors border-border/40" onClick={() => handleLoadDraft(draft)}>
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${draft.type === 'fba' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'}`}>
-                      {draft.type === 'fba' ? <FileText className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                <Card key={draft.id} className={cn(
+                  'border-border/40',
+                  draft.status === 'applied' && 'border-green-400/50 bg-green-50/30',
+                )}>
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleLoadDraft(draft)}>
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${draft.type === 'fba' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'}`}>
+                        {draft.type === 'fba' ? <FileText className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{draft.type.toUpperCase()} Draft</p>
+                          {draft.status === 'applied' && <ShieldCheck className="h-3.5 w-3.5 text-green-600" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(draft.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={cn('text-[10px]', STATUS_COLORS[draft.status])}>
+                        {STATUS_LABELS[draft.status] || draft.status}
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{draft.type.toUpperCase()} Draft</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(draft.created_at).toLocaleDateString()} · {draft.status}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">{draft.status}</Badge>
+
+                    {/* Workflow action buttons — only shown for BIP drafts */}
+                    {draft.type === 'bip' && (
+                      <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
+                        {draft.status === 'draft' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => advanceDraftStatus(draft.id, 'review')}
+                          >
+                            <ArrowRight className="h-3 w-3" /> Submit for Review
+                          </Button>
+                        )}
+                        {draft.status === 'review' && isApprover && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1 border-blue-400 text-blue-700"
+                            onClick={() => advanceDraftStatus(draft.id, 'approved')}
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> Approve
+                          </Button>
+                        )}
+                        {draft.status === 'review' && !isApprover && (
+                          <p className="text-[11px] text-muted-foreground italic py-0.5">
+                            Awaiting supervisor approval
+                          </p>
+                        )}
+                        {draft.status === 'approved' && (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs gap-1 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => advanceDraftStatus(draft.id, 'applied')}
+                          >
+                            <Zap className="h-3 w-3" /> Activate BIP
+                          </Button>
+                        )}
+                        {draft.status === 'applied' && (
+                          <span className="text-[11px] text-green-700 font-medium flex items-center gap-1 py-0.5">
+                            <ShieldCheck className="h-3 w-3" /> This BIP is currently active
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

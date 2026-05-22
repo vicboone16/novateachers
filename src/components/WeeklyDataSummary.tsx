@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchAccessibleClients } from '@/lib/client-access';
 import { normalizeClients, displayName } from '@/lib/student-utils';
 import { resolveDisplayNames } from '@/lib/resolve-names';
-import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw, Star, TrendingUp } from 'lucide-react';
+import { Send, BarChart3, Clock, StickyNote, CalendarDays, Users, Target, Bell, ShieldCheck, FileText, CheckCircle2, RefreshCw, Star, TrendingUp, Download } from 'lucide-react';
+import { exportAllStudentData } from '@/lib/export-utils';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
 import type { Client } from '@/lib/types';
@@ -581,6 +582,26 @@ export const WeeklyDataSummary = () => {
             Next →
           </Button>
         </div>
+        {selectedClientId && (freqEntries.length > 0 || abcLogs.length > 0 || durEntries.length > 0) && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs ml-auto"
+            onClick={() => {
+              const student = clients.find(c => c.id === selectedClientId);
+              const name = student ? displayName(student) : 'Student';
+              exportAllStudentData(name, weekLabel, {
+                freq: freqEntries,
+                dur: durEntries,
+                abc: abcLogs,
+                notes: notes,
+                points: pointsEntries,
+              });
+            }}
+          >
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </Button>
+        )}
       </div>
 
       {/* Auto-Draft Review Card */}
