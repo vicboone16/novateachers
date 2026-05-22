@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).href;
 import { supabase } from '@/lib/supabase';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { invokeCloudFunction } from '@/lib/cloud-functions';
@@ -199,6 +204,37 @@ const IEPReader = () => {
   };
 
   const extractTextFromFile = async (file: File): Promise<string | null> => {
+    const name = file.name.toLowerCase();
+
+    if (name.endsWith('.pdf')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const pages: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => ('str' in item ? item.str : ''))
+            .join(' ');
+          pages.push(pageText);
+        }
+        const text = pages.join('\n\n').trim();
+        if (!text || text.length < 50) {
+          toast({
+            title: 'Scanned PDF detected',
+            description: 'No text could be extracted. Please upload a text-based PDF or a .txt version of the IEP.',
+            variant: 'destructive',
+          });
+          return null;
+        }
+        return text;
+      } catch (err: any) {
+        toast({ title: 'PDF extraction failed', description: err.message, variant: 'destructive' });
+        return null;
+      }
+    }
+
     try {
       const text = await file.text();
       return text || null;

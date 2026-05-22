@@ -271,7 +271,7 @@ const IEPWriter = () => {
     setGeneratingSection(section.id);
     try {
       const [logsRes, catsRes, clientRes] = await Promise.all([
-        supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(30),
+        supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(50),
         supabase.from('behavior_categories').select('*').eq('client_id', selectedClientId),
         supabase.from('clients').select('first_name, last_name, grade').eq('id', selectedClientId).single(),
       ]);
@@ -290,7 +290,7 @@ const IEPWriter = () => {
     setGeneratingAll(true);
     try {
       const [logsRes, catsRes, clientRes] = await Promise.all([
-        supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(30),
+        supabase.from('abc_logs').select('*').eq('client_id', selectedClientId).order('logged_at', { ascending: false }).limit(50),
         supabase.from('behavior_categories').select('*').eq('client_id', selectedClientId),
         supabase.from('clients').select('first_name, last_name, grade').eq('id', selectedClientId).single(),
       ]);
