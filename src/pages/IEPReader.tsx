@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -35,6 +35,9 @@ import {
   Activity,
   ShieldCheck,
   Link2,
+  GitCompare,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -100,6 +103,10 @@ const IEPReader = () => {
   const [accommodations, setAccommodations] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // P2.14 — IEP Diff
+  const [compareDocId, setCompareDocId] = useState('');
+  const [compareGoals, setCompareGoals] = useState<any[]>([]);
+
   useEffect(() => { if (currentWorkspace) loadClients(); }, [currentWorkspace]);
   useEffect(() => { if (selectedClientId) { loadDocuments(); loadTargets(); } }, [selectedClientId]);
 
@@ -143,9 +150,17 @@ const IEPReader = () => {
     setAccommodations((a.data || []) as any[]);
   }, []);
 
+  const loadCompareGoals = useCallback(async (docId: string) => {
+    if (!docId) { setCompareGoals([]); return; }
+    const { data } = await cloudSupabase.from('iep_extracted_goals').select('*').eq('document_id', docId);
+    setCompareGoals((data || []) as any[]);
+  }, []);
+
   const handleSelectDoc = (doc: IEPDocument) => {
     setSelectedDoc(doc);
     setActiveTab('overview');
+    setCompareDocId('');
+    setCompareGoals([]);
     loadExtractedData(doc.id);
   };
 
@@ -433,6 +448,35 @@ const IEPReader = () => {
     return 'low';
   };
 
+  // P2.14 — Goal diff between selected doc and compare doc
+  const goalDiff = useMemo(() => {
+    if (!compareDocId || (!goals.length && !compareGoals.length)) return [];
+    const toText = (g: any) => g.goal_data?.goal_statement_clean || g.goal_data?.goal_statement_raw || '';
+    const toDomain = (g: any) => g.goal_data?.domain || '';
+    const matched = new Set<string>();
+    const result: Array<{ type: 'added' | 'removed' | 'unchanged' | 'changed'; current?: any; compare?: any }> = [];
+    goals.forEach(curr => {
+      const currText = toText(curr);
+      const currDomain = toDomain(curr);
+      const match = compareGoals.find(cmp =>
+        !matched.has(cmp.id) && (
+          toText(cmp) === currText ||
+          (toDomain(cmp) === currDomain && currText.length > 20 && toText(cmp).slice(0, 40) === currText.slice(0, 40))
+        )
+      );
+      if (match) {
+        matched.add(match.id);
+        result.push({ type: currText === toText(match) ? 'unchanged' : 'changed', current: curr, compare: match });
+      } else {
+        result.push({ type: 'added', current: curr });
+      }
+    });
+    compareGoals.filter(cmp => !matched.has(cmp.id)).forEach(cmp => {
+      result.push({ type: 'removed', compare: cmp });
+    });
+    return result;
+  }, [goals, compareGoals, compareDocId]);
+
   // ─── Render ────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -586,13 +630,16 @@ const IEPReader = () => {
 
           {/* Tabs for extracted data */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="overview" className="gap-1 text-xs"><Eye className="h-3 w-3" />Overview</TabsTrigger>
-              <TabsTrigger value="goals" className="gap-1 text-xs"><Target className="h-3 w-3" />Goals ({goals.length})</TabsTrigger>
-              <TabsTrigger value="progress" className="gap-1 text-xs"><TrendingUp className="h-3 w-3" />Progress ({progressEntries.length})</TabsTrigger>
-              <TabsTrigger value="services" className="gap-1 text-xs"><Briefcase className="h-3 w-3" />Services ({services.length})</TabsTrigger>
-              <TabsTrigger value="accommodations" className="gap-1 text-xs"><Shield className="h-3 w-3" />Accomm. ({accommodations.length})</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-0 scrollbar-none">
+              <TabsList className="grid w-max sm:w-full grid-cols-6 min-w-[520px]">
+                <TabsTrigger value="overview" className="gap-1 text-xs"><Eye className="h-3 w-3" />Overview</TabsTrigger>
+                <TabsTrigger value="goals" className="gap-1 text-xs"><Target className="h-3 w-3" />Goals ({goals.length})</TabsTrigger>
+                <TabsTrigger value="progress" className="gap-1 text-xs"><TrendingUp className="h-3 w-3" />Progress</TabsTrigger>
+                <TabsTrigger value="services" className="gap-1 text-xs"><Briefcase className="h-3 w-3" />Services</TabsTrigger>
+                <TabsTrigger value="accommodations" className="gap-1 text-xs"><Shield className="h-3 w-3" />Accomm.</TabsTrigger>
+                <TabsTrigger value="compare" className="gap-1 text-xs"><GitCompare className="h-3 w-3" />Compare</TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Overview */}
             <TabsContent value="overview" className="space-y-3 mt-4">
@@ -847,6 +894,77 @@ const IEPReader = () => {
                   </Card>
                 );
               })}
+            </TabsContent>
+
+            {/* Compare Tab — P2.14 */}
+            <TabsContent value="compare" className="space-y-4 mt-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Compare goals in this document against an earlier IEP for the same student.</p>
+                <div className="max-w-xs">
+                  <Select value={compareDocId} onValueChange={v => { setCompareDocId(v); loadCompareGoals(v); }}>
+                    <SelectTrigger><SelectValue placeholder="Select a document to compare…" /></SelectTrigger>
+                    <SelectContent>
+                      {documents.filter(d => d.id !== selectedDoc?.id && d.pipeline_status === 'ready').map(d => (
+                        <SelectItem key={d.id} value={d.id}>{d.file_name} — {format(new Date(d.created_at), 'MMM d, yyyy')}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {!compareDocId && (
+                <Card className="border-dashed">
+                  <CardContent className="py-10 text-center">
+                    <GitCompare className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">Select a document above to see a goal-by-goal comparison</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {compareDocId && goalDiff.length === 0 && (
+                <p className="text-sm text-muted-foreground py-4 text-center">No goals to compare — make sure both documents have been fully processed.</p>
+              )}
+
+              {goalDiff.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Plus className="h-3 w-3 text-green-600" /> Added in current</span>
+                    <span className="flex items-center gap-1"><Minus className="h-3 w-3 text-destructive" /> Removed from current</span>
+                    <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-amber-400 inline-block" /> Changed</span>
+                    <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-muted-foreground/30 inline-block" /> Unchanged</span>
+                  </div>
+                  {goalDiff.map((entry, i) => {
+                    const gd = (entry.current || entry.compare)?.goal_data || {};
+                    const borderColor = entry.type === 'added' ? 'border-green-500/50 bg-green-50/50' : entry.type === 'removed' ? 'border-destructive/40 bg-destructive/5' : entry.type === 'changed' ? 'border-amber-400/50 bg-amber-50/50' : 'border-border/40';
+                    const icon = entry.type === 'added' ? <Plus className="h-3.5 w-3.5 text-green-600 shrink-0 mt-0.5" /> : entry.type === 'removed' ? <Minus className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" /> : null;
+                    return (
+                      <Card key={i} className={cn('border', borderColor)}>
+                        <CardContent className="p-3 space-y-1.5">
+                          <div className="flex items-start gap-2">
+                            {icon}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                {gd.domain && <Badge variant="outline" className="text-[10px]">{gd.domain}</Badge>}
+                                <Badge variant="outline" className={cn('text-[10px]', entry.type === 'added' ? 'border-green-500 text-green-700' : entry.type === 'removed' ? 'border-destructive text-destructive' : entry.type === 'changed' ? 'border-amber-500 text-amber-700' : 'text-muted-foreground')}>
+                                  {entry.type}
+                                </Badge>
+                              </div>
+                              {entry.type === 'changed' ? (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground line-through">{entry.compare?.goal_data?.goal_statement_clean || entry.compare?.goal_data?.goal_statement_raw}</p>
+                                  <p className="text-sm">{entry.current?.goal_data?.goal_statement_clean || entry.current?.goal_data?.goal_statement_raw}</p>
+                                </div>
+                              ) : (
+                                <p className="text-sm">{gd.goal_statement_clean || gd.goal_statement_raw || 'No statement'}</p>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
