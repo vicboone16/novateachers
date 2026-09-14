@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { verifyCaller, isAgencyMember } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const caller = await verifyCaller(req);
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { studentId, agencyId } = await req.json();
     if (!studentId || !agencyId) throw new Error("studentId and agencyId required");
 
@@ -17,6 +25,21 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL");
+    const coreKey = Deno.env.get("CORE_SERVICE_ROLE_KEY");
+    if (coreUrl && coreKey) {
+      const core = createClient(coreUrl, coreKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const member = await isAgencyMember(core, caller.userId, String(agencyId));
+      if (member === false) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
