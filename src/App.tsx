@@ -57,6 +57,7 @@ const LaunchReadiness = lazy(() => import("@/pages/LaunchReadiness"));
 const ParentView = lazy(() => import("@/pages/ParentView"));
 const ClassroomInsights = lazy(() => import("@/pages/ClassroomInsights"));
 const SupervisorDashboard = lazy(() => import("@/pages/SupervisorDashboard"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 
 const queryClient = new QueryClient();
 
@@ -174,6 +175,7 @@ const App = () => (
               <Route path="/external/parent/:token" element={<ExternalParentPortal />} />
               <Route path="/tour" element={<FeatureTour />} />
               <Route path="/faq" element={<FAQTutorial />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/parent-view" element={<ParentView />} />
               <Route path="/*" element={<ProtectedRoutes />} />
             </Routes>
