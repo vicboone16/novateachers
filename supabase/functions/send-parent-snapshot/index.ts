@@ -67,15 +67,15 @@ Deno.serve(async (req) => {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
         <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #FFF7ED, #FFFBEB); border-radius: 16px;">
           <p style="font-size: 48px; margin: 0;">💜</p>
-          <h1 style="color: #1F2937; margin: 8px 0 4px; font-size: 22px;">${student_name}'s Day</h1>
-          <p style="color: #6B7280; margin: 0; font-size: 14px;">${formattedDate}</p>
+          <h1 style="color: #1F2937; margin: 8px 0 4px; font-size: 22px;">${safeStudentName}'s Day</h1>
+          <p style="color: #6B7280; margin: 0; font-size: 14px;">${escapeHtml(formattedDate)}</p>
         </div>
 
-        ${points_earned !== undefined ? `
+        ${safePoints !== undefined ? `
         <div style="text-align: center; margin: 16px 0; padding: 16px; background: #FFFBEB; border-radius: 12px;">
-          <p style="font-size: 36px; font-weight: 700; color: #D97706; margin: 0;">⭐ ${points_earned}</p>
+          <p style="font-size: 36px; font-weight: 700; color: #D97706; margin: 0;">⭐ ${safePoints}</p>
           <p style="color: #92400E; font-size: 13px; margin: 4px 0 0;">Points Earned Today</p>
-          ${points_earned > 0 ? `<p style="color: #6B7280; font-size: 12px; margin: 4px 0 0;">Great job! ${student_name} is doing amazing! 🌟</p>` : ""}
+          ${safePoints > 0 ? `<p style="color: #6B7280; font-size: 12px; margin: 4px 0 0;">Great job! ${safeStudentName} is doing amazing! 🌟</p>` : ""}
         </div>
         ` : ""}
 
@@ -86,21 +86,23 @@ Deno.serve(async (req) => {
         </div>
         ` : ""}
 
-        ${teacher_note ? `
+        ${safeTeacherNote ? `
         <div style="margin: 16px 0; padding: 16px; background: #EFF6FF; border-radius: 8px; border-left: 3px solid #3B82F6;">
           <p style="font-weight: 600; margin: 0 0 4px;">📝 A Note from the Teacher</p>
-          <p style="color: #374151; margin: 0; font-size: 14px;">${teacher_note}</p>
+          <p style="color: #374151; margin: 0; font-size: 14px;">${safeTeacherNote}</p>
         </div>
         ` : ""}
 
+        ${safeLink ? `
         <div style="text-align: center; margin: 24px 0;">
-          <a href="${snapshot_link}" style="display: inline-block; background: #7C3AED; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+          <a href="${safeLink}" style="display: inline-block; background: #7C3AED; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             View Full Snapshot →
           </a>
         </div>
+        ` : ""}
 
         <p style="color: #9CA3AF; font-size: 11px; text-align: center; margin-top: 24px;">
-          Thank you for being part of ${student_name}'s journey! 💜<br/>
+          Thank you for being part of ${safeStudentName}'s journey! 💜<br/>
           Powered by Beacon
         </p>
       </div>
