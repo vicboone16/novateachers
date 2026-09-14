@@ -89,6 +89,34 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const action = String(body?.action || "");
 
+    // Never trust client-supplied actor identities — bind them to the verified caller
+    for (const field of ["user_id", "staff_id", "sender_id", "created_by"]) {
+      if (body && field in body) (body as Json)[field] = userId;
+    }
+
+    // Enforce agency membership whenever the request targets an agency
+    if (body?.agency_id) {
+      const targetAgency = String(body.agency_id);
+      let membershipReadable = false;
+      let isMember = false;
+
+      for (const table of ["user_agency_access", "agency_memberships"]) {
+        const { data, error } = await core
+          .from(table)
+          .select("user_id")
+          .eq("agency_id", targetAgency)
+          .eq("user_id", userId)
+          .limit(1);
+        if (error) continue;
+        membershipReadable = true;
+        if (data && data.length > 0) { isMember = true; break; }
+      }
+
+      if (membershipReadable && !isMember) {
+        return json({ error: "Forbidden: no access to this agency" }, 403);
+      }
+    }
+
     // ─── health_check: detect stale PostgREST cache & connectivity ─
     if (action === "health_check") {
       const checks: { name: string; status: "ok" | "warn" | "error"; detail: string }[] = [];
