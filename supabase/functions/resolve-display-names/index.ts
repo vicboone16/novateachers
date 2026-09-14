@@ -46,6 +46,33 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Only resolve users who share an agency with the caller (plus the caller themselves)
+    const myAgencies = await callerAgencyIds(adminClient, caller.userId);
+    const allowed = new Set<string>([caller.userId]);
+
+    if (myAgencies.length > 0) {
+      for (const table of ["user_agency_access", "agency_memberships"]) {
+        const { data, error } = await adminClient
+          .from(table)
+          .select("user_id")
+          .in("agency_id", myAgencies)
+          .in("user_id", requestedIds);
+        if (error || !data) continue;
+        for (const row of data as Array<{ user_id?: string }>) {
+          if (row.user_id) allowed.add(String(row.user_id));
+        }
+      }
+    }
+
+    const ids = requestedIds.filter((id) => allowed.has(id));
+
+    if (ids.length === 0) {
+      return new Response(JSON.stringify({ names: {} }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
     const names: Record<string, string> = {};
     const stillMissing: string[] = [];
 
