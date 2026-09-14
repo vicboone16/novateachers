@@ -14,12 +14,37 @@ serve(async (req) => {
   }
 
   try {
+    const caller = await verifyCaller(req);
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const body = await req.json().catch(() => ({}));
+
+    if (body.agency_id) {
+      const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL");
+      const coreKey = Deno.env.get("CORE_SERVICE_ROLE_KEY");
+      if (coreUrl && coreKey) {
+        const core = createClient(coreUrl, coreKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const member = await isAgencyMember(core, caller.userId, String(body.agency_id));
+        if (member === false) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
     const targetDate = body.date || new Date().toISOString().split("T")[0];
 
     // Resolve student list
