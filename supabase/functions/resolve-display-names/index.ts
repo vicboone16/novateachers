@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const ids = user_ids.slice(0, 200) as string[];
+    const requestedIds = (user_ids.slice(0, 200) as string[]).map(String);
 
     const coreUrl = Deno.env.get("VITE_CORE_SUPABASE_URL") || "https://yboqqmkghwhlhhnsegje.supabase.co";
     const serviceKey = Deno.env.get("CORE_SERVICE_ROLE_KEY");
