@@ -53,7 +53,15 @@ Deno.serve(async (req) => {
       ? new Date(snapshot_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
       : "Today";
 
-    const highlightHtml = (highlights || []).map((h: string) => `<li style="margin: 4px 0;">✅ ${h}</li>`).join("");
+    const safeStudentName = escapeHtml(student_name);
+    const safeTeacherNote = escapeHtml(teacher_note);
+    const safeLink = safeHttpsUrl(snapshot_link, "");
+    const safePoints = Number.isFinite(Number(points_earned)) ? Number(points_earned) : undefined;
+
+    const highlightHtml = (Array.isArray(highlights) ? highlights : [])
+      .map((h: unknown) => `<li style="margin: 4px 0;">✅ ${escapeHtml(h)}</li>`)
+      .join("");
+
 
     const htmlBody = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
