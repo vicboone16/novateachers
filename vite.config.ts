@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "pwa-192.png", "pwa-512.png"],
+      includeAssets: ["favicon.ico", "pwa-192.png", "pwa-512.png", "icons/icon-180x180.png"],
       manifest: {
         name: "NovaTrack Teacher Hub",
         short_name: "NovaTrack",
@@ -28,19 +28,13 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait",
         scope: "/",
-        start_url: "/students",
+        start_url: "/classroom",
         icons: [
-          {
-            src: "pwa-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "pwa-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
+          { src: "icons/icon-192.png",   sizes: "192x192",  type: "image/png" },
+          { src: "icons/icon.png",        sizes: "512x512",  type: "image/png", purpose: "any maskable" },
+          { src: "icons/icon-180x180.png",sizes: "180x180",  type: "image/png" },
+          { src: "icons/icon-152x152.png",sizes: "152x152",  type: "image/png" },
+          { src: "icons/icon-120x120.png",sizes: "120x120",  type: "image/png" },
         ],
       },
       workbox: {
