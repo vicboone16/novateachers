@@ -3,8 +3,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-pingram-signature, x-webhook-secret",
 };
+
+const toHex = (buf: ArrayBuffer) =>
+  Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+async function hmacHex(secret: string, body: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return toHex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,7 +26,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload = await req.json();
+    const webhookSecret = Deno.env.get("PINGRAM_WEBHOOK_SECRET");
+    if (!webhookSecret) {
+      console.error("[pingram-webhook] PINGRAM_WEBHOOK_SECRET is not configured");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-pingram-signature");
+    const sharedSecret = req.headers.get("x-webhook-secret") ||
+      new URL(req.url).searchParams.get("secret");
+
+    let verified = false;
+    if (signature) {
+      const expected = await hmacHex(webhookSecret, rawBody);
+      verified = signature.replace(/^sha256=/, "").toLowerCase() === expected;
+    } else if (sharedSecret) {
+      verified = sharedSecret === webhookSecret;
+    }
+
+    if (!verified) {
+      console.warn("[pingram-webhook] Rejected unverified request");
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const payload = JSON.parse(rawBody || "{}");
     const eventType = payload.eventType;
 
     if (!eventType) {
