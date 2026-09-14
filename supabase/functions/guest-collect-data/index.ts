@@ -63,6 +63,21 @@ serve(async (req) => {
     if (action === "collect") {
       if (!payload?.client_id) throw new Error("client_id is required");
 
+      // The guest code may only record data for students in its own classroom group
+      const { data: allowedStudent } = await db
+        .from("classroom_group_students")
+        .select("client_id")
+        .eq("group_id", guestCode.group_id)
+        .eq("client_id", String(payload.client_id))
+        .maybeSingle();
+
+      if (!allowedStudent) {
+        return new Response(JSON.stringify({ error: "Student is not part of this classroom" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+
       const { error: insertErr } = await db.from("guest_data_entries").insert({
         guest_code_id: guestCode.id,
         client_id: payload.client_id,
