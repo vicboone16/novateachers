@@ -63,10 +63,11 @@ export default function StudentPortalEnhanced() {
     if (eff) {
       const mapped = eventTypeToAnimState(eff.eventType);
       setAvatarState(mapped);
-      if (eff.eventType === 'points' || eff.eventType === 'reward' || eff.eventType === 'level_up') {
-        const flashMsg = eff.eventType === 'level_up'
+      const et = eff.eventType as string;
+      if (et === 'points' || et === 'reward' || et === 'level_up') {
+        const flashMsg = et === 'level_up'
           ? '🎉 Level up! Keep it going!'
-          : eff.eventType === 'reward'
+          : et === 'reward'
           ? '🎁 You earned a reward!'
           : '⭐ Your teacher just gave you points!';
         setEventFlash(flashMsg);
