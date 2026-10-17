@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const groupIds = memberships.map(row => row.group_id);
     const [profile, ledger, rewards, feed, insights, messages, quests] = await Promise.all([
       cloud.from('student_game_profiles').select('avatar_emoji, daily_narrative').eq('student_id', scope.student_id).eq('agency_id', scope.agency_id).maybeSingle(),
-      cloud.from('beacon_points_ledger').select('points').eq('student_id', scope.student_id).eq('agency_id', scope.agency_id),
+      cloud.from('beacon_points_ledger').select('points').eq('student_id', scope.student_id).eq('agency_id', scope.agency_id).order('id'),
       cloud.from('beacon_rewards').select('name, emoji, cost, scope_type, scope_id').eq('agency_id', scope.agency_id).eq('active', true).order('cost').limit(100),
       cloud.from('classroom_feed_posts').select('id, body, title, created_at').eq('agency_id', scope.agency_id).in('group_id', groupIds).in('post_type', ['celebration', 'announcement', 'positive']).order('created_at', { ascending: false }).limit(5),
       cloud.from('parent_insights').select('id, insight_type, title, body, tone, is_read, created_at').eq('student_id', scope.student_id).eq('agency_id', scope.agency_id).order('created_at', { ascending: false }).limit(5),

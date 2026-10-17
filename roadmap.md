@@ -2,10 +2,13 @@
 
 ## Security — verified staff and portal access (in progress)
 
-- Implement a server-verified Core staff access path without changing classroom sign-in.
-- Validate public portal links server-side; constrain every read/message to the link's student and agency.
-- Apply targeted table restrictions only after replacement access paths are available.
-- Test invalid/expired/revoked links, forged ownership and agency boundaries; update only selected findings.
+- [x] Add Core-verified staff path for parent-link management without changing classroom sign-in.
+- [x] Validate both parent portal routes server-side; constrain every read/message to the link's student and agency.
+- [x] Restrict parent_access_links credentials to service-role after replacement paths are deployed.
+- [x] Test guest message end-to-end, invalid credentials, forged ownership, and cross-agency links.
+- [ ] Authenticated path: UNVERIFIED — no Cloud auth users/session available; external Core authenticated classroom testing cannot be supplied by managed auth-session.
+- [ ] Migrate remaining staff-facing data consumers before locking shared clinical/reinforcement/message/classroom tables.
+- [ ] Student portal credential restrictions require external Core database access; student token/account tables are absent from Cloud.
 
 Requested fixes for the following scanner findings, all of which need database
 access-rule (RLS / function / view) changes:

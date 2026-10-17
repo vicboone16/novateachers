@@ -13,6 +13,12 @@ async function anonymousRequest(path: string, body?: Record<string, unknown>) {
 }
 
 describe('anonymous Cloud access restrictions', () => {
+  it('rejects enumerating parent access tokens', async () => {
+    const response = await anonymousRequest('parent_access_links?select=token&limit=1');
+    expect(response.ok).toBe(false);
+    expect((await response.json()).code).toBe('42501');
+  });
+
   it('rejects reading private help history', async () => {
     const response = await anonymousRequest('help_interactions?select=id&limit=1');
     expect(response.ok).toBe(false);

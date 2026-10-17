@@ -27,7 +27,7 @@ export function ParentMessageThread({ portalToken, studentId }: Props) {
   useEffect(() => {
     if (!studentId) return;
     if (portalToken) {
-      portalRequest(portalToken).then(data => setMessages(data.messages)).finally(() => setLoading(false));
+      portalRequest(portalToken).then(data => setMessages(data.messages)).catch(() => setMessages([])).finally(() => setLoading(false));
       return;
     }
     cloudSupabase
