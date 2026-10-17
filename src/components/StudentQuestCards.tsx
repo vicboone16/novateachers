@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 /**
  * StudentQuestCards — Advanced quest cards with progress bars, completion state.
  * Shows quests from student_quests table.
@@ -32,6 +33,7 @@ const QUEST_TYPE_CONFIG: Record<string, { icon: any; color: string; label: strin
 };
 
 interface Props {
+  portalToken?: string;
   studentId: string;
   agencyId?: string;
   groupId?: string;
@@ -39,11 +41,15 @@ interface Props {
   className?: string;
 }
 
-export function StudentQuestCards({ studentId, agencyId, groupId, compact = false, className }: Props) {
+export function StudentQuestCards({ portalToken, studentId, agencyId, groupId, compact = false, className }: Props) {
   const [quests, setQuests] = useState<StudentQuest[]>([]);
 
   useEffect(() => {
     if (!studentId) return;
+    if (portalToken) {
+      portalRequest(portalToken).then(data => setQuests(data.quests)).catch(() => setQuests([]));
+      return;
+    }
     let query = cloudSupabase
       .from('student_quests')
       .select('*')
@@ -53,7 +59,7 @@ export function StudentQuestCards({ studentId, agencyId, groupId, compact = fals
       .order('created_at', { ascending: false })
       .limit(10);
     query.then(({ data }) => setQuests((data || []) as any[]));
-  }, [studentId]);
+  }, [studentId, portalToken]);
 
   if (quests.length === 0) return null;
 

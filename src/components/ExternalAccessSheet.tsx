@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { staffPortalLinks } from '@/lib/portal-access';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -90,11 +90,7 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
     setLoading(true);
     try {
       const [parentRes, accountRes] = await Promise.all([
-        cloudSupabase
-          .from('parent_access_links')
-          .select('*')
-          .eq('student_id', studentId)
-          .order('created_at', { ascending: false }),
+        staffPortalLinks({ action: 'list', studentId, agencyId }).then(data => ({ data: data.links })),
         supabase
           .from('student_portal_accounts' as any)
           .select('id')
@@ -140,7 +136,7 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
       setLinks([]);
     }
     setLoading(false);
-  }, [studentId, user?.id]);
+  }, [studentId, agencyId, user?.id]);
 
   useEffect(() => {
     if (open) loadLinks();
@@ -156,26 +152,7 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
     try {
       const expiry = linkType === 'parent' ? parentExpiry : studentExpiry;
       if (linkType === 'parent') {
-        if (deactivateExisting) {
-          const { error: deactivateError } = await cloudSupabase
-            .from('parent_access_links')
-            .update({ is_active: false })
-            .eq('student_id', studentId)
-            .eq('is_active', true);
-          if (deactivateError) throw deactivateError;
-        }
-
-        const { error } = await cloudSupabase
-          .from('parent_access_links')
-          .insert({
-            student_id: studentId,
-            agency_id: agencyId,
-            created_by: user.id,
-            token: generateAccessToken(),
-            expires_at: getExpirationDate(expiry),
-            is_active: true,
-          });
-        if (error) throw error;
+        await staffPortalLinks({ action: 'create', studentId, agencyId, expiry, replace: deactivateExisting });
       } else {
         const safeStudentName = getStudentDisplayName({
           id: studentId,
@@ -252,10 +229,7 @@ export function ExternalAccessSheet({ open, onOpenChange, studentId, studentName
    const deactivateLink = async (link: ExternalLink) => {
     try {
       const error = link.link_type === 'parent'
-        ? (await cloudSupabase
-            .from('parent_access_links')
-            .update({ is_active: false })
-            .eq('id', link.id)).error
+        ? (await staffPortalLinks({ action: 'revoke', studentId, agencyId, linkId: link.id }), null)
         : (await supabase
             .from('student_portal_tokens' as any)
             .update({ is_active: false } as any)

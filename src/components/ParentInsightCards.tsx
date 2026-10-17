@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 /**
  * ParentInsightCards — Displays parent-friendly insight cards for a student.
  * Types: win, pattern, concern, home_note, teacher_note
@@ -30,17 +31,22 @@ const INSIGHT_CONFIG: Record<string, { icon: any; color: string; label: string }
 };
 
 interface Props {
+  portalToken?: string;
   studentId: string;
   agencyId: string;
   maxItems?: number;
   className?: string;
 }
 
-export function ParentInsightCards({ studentId, agencyId, maxItems = 5, className }: Props) {
+export function ParentInsightCards({ portalToken, studentId, agencyId, maxItems = 5, className }: Props) {
   const [insights, setInsights] = useState<ParentInsight[]>([]);
 
   useEffect(() => {
     if (!studentId) return;
+    if (portalToken) {
+      portalRequest(portalToken).then(data => setInsights(data.insights.slice(0, maxItems))).catch(() => setInsights([]));
+      return;
+    }
     cloudSupabase
       .from('parent_insights')
       .select('*')
@@ -48,7 +54,7 @@ export function ParentInsightCards({ studentId, agencyId, maxItems = 5, classNam
       .order('created_at', { ascending: false })
       .limit(maxItems)
       .then(({ data }) => setInsights((data || []) as any[]));
-  }, [studentId, maxItems]);
+  }, [studentId, maxItems, portalToken]);
 
   if (insights.length === 0) return null;
 
