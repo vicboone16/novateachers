@@ -1,6 +1,11 @@
 # Roadmap
 
-## Security — database access rules (blocked)
+## Security — verified staff and portal access (in progress)
+
+- Implement a server-verified Core staff access path without changing classroom sign-in.
+- Validate public portal links server-side; constrain every read/message to the link's student and agency.
+- Apply targeted table restrictions only after replacement access paths are available.
+- Test invalid/expired/revoked links, forged ownership and agency boundaries; update only selected findings.
 
 Requested fixes for the following scanner findings, all of which need database
 access-rule (RLS / function / view) changes:
