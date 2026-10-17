@@ -5,7 +5,7 @@
 - [x] Add Core-verified staff path for parent-link management without changing classroom sign-in.
 - [x] Validate both parent portal routes server-side; constrain every read/message to the link's student and agency.
 - [x] Restrict parent_access_links credentials to service-role after replacement paths are deployed.
-- [x] Test guest message end-to-end, invalid credentials, forged ownership, and cross-agency links.
+- [x] Test guest message end-to-end, invalid credentials, forged ownership, expired/revoked links, and cross-agency links; temporary fixtures removed.
 - [ ] Authenticated path: UNVERIFIED — no Cloud auth users/session available; external Core authenticated classroom testing cannot be supplied by managed auth-session.
 - [ ] Migrate remaining staff-facing data consumers before locking shared clinical/reinforcement/message/classroom tables.
 - [ ] Student portal credential restrictions require external Core database access; student token/account tables are absent from Cloud.
@@ -44,6 +44,17 @@ no anonymous/authenticated execution privileges on the eight definer routines.
 Cloud has no auth users, so authenticated staff end-to-end checks cannot be
 performed with a managed Cloud session. The currently persisted scan no longer
 lists the selected legacy IDs as active; no unselected scan IDs were changed.
+
+**This pass:** 18 focused tests pass. Both parent routes reject invalid links.
+A valid isolated guest link loaded its scoped data, submitted a message, and
+read that message back in the UI; stored owner was NULL and agency/student IDs
+matched the link. Invalid bearer message requests returned 401 and supplied
+owner IDs returned 400. Expired/revoked and cross-agency links returned 403.
+Direct anonymous parent-token enumeration returns 42501. Only
+`parent_token_enumerable` and `parent_access_links_anon_enumerable` were submitted
+to manage_security_finding; both IDs are already inactive, so no scan entries
+were changed. Shared downstream tables remain open until all staff consumers
+have verified replacement paths; this pass is not a full database lockdown.
 
 **Pending deploy (outside the currently selected database-only findings).**
 Earlier edge-function security changes are saved but deployment has not been
