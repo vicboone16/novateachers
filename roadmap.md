@@ -22,13 +22,20 @@ function execution privileges are restricted to service_role, all public views
 use security_invoker, all public functions have a fixed search_path, and
 help_interactions has RLS enabled with server-only access.
 
-**Blocker 2 — identity architecture.** Staff sign in against the external Nova
+**Remaining blocker — identity architecture.** Staff sign in against the external Nova
 Core project, so this database sees the app as the `anon` role and `auth.uid()`
 is null. Agency-scoped policies keyed on `auth.uid()` would lock the whole app
-out. Needs a decision: full lockdown (requires bridging Core sessions into this
-database first), targeted lockdown of identity-independent tables (portal
-tokens, invite codes, emergency contacts, IEP documents, audit/help logs), or
-defer.
+out. Remaining staff-facing table lockdowns require a verified Core-to-Cloud
+identity or server-authorized data path first. Public portal links require
+server-side token validation before anonymous table access can be removed.
+`rls_core_tables` requires access to the external Core project's database.
+
+**Verification:** Live catalog confirms zero public tables without RLS, zero
+mutable public function search paths, zero security-definer public views, and
+no anonymous/authenticated execution privileges on the eight definer routines.
+Cloud has no auth users, so authenticated staff end-to-end checks cannot be
+performed with a managed Cloud session. The currently persisted scan no longer
+lists the selected legacy IDs as active; no unselected scan IDs were changed.
 
 **Pending deploy (outside the currently selected database-only findings).**
 Earlier edge-function security changes are saved but deployment has not been
