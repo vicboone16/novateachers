@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 import { useState } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -13,12 +14,13 @@ const REPLIES = [
 ];
 
 interface Props {
+  portalToken?: string;
   studentId: string;
   agencyId: string;
   parentName?: string;
 }
 
-export function QuickReplyButtons({ studentId, agencyId, parentName }: Props) {
+export function QuickReplyButtons({ portalToken, studentId, agencyId, parentName }: Props) {
   const { toast } = useToast();
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState<string | null>(null);
@@ -26,6 +28,9 @@ export function QuickReplyButtons({ studentId, agencyId, parentName }: Props) {
   const handleSend = async (type: string, label: string) => {
     setSending(type);
     try {
+      if (portalToken) {
+        await portalRequest(portalToken, { action: 'message', actionType: type, message: label, parentName: parentName || 'Parent' });
+      } else {
       const { error } = await cloudSupabase.from('parent_actions').insert({
         student_id: studentId,
         agency_id: agencyId,
@@ -34,6 +39,7 @@ export function QuickReplyButtons({ studentId, agencyId, parentName }: Props) {
         parent_name: parentName || 'Parent',
       });
       if (error) throw error;
+      }
       setSent(prev => new Set(prev).add(type));
       toast({ title: '✨ Sent!', description: 'Your teacher will see this.' });
     } catch (err: any) {

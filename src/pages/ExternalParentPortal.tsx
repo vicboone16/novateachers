@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { portalRequest } from '@/lib/portal-access';
 import { ParentHeaderCard } from '@/components/parent-link/ParentHeaderCard';
 import { ProgressSnapshotCard } from '@/components/parent-link/ProgressSnapshotCard';
 import { TeacherUpdateCard } from '@/components/parent-link/TeacherUpdateCard';
@@ -23,6 +23,7 @@ interface PortalData {
   pointsBalance: number;
   rewards: { name: string; emoji: string; cost: number }[];
   feedPosts: { id: string; body: string; title: string | null; created_at: string }[];
+  insights: any[]; messages: any[];
 }
 
 export default function ExternalParentPortal() {
@@ -37,71 +38,7 @@ export default function ExternalParentPortal() {
     setLoading(true);
     setError(null);
     try {
-      const { data: linkData, error: linkErr } = await cloudSupabase
-        .from('parent_access_links' as any)
-        .select('*')
-        .eq('token', t)
-        .eq('is_active', true)
-        .maybeSingle();
-      if (linkErr) throw linkErr;
-      if (!linkData) { setError('This link is no longer active or has expired.'); setLoading(false); return; }
-
-      const link = linkData as any;
-      if (link.expires_at && new Date(link.expires_at) < new Date()) {
-        setError('This link has expired. Ask your teacher for a new one.');
-        setLoading(false);
-        return;
-      }
-
-      const studentId = link.student_id;
-
-      // Update last_used_at (fire-and-forget)
-      cloudSupabase.from('parent_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
-
-      // Parallel data loading
-      const [nameRes, profileRes, ledgerRes, rewardsRes, feedRes] = await Promise.allSettled([
-        cloudSupabase.from('classroom_group_students').select('first_name, last_name').eq('client_id', studentId).limit(1),
-        cloudSupabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle(),
-        cloudSupabase.from('beacon_points_ledger').select('points').eq('student_id', studentId),
-        cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, image_url, cost, emoji').order('cost', { ascending: true }).limit(6),
-        (async () => {
-          const { data: groupData } = await cloudSupabase.from('classroom_group_students').select('group_id').eq('client_id', studentId).limit(1);
-          const groupId = groupData?.[0]?.group_id;
-          if (!groupId) return { data: [] };
-          return cloudSupabase.from('classroom_feed_posts')
-            .select('id, body, title, created_at')
-            .eq('group_id', groupId)
-            .in('post_type', ['celebration', 'announcement', 'positive'])
-            .order('created_at', { ascending: false })
-            .limit(5);
-        })(),
-      ]);
-
-      // Resolve student name
-      let studentName = 'Your Child';
-      if (nameRes.status === 'fulfilled' && nameRes.value.data?.[0]) {
-        const c = nameRes.value.data[0] as any;
-        studentName = `${c.first_name || ''} ${(c.last_name || '')[0] || ''}`.trim() || 'Your Child';
-      }
-
-      let avatarEmoji = '👤';
-      if (profileRes.status === 'fulfilled' && profileRes.value.data) {
-        avatarEmoji = (profileRes.value.data as any).avatar_emoji || '👤';
-      }
-
-      const pointsBalance = ledgerRes.status === 'fulfilled'
-        ? (ledgerRes.value.data || []).reduce((s: number, r: any) => s + r.points, 0)
-        : 0;
-
-      const rewards = rewardsRes.status === 'fulfilled'
-        ? (rewardsRes.value.data || []).map((r: any) => ({ name: r.name, emoji: r.emoji || r.image_url || '🎁', cost: r.cost }))
-        : [];
-
-      const feedPosts = feedRes.status === 'fulfilled'
-        ? ((feedRes.value as any).data || [])
-        : [];
-
-      setData({ studentId, agencyId: link.agency_id || '', studentName, avatarEmoji, pointsBalance, rewards, feedPosts });
+      setData(await portalRequest(t));
       setLoadedAt(new Date());
     } catch (err: any) {
       setError(err.message || 'Could not load portal.');
@@ -154,16 +91,17 @@ export default function ExternalParentPortal() {
         <TeacherUpdateCard posts={data.feedPosts} />
 
         {/* 4. Quick Reply Buttons */}
-        <QuickReplyButtons studentId={data.studentId} agencyId={data.agencyId} parentName={`${data.studentName}'s Parent`} />
+        <QuickReplyButtons portalToken={token} studentId={data.studentId} agencyId={data.agencyId} parentName={`${data.studentName}'s Parent`} />
 
         {/* Parent Insights */}
-        <ParentInsightCards studentId={data.studentId} agencyId={data.agencyId} />
+        <ParentInsightCards portalToken={token} studentId={data.studentId} agencyId={data.agencyId} />
 
         {/* 5. Message Thread */}
-        <ParentMessageThread key={threadKey} studentId={data.studentId} />
+        <ParentMessageThread portalToken={token} key={threadKey} studentId={data.studentId} />
 
         {/* 6. Message Input */}
         <MessageComposer
+          portalToken={token}
           studentId={data.studentId}
           agencyId={data.agencyId}
           parentName={`${data.studentName}'s Parent`}

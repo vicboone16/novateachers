@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 import { useEffect, useRef, useState } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { MessageSquare } from 'lucide-react';
@@ -14,16 +15,21 @@ interface Message {
 }
 
 interface Props {
+  portalToken?: string;
   studentId: string;
 }
 
-export function ParentMessageThread({ studentId }: Props) {
+export function ParentMessageThread({ portalToken, studentId }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!studentId) return;
+    if (portalToken) {
+      portalRequest(portalToken).then(data => setMessages(data.messages)).finally(() => setLoading(false));
+      return;
+    }
     cloudSupabase
       .from('parent_actions')
       .select('id, action_type, message, parent_name, staff_reply, staff_reply_at, created_at')
@@ -35,7 +41,7 @@ export function ParentMessageThread({ studentId }: Props) {
         setLoading(false);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       });
-  }, [studentId]);
+  }, [studentId, portalToken]);
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);

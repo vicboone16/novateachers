@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
+import { portalRequest } from '@/lib/portal-access';
 import { supabase } from '@/lib/supabase';
 import { ParentInsightCards } from '@/components/ParentInsightCards';
 import { ParentActionButtons } from '@/components/ParentActionButtons';
@@ -43,53 +43,7 @@ export default function ParentView() {
     setLoading(true);
     setError(null);
     try {
-      // Validate token
-      const { data: linkData } = await cloudSupabase
-        .from('parent_access_links')
-        .select('*')
-        .eq('token', t)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (!linkData) { setError('This link is no longer active or has expired.'); setLoading(false); return; }
-      const link = linkData as any;
-      if (link.expires_at && new Date(link.expires_at) < new Date()) {
-        setError('This link has expired. Ask the teacher for a new one.'); setLoading(false); return;
-      }
-
-      const studentId = link.student_id;
-      const agencyId = link.agency_id;
-
-      // Update last_used_at
-      cloudSupabase.from('parent_access_links').update({ last_used_at: new Date().toISOString() }).eq('id', link.id);
-
-      // Load student info
-      let studentName = 'Your Child';
-      let avatarEmoji = '👤';
-      try {
-        const { data: client } = await supabase.from('clients' as any).select('first_name, last_name').eq('id', studentId).maybeSingle();
-        if (client) studentName = `${(client as any).first_name || ''} ${((client as any).last_name || '')[0] || ''}`.trim();
-      } catch {}
-      try {
-        const { data: profile } = await supabase.from('student_game_profiles' as any).select('avatar_emoji').eq('student_id', studentId).maybeSingle();
-        if (profile) avatarEmoji = (profile as any).avatar_emoji || '👤';
-      } catch {}
-
-      // Points
-      let pointsBalance = 0;
-      try {
-        const { data: ledger } = await cloudSupabase.from('beacon_points_ledger').select('points').eq('student_id', studentId);
-        pointsBalance = (ledger || []).reduce((s, r) => s + r.points, 0);
-      } catch {}
-
-      // Rewards
-      let rewards: StudentData['rewards'] = [];
-      try {
-        const { data: rws } = await cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, emoji, cost').order('cost').limit(4);
-        rewards = (rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost }));
-      } catch {}
-
-      setData({ studentId, agencyId, studentName, avatarEmoji, pointsBalance, rewards });
+      setData(await portalRequest(t));
     } catch (err: any) {
       setError(err.message || 'Could not load.');
     }
@@ -125,7 +79,7 @@ export default function ParentView() {
         </div>
 
         {/* Journey Narrative */}
-        <StudentNarrativeCard studentId={data.studentId} agencyId={data.agencyId} variant="parent" />
+        <StudentNarrativeCard portalToken={token} studentId={data.studentId} agencyId={data.agencyId} variant="parent" />
 
         {/* Points */}
         <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
@@ -137,7 +91,7 @@ export default function ParentView() {
         </Card>
 
         {/* Parent Insights */}
-        <ParentInsightCards studentId={data.studentId} agencyId={data.agencyId} />
+        <ParentInsightCards portalToken={token} studentId={data.studentId} agencyId={data.agencyId} />
 
         {/* Rewards Progress */}
         {data.rewards.length > 0 && (
@@ -171,10 +125,11 @@ export default function ParentView() {
         )}
 
         {/* Quests */}
-        <StudentQuestCards studentId={data.studentId} agencyId={data.agencyId} />
+        <StudentQuestCards portalToken={token} studentId={data.studentId} agencyId={data.agencyId} />
 
         {/* Parent Actions */}
         <ParentActionButtons
+          portalToken={token}
           studentId={data.studentId}
           agencyId={data.agencyId}
           parentName="Parent"

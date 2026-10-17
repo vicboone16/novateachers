@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 /**
  * ParentActionButtons — Quick parent engagement actions.
  * Actions: praise_at_home, noticed_too, ask_question, home_followup
@@ -20,6 +21,7 @@ const ACTIONS = [
 ];
 
 interface Props {
+  portalToken?: string;
   studentId: string;
   agencyId: string;
   parentName?: string;
@@ -27,7 +29,7 @@ interface Props {
   className?: string;
 }
 
-export function ParentActionButtons({ studentId, agencyId, parentName, parentUserId, className }: Props) {
+export function ParentActionButtons({ portalToken, studentId, agencyId, parentName, parentUserId, className }: Props) {
   const { toast } = useToast();
   const [activeAction, setActiveAction] = useState<typeof ACTIONS[0] | null>(null);
   const [message, setMessage] = useState('');
@@ -38,6 +40,13 @@ export function ParentActionButtons({ studentId, agencyId, parentName, parentUse
     if (!activeAction) return;
     setSubmitting(true);
     try {
+      if (portalToken) {
+        await portalRequest(portalToken, { action: 'message', actionType: activeAction.type, message: message.trim(), parentName: parentName || 'Parent' });
+        setRecentlySubmitted(prev => new Set(prev).add(activeAction.type));
+        toast({ title: 'Sent!', description: 'Your teacher will see this.' });
+        setActiveAction(null); setMessage(''); setSubmitting(false);
+        return;
+      }
       const { error } = await cloudSupabase.from('parent_actions').insert({
         student_id: studentId,
         agency_id: agencyId,

@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 /**
  * StudentNarrativeCard — Displays AI-generated daily narrative for a student.
  * Shows on student portal and parent view.
@@ -10,13 +11,14 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface Props {
+  portalToken?: string;
   studentId: string;
   agencyId?: string;
   variant?: 'student' | 'parent' | 'teacher';
   className?: string;
 }
 
-export function StudentNarrativeCard({ studentId, agencyId, variant = 'student', className }: Props) {
+export function StudentNarrativeCard({ portalToken, studentId, agencyId, variant = 'student', className }: Props) {
   const [narrative, setNarrative] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [affirmation, setAffirmation] = useState<string | null>(null);
@@ -24,10 +26,15 @@ export function StudentNarrativeCard({ studentId, agencyId, variant = 'student',
   useEffect(() => {
     if (!studentId) return;
     loadNarrative();
-  }, [studentId]);
+  }, [studentId, portalToken]);
 
   const loadNarrative = async () => {
     try {
+      if (portalToken) {
+        const data = await portalRequest(portalToken);
+        setNarrative(data.narrative);
+        return;
+      }
       // Load from student_game_profiles.daily_narrative
       const { data } = await cloudSupabase
         .from('student_game_profiles')

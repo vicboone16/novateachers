@@ -1,3 +1,4 @@
+import { portalRequest } from '@/lib/portal-access';
 import { useState } from 'react';
 import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,13 +7,14 @@ import { Send, Loader2, CheckCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
+  portalToken?: string;
   studentId: string;
   agencyId: string;
   parentName?: string;
   onSent?: () => void;
 }
 
-export function MessageComposer({ studentId, agencyId, parentName, onSent }: Props) {
+export function MessageComposer({ portalToken, studentId, agencyId, parentName, onSent }: Props) {
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [delivered, setDelivered] = useState(false);
@@ -23,6 +25,9 @@ export function MessageComposer({ studentId, agencyId, parentName, onSent }: Pro
     setSending(true);
     setDelivered(false);
     try {
+      if (portalToken) {
+        await portalRequest(portalToken, { action: 'message', actionType: 'message', message: body.trim(), parentName: parentName || 'Parent' });
+      } else {
       const { error } = await cloudSupabase.from('parent_actions').insert({
         student_id: studentId,
         agency_id: agencyId,
@@ -31,6 +36,7 @@ export function MessageComposer({ studentId, agencyId, parentName, onSent }: Pro
         parent_name: parentName || 'Parent',
       });
       if (error) throw error;
+      }
       setBody('');
       setDelivered(true);
       setTimeout(() => setDelivered(false), 5000);
