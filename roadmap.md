@@ -58,9 +58,21 @@ to manage_security_finding; both IDs are already inactive, so no scan entries
 were changed. Shared downstream tables remain open until all staff consumers
 have verified replacement paths; this pass is not a full database lockdown.
 
-**Pending deploy (outside the currently selected database-only findings).**
-Earlier edge-function security changes are saved but deployment has not been
-verified: `core-bridge`,
-`resolve-display-names`, `guest-collect-data`, `pingram-webhook`,
-`send-parent-snapshot`, `generate-student-narrative`, `sync-student-names`,
-`generate-parent-insight`, `classroom-ai-insights`.
+**Deployed and verified live.** `core-bridge`, `resolve-display-names`,
+`guest-collect-data`, `pingram-webhook`, `send-parent-snapshot`,
+`generate-student-narrative`, `sync-student-names`, `generate-parent-insight`,
+`classroom-ai-insights` are deployed; live tests confirm 401 with no token, 401
+with a forged bearer, 403 on the webhook without its signature, and 403 on an
+invalid guest code (which is also server-scoped to its classroom group).
+19 tests pass.
+
+**Session availability (checked 2026-11-10).** Cloud has no auth users to mint a
+session for, and the external Nova Core host does not resolve from this sandbox
+(DNS failure), so no signed-in staff session can be obtained or tested here.
+Classroom table lockdowns (abc_logs, thread_messages, iep_documents,
+mayday_contacts, invite_codes, guest tables, admin_audit_log, classroom_groups,
+student_parent_links, reinforcement_ai_recommendations) stay open: each
+classroom screen still reads those tables directly from the browser, and
+rerouting them behind verified agency-scoped server checks cannot be tested
+without a real staff sign-in. Per instruction, these findings remain open until
+classroom access is verified end-to-end with a Core session.
