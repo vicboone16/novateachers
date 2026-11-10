@@ -5,8 +5,6 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { supabase as cloudSupabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -33,47 +31,15 @@ export default function ExternalStudentPortal() {
   const loadPortal = async (t: string) => {
     setLoading(true); setError(null);
     try {
-      const { data: linkData } = await supabase
-        .from('external_access_links' as any)
-        .select('*').eq('token', t).eq('link_type', 'student').eq('is_active', true).maybeSingle();
-      if (!linkData) { setError('This link is no longer active.'); setLoading(false); return; }
-      const link = linkData as any;
-      if (link.expires_at && new Date(link.expires_at) < new Date()) {
-        setError('This link has expired.'); setLoading(false); return;
-      }
-      const sid = link.student_id;
-
-      // Update last used
-      supabase.from('external_access_links' as any).update({ last_used_at: new Date().toISOString() }).eq('id', link.id).then(() => {});
-
-      // Name + avatar + display_name_override
-      try {
-        const { data: p } = await cloudSupabase.from('student_game_profiles').select('avatar_emoji, display_name_override').eq('student_id', sid).maybeSingle();
-        if (p) {
-          setAvatarEmoji((p as any).avatar_emoji || '👤');
-          if ((p as any).display_name_override) { setStudentName((p as any).display_name_override); }
-        }
-      } catch {}
-      if (!studentName) {
-        try {
-          const { data: c } = await supabase.from('clients' as any).select('first_name').eq('id', sid).maybeSingle();
-          if (c) setStudentName((c as any).first_name || '');
-        } catch {}
-      }
-
-      // Balance
-      try {
-        const { data: ledger } = await cloudSupabase.from('beacon_points_ledger').select('points').eq('student_id', sid);
-        setBalance((ledger || []).reduce((s, r) => s + r.points, 0));
-      } catch {}
-
-      // Rewards
-      try {
-        const { data: rws } = await cloudSupabase.from('v_beacon_rewards_by_classroom' as any).select('name, emoji, cost').order('cost', { ascending: true }).limit(4);
-        setRewards((rws || []).map((r: any) => ({ name: r.name, emoji: r.emoji || '🎁', cost: r.cost })));
-      } catch {}
+      // Token validation and all reads run server-side; this page never queries token tables.
+      const { studentPortalRequest } = await import('@/lib/portal-access');
+      const data = await studentPortalRequest(t);
+      setStudentName(data.displayName || 'Student');
+      setAvatarEmoji(data.avatarEmoji || '👤');
+      setBalance(data.pointsBalance);
+      setRewards((data.rewards || []).slice(0, 4));
     } catch (err: any) {
-      setError(err.message || 'Could not load.');
+      setError(err?.message === 'This link has expired' ? 'This link has expired.' : 'This link is no longer active.');
     }
     setLoading(false);
   };

@@ -22,6 +22,13 @@
       "when": 1792262623513,
       "tag": "0002_protect_parent_link_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794338953033,
+      "tag": "0003_harden_help_interactions_and_function_paths",
+      "breakpoints": true
     }
   ]
 }

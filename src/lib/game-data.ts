@@ -230,29 +230,12 @@ export async function validateStudentPortalAccess(code: string): Promise<{
   studentId?: string;
   accountId?: string;
 }> {
-  const { data: loginCode } = await cloudSupabase
-    .from('student_login_codes' as any)
-    .select('student_id')
-    .eq('login_code', code)
-    .eq('is_active', true)
-    .gte('expires_at', new Date().toISOString())
-    .maybeSingle();
-
-  if (loginCode) {
-    return { valid: true, studentId: (loginCode as any).student_id };
+  // Token and code checks run server-side so browsers never read credential tables.
+  try {
+    const { studentPortalRequest } = await import('@/lib/portal-access');
+    const data = await studentPortalRequest(code);
+    return { valid: true, studentId: data.studentId };
+  } catch {
+    return { valid: false };
   }
-
-  const { data: token } = await cloudSupabase
-    .from('student_portal_tokens' as any)
-    .select('account_id')
-    .eq('token', code)
-    .eq('is_active', true)
-    .gte('expires_at', new Date().toISOString())
-    .maybeSingle();
-
-  if (token) {
-    return { valid: true, accountId: (token as any).account_id };
-  }
-
-  return { valid: false };
 }

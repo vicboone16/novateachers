@@ -19,6 +19,18 @@ export async function portalRequest<T = PortalData>(token: string, values: Recor
   return data as T;
 }
 
+export interface StudentPortalData {
+  studentId: string; agencyId: string | null; displayName: string; avatarEmoji: string;
+  pointsBalance: number; currentLevel: number; currentXp: number;
+  rewards: { name: string; emoji: string; cost: number }[];
+  goals: { id: string; reward_name: string; reward_emoji: string; target_points: number; current_points: number; progress_pct: number }[];
+}
+
+/** Server-verified student token/code lookup; browsers never read token tables. */
+export async function studentPortalRequest(token: string): Promise<StudentPortalData> {
+  return portalRequest<StudentPortalData>(token, { portalType: 'student' });
+}
+
 export async function staffPortalLinks(values: Record<string, unknown>) {
   const { data, error } = await invokeCloudFunction('portal-links', values);
   if (error) throw error;
