@@ -8,7 +8,9 @@
 - [x] Test guest message end-to-end, invalid credentials, forged ownership, expired/revoked links, and cross-agency links; temporary fixtures removed.
 - [ ] Authenticated path: UNVERIFIED — no Cloud auth users/session available; external Core authenticated classroom testing cannot be supplied by managed auth-session.
 - [ ] Migrate remaining staff-facing data consumers before locking shared clinical/reinforcement/message/classroom tables.
-- [ ] Student portal credential restrictions require external Core database access; student token/account tables are absent from Cloud.
+- [x] Student portal reads (StudentPortal, StudentPortalEnhanced, ExternalStudentPortal, game-data) route through the portal-access student branch; browsers no longer query student_portal_tokens, student_portal_accounts, external_access_links, or student_login_codes. Invalid-token and forged-field rejection verified live; valid-token happy path UNVERIFIED (no Core session; sandbox cannot reach the Core host).
+- [ ] Student link management (ExternalAccessSheet create/revoke) still writes Core token tables directly from the browser; needs a Core staff session to test a server-side replacement.
+- [ ] External Core database access from the sandbox is blocked (host unreachable, http 000); Core table schemas and RLS can only be exercised through deployed backend functions or a real staff browser session.
 
 Requested fixes for the following scanner findings, all of which need database
 access-rule (RLS / function / view) changes:
