@@ -90,42 +90,16 @@ export default function StudentPortal() {
   const loadPortal = async (t: string) => {
     setLoading(true);
     try {
-      // 1) Validate token
-      const { data: tokenData, error: tokenErr } = await supabase
-        .from('student_portal_tokens' as any)
-        .select('account_id, expires_at, is_active')
-        .eq('token', t)
-        .maybeSingle();
-
-      if (tokenErr || !tokenData) { setError('Invalid or expired link'); setLoading(false); return; }
-      const td = tokenData as any;
-      if (!td.is_active || new Date(td.expires_at) < new Date()) {
-        setError('This link has expired'); setLoading(false); return;
-      }
-
-      // 2) Load account
-      const { data: acct } = await supabase
-        .from('student_portal_accounts' as any)
-        .select('id, student_id, display_name, avatar_emoji')
-        .eq('id', td.account_id)
-        .maybeSingle();
-      if (!acct) { setError('Account not found'); setLoading(false); return; }
-      setAccount(acct as any);
-
-      const studentId = (acct as any).student_id;
-      studentIdRef.current = studentId;
-
-      // 3) Load balance from view (single row, not all ledger entries)
-      await refreshBalance(studentId);
-
-      // 4) Load reward goals
-      const { data: goalData } = await supabase
-        .from('v_student_reward_progress' as any)
-        .select('*')
-        .eq('student_id', studentId);
-      setGoals((goalData || []) as any[]);
-    } catch {
-      setError('Something went wrong');
+      // Token validation and account resolution run server-side.
+      const { studentPortalRequest } = await import('@/lib/portal-access');
+      const data = await studentPortalRequest(t);
+      setAccount({ id: data.studentId, student_id: data.studentId, display_name: data.displayName, avatar_emoji: data.avatarEmoji });
+      studentIdRef.current = data.studentId;
+      setBalance(data.pointsBalance);
+      setGoals(data.goals || []);
+      await refreshBalance(data.studentId);
+    } catch (e: any) {
+      setError(e?.message === 'This link has expired' ? 'This link has expired' : 'Invalid or expired link');
     }
     setLoading(false);
   };

@@ -88,26 +88,20 @@ export default function StudentPortalEnhanced() {
   const loadPortalByToken = async (t: string) => {
     setLoading(true);
     try {
-      const { data: tokenData } = await supabase.from('student_portal_tokens' as any).select('account_id, expires_at, is_active').eq('token', t).maybeSingle();
-      if (tokenData) {
-        const td = tokenData as any;
-        if (!td.is_active || new Date(td.expires_at) < new Date()) { setError('This link has expired'); setLoading(false); return; }
-        const { data: acct } = await supabase.from('student_portal_accounts' as any).select('id, student_id, display_name, avatar_emoji').eq('id', td.account_id).maybeSingle();
-        if (acct) {
-          const a = acct as any;
-          const safeAccountName = getStudentDisplayName({
-            id: a.student_id,
-            client_id: a.student_id,
-            name: a.display_name,
-          });
-          setStudentId(a.student_id); setDisplayName(safeAccountName || 'Player'); setAvatarEmoji(a.avatar_emoji || '👤');
-          await loadStudentData(a.student_id, safeAccountName); setLoading(false); return;
-        }
-      }
-      const result = await validateStudentPortalAccess(t);
-      if (result.valid && result.studentId) { setStudentId(result.studentId); await loadStudentData(result.studentId); }
-      else { setError('Invalid or expired link'); }
-    } catch { setError('Something went wrong'); }
+      // Token validation and account resolution run server-side.
+      const { studentPortalRequest } = await import('@/lib/portal-access');
+      const data = await studentPortalRequest(t);
+      const safeAccountName = getStudentDisplayName({
+        id: data.studentId,
+        client_id: data.studentId,
+        name: data.displayName,
+      });
+      setStudentId(data.studentId); setDisplayName(safeAccountName || 'Player'); setAvatarEmoji(data.avatarEmoji || '👤');
+      setBalance(data.pointsBalance); setCurrentLevel(data.currentLevel || 1); setCurrentXp(data.currentXp || 0);
+      await loadStudentData(data.studentId, safeAccountName);
+    } catch (e: any) {
+      setError(e?.message === 'This link has expired' ? 'This link has expired' : 'Invalid or expired link');
+    }
     setLoading(false);
   };
 
