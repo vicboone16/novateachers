@@ -76,3 +76,12 @@ classroom screen still reads those tables directly from the browser, and
 rerouting them behind verified agency-scoped server checks cannot be tested
 without a real staff sign-in. Per instruction, these findings remain open until
 classroom access is verified end-to-end with a Core session.
+
+## Blocker: Nova Core backend deleted (diagnosed 2026-11-10)
+- `yboqqmkghwhlhhnsegje.supabase.co` returns NXDOMAIN from public DNS (Cloudflare + Google DoH, Status 3) — the external Core project no longer exists. Control: Cloud backend resolves fine. Not a sandbox restriction; no app-side fix can restore it.
+- All connected apps (this project, Nova Student Connect, NovaTrack Behavior Pro) point at the same dead ref.
+- To restore staff sign-in, the user must supply a valid Core backend:
+  - frontend env: `VITE_CORE_SUPABASE_URL` + `VITE_CORE_SUPABASE_ANON_KEY` (.env)
+  - edge function secrets: `VITE_CORE_SUPABASE_URL`, `VITE_CORE_SUPABASE_ANON_KEY`, `CORE_SERVICE_ROLE_KEY`
+- If the Core project was only paused in Supabase, restoring it there revives the same ref and no config change is needed. If deleted, a new project's URL/keys must replace all five settings above, and Core-side RLS hardening findings stay open until then.
+- Selected security findings depending on Core access remain OPEN/unverified.
